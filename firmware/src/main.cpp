@@ -1,5 +1,11 @@
 #include <Arduino.h>
 
+#define MICROSTEP     1
+#define RPS           1
+uint32_t freq = (200 * RPS / MICROSTEP);
+uint32_t TIMER_RST_VAL = (1E6 / freq / 2);
+
+
 void setup()
 {
     PMC->PMC_PCER0 |= PMC_PCER0_PID12;                        // PIOB power ON
@@ -28,9 +34,6 @@ void setup()
 
     TC0->TC_CHANNEL[0].TC_CCR = TC_CCR_SWTRG | TC_CCR_CLKEN;  // Software trigger TC0 counter and enable
 }
-
-#define FREQ          1000
-#define TIMER_RST_VAL (1E6 / FREQ / 2)
 
 void TC0_Handler()
 {

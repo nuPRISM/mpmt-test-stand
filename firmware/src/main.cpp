@@ -1,13 +1,21 @@
 #include <Arduino.h>
 
 #define MICROSTEP     1
-#define RPS           1
-uint32_t freq = (200 * RPS / MICROSTEP);
-uint32_t TIMER_RST_VAL = (1E6 / freq / 2);
+#define CPS_MIN       1000
+#define CPS_ACCEL     4000
+#define CPS_MAX       8000
+
+uint32_t a = 1E6 * MICROSTEP;
+
+uint32_t cps = CPS_MIN;
+uint32_t freq = (cps / MICROSTEP);
+uint32_t TIMER_RST_VAL = (5E5 / freq);
+uint32_t TIMER_RST_ACCEL = 1E6 / CPS_ACCEL;
+
 
 
 void setup()
-{
+{   
     PMC->PMC_PCER0 |= PMC_PCER0_PID12;                        // PIOB power ON
     // PIOB->PIO_OER |= PIO_OER_P27;
     // PIOB->PIO_OWER |= PIO_OWER_P27;                           // Built In LED output write enable
@@ -20,6 +28,7 @@ void setup()
     PIOB->PIO_PDR |= PIO_PDR_P25;                             // The pin is no more driven by the GPIO
     PIOB->PIO_ABSR |= PIO_PB25B_TIOA0;                        // TIOA0 (pin 2) is PB25 peripheral type B
 
+    // configure a clock for stepper motor driver
     TC0->TC_CHANNEL[0].TC_CMR = TC_CMR_TCCLKS_TIMER_CLOCK1    // MCK/2, clk on rising edge
                               | TC_CMR_WAVE                   // Waveform mode
                               | TC_CMR_WAVSEL_UP_RC           // UP mode with automatic trigger on RC Compare
@@ -37,15 +46,24 @@ void setup()
 
 void TC0_Handler()
 {
-    static uint32_t Count = TIMER_RST_VAL;
+    static uint32_t count = TIMER_RST_VAL;
+    static uint32_t count_accel = TIMER_RST_ACCEL;
     TC0->TC_CHANNEL[0].TC_SR;                                 // Read and clear status register
-    Count--;
-    if (Count == 0) {
+    count--;
+    count_accel--;
+    if (count == 0) {
         // PIOB->PIO_ODSR ^= PIO_ODSR_P27;                       // Toggle LED with a 1 Hz frequency
         PIOC->PIO_ODSR ^= PIO_ODSR_P24;
-        Count = TIMER_RST_VAL;
+        count = TIMER_RST_VAL;
+    }
+    if (count_accel == 0 && cps < CPS_MAX && CPS_ACCEL != 0) {
+        cps++;
+        freq = (cps / MICROSTEP);
+        TIMER_RST_VAL = (5E5 / freq);
+        count_accel = TIMER_RST_ACCEL;
     }
 }
+
 
 void loop()
 {

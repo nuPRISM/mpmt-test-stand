@@ -16,13 +16,13 @@ class Thermistor_10k
         float logRTherm,RTherm, Tk, Tc;
 
         /**
-         * 
+         * Constructor to create a new thermistor object.
+         * @param pin - Arduino Due pin
          */
         Thermistor_10k(int pin);
 
         /**
          * Obtains analog thermistor reading and converts it to temperature in Celsius
-         * @param pin - Arduino Due pin
          * @return temperature in Celsius
          */
         float readTemperature();

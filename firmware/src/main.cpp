@@ -1,5 +1,5 @@
 #include <Arduino.h>
-
+static const int thermistor1Pin = 14; // A0
 void setup()
 {
     // put your setup code here, to run once:

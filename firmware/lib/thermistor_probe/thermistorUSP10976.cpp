@@ -6,12 +6,18 @@
 #include "thermistorUSP10976.h"
 
 /**
- * Obtains analog thermistor reading and converts it to temperature in Celsius
+ * 
  * @param pin - Arduino Due pin
+ */
+Thermistor_10k::Thermistor_10k(int pin){
+    this->thermistorPin = pin;
+}
+/**
+ * Obtains analog thermistor reading and converts it to temperature in Celsius
  * @return temperature in Celsius
  */
-float Thermistor_10k::readTemperature(int pin){
-    vLevel = analogRead(pin);
+float Thermistor_10k::readTemperature(){
+    vLevel = analogRead(thermistorPin);
     vTherm = vLevel * (vRef/resolutionLim);
     RTherm = seriesResistor / (vRef/vTherm - 1.0);
     logRTherm = log(RTherm);

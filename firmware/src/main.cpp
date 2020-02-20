@@ -12,8 +12,8 @@ void setup()
 void loop()
 {
     // put your main code here, to run repeatedly:
-    Thermistor_10k thermistor1;
-    float temp1 = thermistor1.readTemperature(thermistor1Pin);
+    Thermistor_10k thermistor1(thermistor1Pin);
+    float temp1 = thermistor1.readTemperature();
 
     Serial.print("Temperature 1: "); 
     Serial.print(temp1);

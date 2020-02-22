@@ -1,71 +1,197 @@
-#include <Arduino.h>
+#include "Arduino.h"
+#define DEBUG   1
+void debug() {
+    if (DEBUG) {Serial.begin(115200);}
+}
 
-#define MICROSTEP     1
-#define CPS_MIN       1000
-#define CPS_ACCEL     4000
-#define CPS_MAX       8000
+void print(String text, uint32_t val)
+{   
+    Serial.print("DEBUG     ");
+    Serial.print(text);
+    Serial.println(val);
+}
 
-uint32_t a = 1E6 * MICROSTEP;
+enum direction{positive, negative};
+enum status{pressed, depressed};
 
-uint32_t cps = CPS_MIN;
-uint32_t freq = (cps / MICROSTEP);
-uint32_t TIMER_RST_VAL = (5E5 / freq);
-uint32_t TIMER_RST_ACCEL = 1E6 / CPS_ACCEL;
+struct LimitSwitch
+{
+    int pin;
+    int status;
+};
+
+struct Encoder
+{
+    uint32_t pin;
+    volatile uint32_t current;
+    uint32_t desired;
+};
+
+struct Axis
+{
+    int dir_pin;
+    int step_pin;
+    int accel;
+    int vel_max;
+    struct Encoder encoder;
+    struct LimitSwitch ls_home;
+    struct LimitSwitch ls_far_from_home;
+};
+
+void start_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity)
+{
+    pmc_set_writeprotect(false);
+    pmc_enable_periph_clk((uint32_t)irq);
+    TC_Configure(tc, channel, TC_CMR_WAVE | TC_CMR_WAVSEL_UP_RC
+    |TC_CMR_TCCLKS_TIMER_CLOCK4);
+    uint32_t rc = VARIANT_MCK/128/velocity/2; // over 2 because need to toggle down
+    TC_SetRA(tc, channel, rc/2); //50% high, 50% low
+    TC_SetRC(tc, channel, rc);
+    TC_Start(tc, channel);
+    tc->TC_CHANNEL[channel].TC_IER=TC_IER_CPCS;
+    tc->TC_CHANNEL[channel].TC_IDR=~TC_IER_CPCS;
+    NVIC_EnableIRQ(irq);
+}
+
+void reset_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity)
+{   
+    NVIC_DisableIRQ(irq);
+    uint32_t rc = VARIANT_MCK/128/velocity/2; // over 2 because need to toggle down
+    TC_SetRA(tc, channel, rc/2); //50% high, 50% low
+    TC_SetRC(tc, channel, rc);
+    TC_Start(tc, channel);
+    tc->TC_CHANNEL[channel].TC_IER=TC_IER_CPCS;
+    tc->TC_CHANNEL[channel].TC_IDR=~TC_IER_CPCS;
+    NVIC_EnableIRQ(irq);
+}
+
+void accelerate(struct Axis *axis, uint32_t counts)
+{
+
+}
+
+void decelerate(struct Axis *axis, uint32_t counts)
+{
+
+}
+
+void constant_max_vel(struct Axis *axis, uint32_t counts)
+{   
+    axis->encoder.desired = axis->encoder.current + counts;
+    // print("Desired count: ", axis->encoder.desired);
+    // print("Current count: ", axis->encoder.current);
+    start_timer(TC1, 0, TC3_IRQn, axis->vel_max);
+}
 
 
+void axis_move_rel(struct Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
+{
+
+}
+
+void axis_move_abs(struct Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
+{
+
+}
+
+void axis_move(struct Axis *axis, direction direction) 
+{
+
+}
+
+void home_axis(struct Axis *axis)
+{   
+    // check if the limit switched is pressed at home
+    if (digitalRead(axis->ls_home.pin) == pressed) {
+        axis_move(axis, positive); // move until limit switch is depressed
+        // set this as zero position
+        axis->encoder.current = 0;
+        return;
+    }
+    else {
+        axis_move(axis, negative); // move until limit switch is pressed
+        axis_move(axis, positive); // move until limit switch is depressed
+        // set this as zero position
+        axis->encoder.current = 0;
+        return;
+    }
+}
+
+#define ACCEL_X             20000
+#define VEL_MAX_X           100
+#define STEP_PIN_X          5 // need to know the register for fast operation pin 5 - PC25 
+#define DIR_PIN_X           6 // need to know the register for fast operation pin 6 - PC24
+#define ENCODER_PIN_X       7
+#define LIMIT_SW_HOME_PIN   8
+#define LIMIT_SW_FAR_PIN    9
+
+struct Axis setup_axis_x()
+{  
+    // Set up the timer interrupt
+    // TC1 channel 0, the IRQ for that channel and the desired frequency
+    pinMode(ENCODER_PIN_X, INPUT);
+    struct Encoder encoder_x = {ENCODER_PIN_X, 0, 0};
+
+    pinMode(LIMIT_SW_HOME_PIN, INPUT_PULLUP);
+    struct LimitSwitch ls_home = {LIMIT_SW_HOME_PIN, digitalRead(LIMIT_SW_HOME_PIN)};
+
+    pinMode(LIMIT_SW_FAR_PIN, INPUT_PULLUP);
+    struct LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN, digitalRead(LIMIT_SW_FAR_PIN)};
+    
+    pinMode(DIR_PIN_X, OUTPUT);
+    pinMode(STEP_PIN_X, OUTPUT);
+    struct Axis axis_x_temp = {DIR_PIN_X, STEP_PIN_X, ACCEL_X, VEL_MAX_X, encoder_x, ls_home, ls_far_from_home};
+    return axis_x_temp;
+}
+
+struct Axis axis_x = setup_axis_x();
+
+// isr to handle encoder of x axis
+void isr_encoder_x()
+{
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+    // If interrupts come faster than 200ms, assume it's a bounce and ignore
+    if (interrupt_time - last_interrupt_time > 10) {
+        axis_x.encoder.current++;
+        print("Encoder ISR count: ", axis_x.encoder.current);
+    }
+    last_interrupt_time = interrupt_time;
+}
+
+void setup_encoder_interrupts()
+{
+    attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_X), isr_encoder_x, RISING);
+}
+// isr for operating x axis motor
+void TC3_Handler(void)
+{   
+    // print("Desired count: ", axis_x.encoder.desired);
+    // print("Current count: ", axis_x.encoder.current);
+    TC_GetStatus(TC1, 0);
+    if (axis_x.encoder.current < axis_x.encoder.desired) {
+        PIOC->PIO_ODSR ^= PIO_ODSR_P25;
+        reset_timer(TC1, 0, TC3_IRQn, axis_x.vel_max);
+    }
+    else
+    {   
+        NVIC_DisableIRQ(TC3_IRQn);
+    }
+    
+}
 
 void setup()
 {   
-    PMC->PMC_PCER0 |= PMC_PCER0_PID12;                        // PIOB power ON
-    // PIOB->PIO_OER |= PIO_OER_P27;
-    // PIOB->PIO_OWER |= PIO_OWER_P27;                           // Built In LED output write enable
-    PIOC->PIO_OER  |= PIO_OER_P24;
-    PIOC->PIO_OWER |= PIO_OWER_P24;
-
-    /*************  Timer Counter 0 Channel 0 to generate PWM pulses thru TIOA0  ************/
-    PMC->PMC_PCER0 |= PMC_PCER0_PID27;                        // TC0 power ON - Timer Counter 0 channel 0 IS TC0
-
-    PIOB->PIO_PDR |= PIO_PDR_P25;                             // The pin is no more driven by the GPIO
-    PIOB->PIO_ABSR |= PIO_PB25B_TIOA0;                        // TIOA0 (pin 2) is PB25 peripheral type B
-
-    // configure a clock for stepper motor driver
-    TC0->TC_CHANNEL[0].TC_CMR = TC_CMR_TCCLKS_TIMER_CLOCK1    // MCK/2, clk on rising edge
-                              | TC_CMR_WAVE                   // Waveform mode
-                              | TC_CMR_WAVSEL_UP_RC           // UP mode with automatic trigger on RC Compare
-                              | TC_CMR_ACPA_CLEAR             // Clear TIOA0 on RA compare match
-                              | TC_CMR_ACPC_SET;              // Set TIOA0 on RC compare match
-
-    TC0->TC_CHANNEL[0].TC_RC = 42;  //<*********************  Frequency = (Mck/2)/TC_RC  Hz = 1 MHz
-    TC0->TC_CHANNEL[0].TC_RA = 5;  //<********************   Any Duty cycle between 1 and TC_RC, Duty cycle = (TC_RA/TC_RC) * 100  %
-
-    TC0->TC_CHANNEL[0].TC_IER = TC_IER_CPCS;                  // Interrupt on RC compare match
-    NVIC_EnableIRQ(TC0_IRQn);                                 // TC1 Interrupt enable
-
-    TC0->TC_CHANNEL[0].TC_CCR = TC_CCR_SWTRG | TC_CCR_CLKEN;  // Software trigger TC0 counter and enable
-}
-
-void TC0_Handler()
-{
-    static uint32_t count = TIMER_RST_VAL;
-    static uint32_t count_accel = TIMER_RST_ACCEL;
-    TC0->TC_CHANNEL[0].TC_SR;                                 // Read and clear status register
-    count--;
-    count_accel--;
-    if (count == 0) {
-        // PIOB->PIO_ODSR ^= PIO_ODSR_P27;                       // Toggle LED with a 1 Hz frequency
-        PIOC->PIO_ODSR ^= PIO_ODSR_P24;
-        count = TIMER_RST_VAL;
-    }
-    if (count_accel == 0 && cps < CPS_MAX && CPS_ACCEL != 0) {
-        cps++;
-        freq = (cps / MICROSTEP);
-        TIMER_RST_VAL = (5E5 / freq);
-        count_accel = TIMER_RST_ACCEL;
-    }
+    debug();
+    // for testing only
+    setup_encoder_interrupts();
+    constant_max_vel(&axis_x, 5);
 }
 
 
 void loop()
 {
-  // put your main code here, to run repeatedly:
+
 }
+
+

@@ -43,6 +43,11 @@ struct Axis
     struct Encoder encoder;
     struct LimitSwitch ls_home;
     struct LimitSwitch ls_far_from_home;
+    Tc *timer;
+    uint32_t channel_velocity;
+    uint32_t channel_accel;
+    IRQn_Type isr_velocity;
+    IRQn_Type isr_accel;
 };
 
 void start_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity)
@@ -99,28 +104,6 @@ void reset_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel)
     NVIC_EnableIRQ(irq);
 }
 
-void accelerate(struct Axis *axis, uint32_t counts)
-{   
-    axis->encoder.desired = axis->encoder.current + counts;
-    // print("Desired count: ", axis->encoder.desired);
-    // print("Current count: ", axis->encoder.current);
-    start_timer(TC1, 1, TC4_IRQn, axis->accel);
-}
-
-void decelerate(struct Axis *axis, uint32_t counts)
-{
-
-}
-
-void constant_max_vel(struct Axis *axis, uint32_t counts)
-{   
-    axis->encoder.desired = axis->encoder.current + counts;
-    // print("Desired count: ", axis->encoder.desired);
-    // print("Current count: ", axis->encoder.current);
-    start_timer(TC1, 0, TC3_IRQn, axis->vel_max);
-}
-
-
 void axis_trapezoidal_move_rel(struct Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
 {
     axis->vel_profile_cur[0] = counts_accel;
@@ -129,8 +112,8 @@ void axis_trapezoidal_move_rel(struct Axis *axis, uint32_t counts_accel, uint32_
     axis->encoder.desired = axis->encoder.current + counts_accel;
     // print("Desired count: ", axis->encoder.desired);
     // print("Current count: ", axis->encoder.current);
-    start_timer(TC1, 0, TC3_IRQn, axis->vel);
-    start_timer_accel(TC1, 1, TC4_IRQn, axis->accel);
+    start_timer(axis->timer, axis->channel_velocity, axis->isr_velocity, axis->vel);
+    start_timer_accel(axis->timer, axis->channel_accel, axis->isr_accel, axis->accel);
 }
 
 void axis_move_abs(struct Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
@@ -161,14 +144,16 @@ void home_axis(struct Axis *axis)
     }
 }
 
-#define ACCEL_X             20000
-#define VEL_MIN_X           100
-#define VEL_MAX_X           10000
-#define STEP_PIN_X          5 // need to know the register for fast operation pin 5 - PC25 
-#define DIR_PIN_X           6 // need to know the register for fast operation pin 6 - PC24
-#define ENCODER_PIN_X       7
-#define LIMIT_SW_HOME_PIN   8
-#define LIMIT_SW_FAR_PIN    9
+
+// -------------------------------- X AXIS SETUP -------------------------------- //
+#define ACCEL_X                 100
+#define VEL_MIN_X               100
+#define VEL_MAX_X               1000
+#define STEP_PIN_X              5 // need to know the register for fast operation pin 5 - PC25 
+#define DIR_PIN_X               6 // need to know the register for fast operation pin 6 - PC24
+#define ENCODER_PIN_X           7
+#define LIMIT_SW_HOME_PIN_X     8
+#define LIMIT_SW_FAR_PIN_X      9
 
 struct Axis setup_axis_x()
 {  
@@ -177,15 +162,17 @@ struct Axis setup_axis_x()
     pinMode(ENCODER_PIN_X, INPUT);
     struct Encoder encoder_x = {ENCODER_PIN_X, 0, 0};
 
-    pinMode(LIMIT_SW_HOME_PIN, INPUT_PULLUP);
-    struct LimitSwitch ls_home = {LIMIT_SW_HOME_PIN, digitalRead(LIMIT_SW_HOME_PIN)};
+    pinMode(LIMIT_SW_HOME_PIN_X, INPUT_PULLUP);
+    struct LimitSwitch ls_home = {LIMIT_SW_HOME_PIN_X, digitalRead(LIMIT_SW_HOME_PIN_X)};
 
-    pinMode(LIMIT_SW_FAR_PIN, INPUT_PULLUP);
-    struct LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN, digitalRead(LIMIT_SW_FAR_PIN)};
+    pinMode(LIMIT_SW_FAR_PIN_X, INPUT_PULLUP);
+    struct LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN_X, digitalRead(LIMIT_SW_FAR_PIN_X)};
     
     pinMode(DIR_PIN_X, OUTPUT);
     pinMode(STEP_PIN_X, OUTPUT);
-    struct Axis axis_x_temp = {DIR_PIN_X, STEP_PIN_X, ACCEL_X, VEL_MAX_X, VEL_MIN_X, {0, 0, 0}, 0, encoder_x, ls_home, ls_far_from_home};
+    struct Axis axis_x_temp = {DIR_PIN_X, STEP_PIN_X, ACCEL_X, VEL_MAX_X, VEL_MIN_X, 
+                               {0, 0, 0}, 0, encoder_x, ls_home, ls_far_from_home,
+                               TC1, 0, 1, TC3_IRQn, TC4_IRQn};
     return axis_x_temp;
 }
 
@@ -204,24 +191,20 @@ void isr_encoder_x()
     last_interrupt_time = interrupt_time;
 }
 
-void setup_encoder_interrupts()
-{
-    attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_X), isr_encoder_x, RISING);
-}
 // isr for operating x axis motor velocity
 void TC3_Handler(void)
 {   
     // print("Desired count: ", axis_x.encoder.desired);
     // print("Current count: ", axis_x.encoder.current);
     TC_GetStatus(TC1, 0);
-    if (axis_x.encoder.current < axis_x.encoder.desired) {
-        PIOC->PIO_ODSR ^= PIO_ODSR_P25;
-        reset_timer(TC1, 0, TC3_IRQn, axis_x.vel);
-    }
-    else
-    {   
-        NVIC_DisableIRQ(TC3_IRQn);
-    }   
+    // if (axis_x.encoder.current < axis_x.encoder.desired) {
+    PIOC->PIO_ODSR ^= PIO_ODSR_P25;
+    reset_timer(TC1, 0, TC3_IRQn, axis_x.vel);
+    // }
+    // else
+    // {   
+    //     NVIC_DisableIRQ(TC3_IRQn);
+    // }   
 }
 
 // isr for operating x axis motor acceleration 
@@ -240,7 +223,7 @@ void TC4_Handler(void)
             axis_x.count++;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
             axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur[1] + delta;
-            print("accel d-c: ", delta);
+            // print("accel d-c: ", delta);
             return;
         }
     }
@@ -255,7 +238,7 @@ void TC4_Handler(void)
             axis_x.count++;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
             axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur[2] + delta;
-            print("hold d-c: ", delta);
+            // print("hold d-c: ", delta);
             return;
         }
     }
@@ -271,9 +254,130 @@ void TC4_Handler(void)
             NVIC_DisableIRQ(TC3_IRQn);
             NVIC_DisableIRQ(TC4_IRQn);
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
-            print("decel d-c: ", delta);
+            // print("decel d-c: ", delta);
         }
     }
+}
+
+
+// -------------------------------- Y AXIS SETUP -------------------------------- //
+#define ACCEL_Y                 100
+#define VEL_MIN_Y               100
+#define VEL_MAX_Y               1000
+#define STEP_PIN_Y              22 // need to know the register for fast operation pin 5 - PB26 
+#define DIR_PIN_Y               23 // need to know the register for fast operation pin 6 - PA14
+#define ENCODER_PIN_Y           24
+#define LIMIT_SW_HOME_PIN_Y     25
+#define LIMIT_SW_FAR_PIN_Y      26
+
+struct Axis setup_axis_y()
+{  
+    // Set up the timer interrupt
+    // TC1 channel 0, the IRQ for that channel and the desired frequency
+    pinMode(ENCODER_PIN_Y, INPUT);
+    struct Encoder encoder_y = {ENCODER_PIN_Y, 0, 0};
+
+    pinMode(LIMIT_SW_HOME_PIN_Y, INPUT_PULLUP);
+    struct LimitSwitch ls_home = {LIMIT_SW_HOME_PIN_Y, digitalRead(LIMIT_SW_HOME_PIN_Y)};
+
+    pinMode(LIMIT_SW_FAR_PIN_Y, INPUT_PULLUP);
+    struct LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN_Y, digitalRead(LIMIT_SW_FAR_PIN_Y)};
+    
+    pinMode(DIR_PIN_Y, OUTPUT);
+    pinMode(STEP_PIN_Y, OUTPUT);
+    struct Axis axis_y_temp = {DIR_PIN_Y, STEP_PIN_Y, ACCEL_Y, VEL_MAX_Y, VEL_MIN_Y, 
+                               {0, 0, 0}, 0, encoder_y, ls_home, ls_far_from_home,
+                               TC0, 0, 1, TC0_IRQn, TC1_IRQn};
+    return axis_y_temp;
+}
+
+struct Axis axis_y = setup_axis_y();
+
+// isr to handle encoder of x axis
+void isr_encoder_y()
+{
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+    // If interrupts come faster than 10ms, assume it's a bounce and ignore
+    if (interrupt_time - last_interrupt_time > 10) {
+        axis_y.encoder.current++;
+        print("Encoder y ISR count: ", axis_y.encoder.current);
+    }
+    last_interrupt_time = interrupt_time;
+}
+
+// isr for operating x axis motor velocity
+void TC0_Handler(void)
+{   
+    // print("Desired count: ", axis_x.encoder.desired);
+    // print("Current count: ", axis_x.encoder.current);
+    TC_GetStatus(TC0, 0);
+    // if (axis_x.encoder.current < axis_x.encoder.desired) {
+    PIOB->PIO_ODSR ^= PIO_ODSR_P26;
+    reset_timer(TC0, 0, TC0_IRQn, axis_y.vel);
+    // }
+    // else
+    // {   
+    //     NVIC_DisableIRQ(TC3_IRQn);
+    // }   
+}
+
+// isr for operating x axis motor acceleration 
+void TC1_Handler(void)
+{   
+    // print("Desired count: ", axis_x.encoder.desired);
+    // print("Current count: ", axis_x.encoder.current);
+    TC_GetStatus(TC0, 1);
+    // first accelerate
+    if (axis_y.count == 0) {
+        if (axis_y.encoder.current < axis_y.encoder.desired && axis_y.vel < axis_y.vel_max) {
+            axis_y.vel++;
+            return;
+        }
+        else {
+            axis_y.count++;
+            int delta = axis_y.encoder.desired - axis_y.encoder.current;
+            axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur[1] + delta;
+            // print("accel d-c: ", delta);
+            return;
+        }
+    }
+    // hold velocity
+    else if (axis_y.count == 1) {
+        if (axis_y.encoder.current < axis_y.encoder.desired) {
+            // print("DC H: ", axis_x.encoder.desired);
+            // print("CC H: ", axis_x.encoder.current);
+            return;
+        }
+        else {
+            axis_y.count++;
+            int delta = axis_y.encoder.desired - axis_y.encoder.current;
+            axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur[2] + delta;
+            // print("hold d-c: ", delta);
+            return;
+        }
+    }
+    // decelerate
+    else if (axis_y.count == 2) {
+        if (axis_y.encoder.current < axis_y.encoder.desired && axis_y.vel > 1) {
+            axis_y.vel--;
+            // print("DC H: ", axis_x.encoder.desired);
+            // print("CC H: ", axis_x.encoder.current);
+            return;
+        }
+        else {
+            NVIC_DisableIRQ(TC0_IRQn);
+            NVIC_DisableIRQ(TC1_IRQn);
+            int delta = axis_y.encoder.desired - axis_y.encoder.current;
+            // print("decel d-c: ", delta);
+        }
+    }
+}
+
+void setup_encoder_interrupts()
+{
+    attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_X), isr_encoder_x, RISING);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_Y), isr_encoder_y, RISING);
 }
 
 void setup()
@@ -282,6 +386,7 @@ void setup()
     // for testing only
     setup_encoder_interrupts();
     axis_trapezoidal_move_rel(&axis_x, 5, 5, 5);
+    axis_trapezoidal_move_rel(&axis_y, 5, 5, 5);
     // constant_max_vel(&axis_x, 5);
 }
 

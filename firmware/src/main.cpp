@@ -117,10 +117,15 @@ void reset_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel)
     NVIC_EnableIRQ(irq);
 }
 
-void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel, direction dir)
+void axis_trapezoidal_move_rel(Axis *axis, uint32_t vel_max, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel, direction dir)
 {   
     axis->dir = dir;
     digitalWrite(axis->dir_pin, dir);
+
+    if (vel_max < axis->vel_max && vel_max != 0) {
+        axis->vel_max = vel_max;
+    }
+    
     if (dir == positive) {
         axis->vel_profile_cur[0] = counts_accel;
         axis->vel_profile_cur[1] = counts_const;
@@ -139,6 +144,7 @@ void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t count
     start_timer(axis->timer, axis->channel_velocity, axis->isr_velocity, axis->vel);
     start_timer_accel(axis->timer, axis->channel_accel, axis->isr_accel, axis->accel);
 }
+
 
 void axis_move_abs(Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
 {
@@ -215,6 +221,14 @@ void isr_encoder_x()
         print("Encoder ISR count: ", axis_x.encoder.current);
     }
     last_interrupt_time = interrupt_time;
+}
+
+// isr to handle limit switch
+void isr_limit_switch_x()
+{
+    NVIC_DisableIRQ(axis_x.isr_velocity);
+    NVIC_DisableIRQ(axis_x.isr_accel);
+    print("X Limit switch hit", 0);
 }
 
 // isr for operating x axis motor velocity
@@ -326,6 +340,14 @@ void isr_encoder_y()
         print("Encoder y ISR count: ", axis_y.encoder.current);
     }
     last_interrupt_time = interrupt_time;
+}
+
+// isr to handle limit switch
+void isr_limit_switch_y()
+{   
+    NVIC_DisableIRQ(axis_y.isr_velocity);
+    NVIC_DisableIRQ(axis_y.isr_accel);
+    print("Y Limit switch hit", 0);
 }
 
 // isr for operating x axis motor velocity

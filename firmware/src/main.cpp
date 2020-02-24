@@ -25,9 +25,11 @@ void print(String text, uint32_t val)
     Serial.println(val);
 }
 // ------------------------ debug helper functions end
+#define VELOCITY_HOMING 200
 
 enum direction{positive, negative};
 enum status{pressed, depressed};
+enum segment{accelerate, hold, decelerate};
 
 typedef struct LimitSwitch
 {
@@ -49,7 +51,7 @@ typedef struct Axis
     uint32_t accel;
     uint32_t vel_max;
     uint32_t vel;
-    int32_t vel_profile_cur[3]; // defined in counts accelerate, hold, decelerate
+    int32_t vel_profile_cur_trap[3]; // defined in counts accelerate, hold, decelerate
     int tragectory_segment;
     Encoder encoder;
     LimitSwitch ls_home;
@@ -61,6 +63,7 @@ typedef struct Axis
     IRQn_Type isr_velocity;
     IRQn_Type isr_accel;
     direction dir;
+    bool homing;
 } Axis;
 
 void start_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity)
@@ -125,19 +128,19 @@ void axis_trapezoidal_move_rel(Axis *axis, uint32_t vel_max, uint32_t counts_acc
     if (vel_max < axis->vel_max && vel_max != 0) {
         axis->vel_max = vel_max;
     }
-    
+
     if (dir == positive) {
-        axis->vel_profile_cur[0] = counts_accel;
-        axis->vel_profile_cur[1] = counts_const;
-        axis->vel_profile_cur[2] = counts_decel;
+        axis->vel_profile_cur_trap[0] = counts_accel;
+        axis->vel_profile_cur_trap[1] = counts_const;
+        axis->vel_profile_cur_trap[2] = counts_decel;
     }
     else if (dir == negative) {
-        axis->vel_profile_cur[0] = - counts_accel;
-        axis->vel_profile_cur[1] = - counts_const;
-        axis->vel_profile_cur[2] = - counts_decel;
+        axis->vel_profile_cur_trap[0] = - counts_accel;
+        axis->vel_profile_cur_trap[1] = - counts_const;
+        axis->vel_profile_cur_trap[2] = - counts_decel;
     }
     
-    axis->encoder.desired = axis->encoder.current + axis->vel_profile_cur[0];
+    axis->encoder.desired = axis->encoder.current + axis->vel_profile_cur_trap[0];
     
     // print("Desired count: ", axis->encoder.desired);
     // print("Current count: ", axis->encoder.current);
@@ -145,8 +148,13 @@ void axis_trapezoidal_move_rel(Axis *axis, uint32_t vel_max, uint32_t counts_acc
     start_timer_accel(axis->timer, axis->channel_accel, axis->isr_accel, axis->accel);
 }
 
+void axis_trapezoidal_move_tri(Axis *axis, uint32_t vel_max, uint32_t counts_accel, uint32_t counts_decel, direction dir)
+{   
+    axis_trapezoidal_move_rel(axis, vel_max, counts_accel, 0, counts_decel, dir);
+}
 
-void axis_move_abs(Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
+
+void axis_trapezoidal_move_abs(Axis *axis, uint32_t vel_max, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel, direction dir)
 {
 
 }
@@ -158,18 +166,14 @@ void axis_move(Axis *axis, direction dir)
 
 void home_axis(Axis *axis)
 {   
+    axis->homing = 1;
     // check if the limit switched is pressed at home
     if (digitalRead(axis->ls_home.pin) == pressed) {
-        axis_move(axis, positive); // move until limit switch is depressed
-        // set this as zero position
-        axis->encoder.current = 0;
+        axis_trapezoidal_move_rel(axis, VELOCITY_HOMING, 300, 1000000, 100000, positive); // move until limit switch is depressed
         return;
     }
     else {
-        axis_move(axis, negative); // move until limit switch is pressed
-        axis_move(axis, positive); // move until limit switch is depressed
-        // set this as zero position
-        axis->encoder.current = 0;
+        axis_trapezoidal_move_rel(axis, VELOCITY_HOMING, 300, 1000000, 100000, negative);
         return;
     }
 }
@@ -225,10 +229,25 @@ void isr_encoder_x()
 
 // isr to handle limit switch
 void isr_limit_switch_x()
-{
-    NVIC_DisableIRQ(axis_x.isr_velocity);
-    NVIC_DisableIRQ(axis_x.isr_accel);
-    print("X Limit switch hit", 0);
+{   
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+    // If interrupts come faster than 10ms, assume it's a bounce and ignore
+    if (interrupt_time - last_interrupt_time > 10) {
+        NVIC_DisableIRQ(axis_x.isr_velocity);
+        NVIC_DisableIRQ(axis_x.isr_accel);
+        print("Y Home Limit switch has been hit", 1);
+
+        if (axis_x.homing && digitalRead(LIMIT_SW_HOME_PIN_X) == depressed) {
+            axis_x.encoder.current = 0;
+            axis_x.homing = 0;
+            print("Y axis has been homed - SUCCESS", 1);
+        }
+        else if (axis_x.homing && digitalRead(LIMIT_SW_HOME_PIN_X) == pressed) {
+            home_axis(&axis_x);
+        }
+    }
+    last_interrupt_time = interrupt_time;
 }
 
 // isr for operating x axis motor velocity
@@ -248,7 +267,7 @@ void TC4_Handler(void)
     // print("Current count: ", axis_x.encoder.current);
     TC_GetStatus(TC1, 1);
     // first accelerate
-    if (axis_x.tragectory_segment == 0) {
+    if (axis_x.tragectory_segment == accelerate) {
         if (((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir) && axis_x.vel < axis_x.vel_max) {
             axis_x.vel++;
             return;
@@ -256,13 +275,13 @@ void TC4_Handler(void)
         else {
             axis_x.tragectory_segment++;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
-            axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur[1] + delta;
+            axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur_trap[1] + delta;
             // print("accel d-c: ", delta);
             return;
         }
     }
     // hold velocity
-    else if (axis_x.tragectory_segment == 1) {
+    else if (axis_x.tragectory_segment == hold) {
         if ((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir) {
             // print("DC H: ", axis_x.encoder.desired);
             // print("CC H: ", axis_x.encoder.current);
@@ -271,13 +290,13 @@ void TC4_Handler(void)
         else {
             axis_x.tragectory_segment++;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
-            axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur[2] + delta;
+            axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur_trap[2] + delta;
             // print("hold d-c: ", delta);
             return;
         }
     }
     // decelerate
-    else if (axis_x.tragectory_segment == 2) {
+    else if (axis_x.tragectory_segment == decelerate) {
         if (((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir) && axis_x.vel > 1) {
             axis_x.vel--;
             // print("DC H: ", axis_x.encoder.desired);
@@ -331,13 +350,23 @@ Axis axis_y = setup_axis_y();
 
 // isr to handle encoder of x axis
 void isr_encoder_y()
-{
+{   
     static unsigned long last_interrupt_time = 0;
     unsigned long interrupt_time = millis();
     // If interrupts come faster than 10ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 10) {
-        axis_y.encoder.current++;
-        print("Encoder y ISR count: ", axis_y.encoder.current);
+        NVIC_DisableIRQ(axis_y.isr_velocity);
+        NVIC_DisableIRQ(axis_y.isr_accel);
+        print("X Home Limit switch has been hit", 1);
+
+        if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == depressed) {
+            axis_y.encoder.current = 0;
+            axis_y.homing = 0;
+            print("X axis has been homed - SUCCESS", 1);
+        }
+        else if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == pressed) {
+            home_axis(&axis_y);
+        }
     }
     last_interrupt_time = interrupt_time;
 }
@@ -345,9 +374,21 @@ void isr_encoder_y()
 // isr to handle limit switch
 void isr_limit_switch_y()
 {   
-    NVIC_DisableIRQ(axis_y.isr_velocity);
-    NVIC_DisableIRQ(axis_y.isr_accel);
-    print("Y Limit switch hit", 0);
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+    // If interrupts come faster than 10ms, assume it's a bounce and ignore
+    if (interrupt_time - last_interrupt_time > 10) {
+        NVIC_DisableIRQ(axis_y.isr_velocity);
+        NVIC_DisableIRQ(axis_y.isr_accel);
+        print("Y Home Limit switch hit", 1);
+
+        if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == depressed) {
+            axis_y.encoder.current = 0;
+            axis_y.homing = 0;
+            print("Y axis has been homed - SUCCESS", 1);
+        }
+    }
+    last_interrupt_time = interrupt_time;
 }
 
 // isr for operating x axis motor velocity
@@ -367,7 +408,7 @@ void TC1_Handler(void)
     // print("Current count: ", axis_x.encoder.current);
     TC_GetStatus(TC0, 1);
     // first accelerate
-    if (axis_y.tragectory_segment == 0) {
+    if (axis_y.tragectory_segment == accelerate) {
         if (((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) && axis_y.vel < axis_y.vel_max) {
             axis_y.vel++;
             return;
@@ -375,13 +416,13 @@ void TC1_Handler(void)
         else {
             axis_y.tragectory_segment++;
             int delta = axis_y.encoder.desired - axis_y.encoder.current;
-            axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur[1] + delta;
+            axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur_trap[1] + delta;
             // print("accel d-c: ", delta);
             return;
         }
     }
     // hold velocity
-    else if (axis_y.tragectory_segment == 1) {
+    else if (axis_y.tragectory_segment == hold) {
         if ((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) {
             // print("DC H: ", axis_x.encoder.desired);
             // print("CC H: ", axis_x.encoder.current);
@@ -390,13 +431,13 @@ void TC1_Handler(void)
         else {
             axis_y.tragectory_segment++;
             int delta = axis_y.encoder.desired - axis_y.encoder.current;
-            axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur[2] + delta;
+            axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur_trap[2] + delta;
             // print("hold d-c: ", delta);
             return;
         }
     }
     // decelerate
-    else if (axis_y.tragectory_segment == 2) {
+    else if (axis_y.tragectory_segment == decelerate) {
         if ((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) {
             axis_y.vel--;
             // print("DC H: ", axis_x.encoder.desired);
@@ -423,7 +464,7 @@ void setup()
     debug();
     // for testing only
     setup_encoder_interrupts();
-    axis_trapezoidal_move_rel(&axis_x, 5, 5, 5, negative);
+    axis_trapezoidal_move_rel(&axis_x, 0, 5, 5, 5, negative);
     // axis_trapezoidal_move_rel(&axis_y, 5, 5, 5, positive);
     // constant_max_vel(&axis_x, 5);
 }

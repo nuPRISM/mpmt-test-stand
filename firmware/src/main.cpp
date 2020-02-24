@@ -29,20 +29,20 @@ void print(String text, uint32_t val)
 enum direction{positive, negative};
 enum status{pressed, depressed};
 
-struct LimitSwitch
+typedef struct LimitSwitch
 {
     int pin;
     int status;
-};
+} LimitSwitch;
 
-struct Encoder
+typedef struct Encoder
 {
     uint32_t pin;
     volatile uint32_t current;
     uint32_t desired;
-};
+} Encoder;
 
-struct Axis
+typedef struct Axis
 {
     int dir_pin;
     int step_pin;
@@ -51,9 +51,9 @@ struct Axis
     uint32_t vel;
     int32_t vel_profile_cur[3]; // defined in counts accelerate, hold, decelerate
     int tragectory_segment;
-    struct Encoder encoder;
-    struct LimitSwitch ls_home;
-    struct LimitSwitch ls_far_from_home;
+    Encoder encoder;
+    LimitSwitch ls_home;
+    LimitSwitch ls_far_from_home;
     // necessary timer info
     Tc *timer;
     uint32_t channel_velocity;
@@ -61,14 +61,14 @@ struct Axis
     IRQn_Type isr_velocity;
     IRQn_Type isr_accel;
     direction dir;
-};
+} Axis;
 
 void start_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity)
 {
     pmc_set_writeprotect(false);
     pmc_enable_periph_clk((uint32_t)irq);
     TC_Configure(tc, channel, TC_CMR_WAVE | TC_CMR_WAVSEL_UP_RC
-    |TC_CMR_TCCLKS_TIMER_CLOCK4);
+                                          |TC_CMR_TCCLKS_TIMER_CLOCK4);
     uint32_t rc = VARIANT_MCK/128/velocity/2; // over 2 because need to toggle down
     TC_SetRA(tc, channel, rc/2); //50% high, 50% low
     TC_SetRC(tc, channel, rc);
@@ -95,7 +95,7 @@ void start_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel)
     pmc_set_writeprotect(false);
     pmc_enable_periph_clk((uint32_t)irq);
     TC_Configure(tc, channel, TC_CMR_WAVE | TC_CMR_WAVSEL_UP_RC
-    |TC_CMR_TCCLKS_TIMER_CLOCK4);
+                                          |TC_CMR_TCCLKS_TIMER_CLOCK4);
     uint32_t rc = VARIANT_MCK/128/accel; // over 2 because need to toggle down
     TC_SetRA(tc, channel, rc/2); //50% high, 50% low
     TC_SetRC(tc, channel, rc);
@@ -117,7 +117,7 @@ void reset_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel)
     NVIC_EnableIRQ(irq);
 }
 
-void axis_trapezoidal_move_rel(struct Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel, direction dir)
+void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel, direction dir)
 {   
     axis->dir = dir;
     digitalWrite(axis->dir_pin, dir);
@@ -140,17 +140,17 @@ void axis_trapezoidal_move_rel(struct Axis *axis, uint32_t counts_accel, uint32_
     start_timer_accel(axis->timer, axis->channel_accel, axis->isr_accel, axis->accel);
 }
 
-void axis_move_abs(struct Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
+void axis_move_abs(Axis *axis, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel)
 {
 
 }
 
-void axis_move(struct Axis *axis, direction dir) 
+void axis_move(Axis *axis, direction dir) 
 {
 
 }
 
-void home_axis(struct Axis *axis)
+void home_axis(Axis *axis)
 {   
     // check if the limit switched is pressed at home
     if (digitalRead(axis->ls_home.pin) == pressed) {
@@ -180,29 +180,29 @@ void home_axis(struct Axis *axis)
 #define LIMIT_SW_HOME_PIN_X     9
 #define LIMIT_SW_FAR_PIN_X      10
 
-struct Axis setup_axis_x()
+Axis setup_axis_x()
 {  
     // Set up the timer interrupt
     // TC1 channel 0, the IRQ for that channel and the desired frequency
     pinMode(ENCODER_PIN_A_X, INPUT);
     pinMode(ENCODER_PIN_B_X, INPUT);
-    struct Encoder encoder_x = {ENCODER_PIN_A_X, 10, 0};
+    Encoder encoder_x = {ENCODER_PIN_A_X, 10, 0};
 
     pinMode(LIMIT_SW_HOME_PIN_X, INPUT_PULLUP);
-    struct LimitSwitch ls_home = {LIMIT_SW_HOME_PIN_X, digitalRead(LIMIT_SW_HOME_PIN_X)};
+    LimitSwitch ls_home = {LIMIT_SW_HOME_PIN_X, digitalRead(LIMIT_SW_HOME_PIN_X)};
 
     pinMode(LIMIT_SW_FAR_PIN_X, INPUT_PULLUP);
-    struct LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN_X, digitalRead(LIMIT_SW_FAR_PIN_X)};
+    LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN_X, digitalRead(LIMIT_SW_FAR_PIN_X)};
     
     pinMode(DIR_PIN_X, OUTPUT);
     pinMode(STEP_PIN_X, OUTPUT);
-    struct Axis axis_x_temp = {DIR_PIN_X, STEP_PIN_X, ACCEL_X, VEL_MAX_X, VEL_MIN_X, 
-                               {0, 0, 0}, 0, encoder_x, ls_home, ls_far_from_home,
-                               TC1, 0, 1, TC3_IRQn, TC4_IRQn};
+    Axis axis_x_temp = {DIR_PIN_X, STEP_PIN_X, ACCEL_X, VEL_MAX_X, VEL_MIN_X, 
+                        {0, 0, 0}, 0, encoder_x, ls_home, ls_far_from_home,
+                        TC1, 0, 1, TC3_IRQn, TC4_IRQn};
     return axis_x_temp;
 }
 
-struct Axis axis_x = setup_axis_x();
+Axis axis_x = setup_axis_x();
 
 // isr to handle encoder of x axis
 void isr_encoder_x()
@@ -291,29 +291,29 @@ void TC4_Handler(void)
 #define LIMIT_SW_HOME_PIN_Y     26
 #define LIMIT_SW_FAR_PIN_Y      27
 
-struct Axis setup_axis_y()
+Axis setup_axis_y()
 {  
     // Set up the timer interrupt
     // TC1 channel 0, the IRQ for that channel and the desired frequency
     pinMode(ENCODER_PIN_A_Y, INPUT);
     pinMode(ENCODER_PIN_B_Y, INPUT);
-    struct Encoder encoder_y = {ENCODER_PIN_A_Y, 0, 0};
+    Encoder encoder_y = {ENCODER_PIN_A_Y, 0, 0};
 
     pinMode(LIMIT_SW_HOME_PIN_Y, INPUT_PULLUP);
-    struct LimitSwitch ls_home = {LIMIT_SW_HOME_PIN_Y, digitalRead(LIMIT_SW_HOME_PIN_Y)};
+    LimitSwitch ls_home = {LIMIT_SW_HOME_PIN_Y, digitalRead(LIMIT_SW_HOME_PIN_Y)};
 
     pinMode(LIMIT_SW_FAR_PIN_Y, INPUT_PULLUP);
-    struct LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN_Y, digitalRead(LIMIT_SW_FAR_PIN_Y)};
+    LimitSwitch ls_far_from_home = {LIMIT_SW_FAR_PIN_Y, digitalRead(LIMIT_SW_FAR_PIN_Y)};
     
     pinMode(DIR_PIN_Y, OUTPUT);
     pinMode(STEP_PIN_Y, OUTPUT);
-    struct Axis axis_y_temp = {DIR_PIN_Y, STEP_PIN_Y, ACCEL_Y, VEL_MAX_Y, VEL_MIN_Y, 
-                               {0, 0, 0}, 0, encoder_y, ls_home, ls_far_from_home,
-                               TC0, 0, 1, TC0_IRQn, TC1_IRQn};
+    Axis axis_y_temp = {DIR_PIN_Y, STEP_PIN_Y, ACCEL_Y, VEL_MAX_Y, VEL_MIN_Y, 
+                        {0, 0, 0}, 0, encoder_y, ls_home, ls_far_from_home,
+                        TC0, 0, 1, TC0_IRQn, TC1_IRQn};
     return axis_y_temp;
 }
 
-struct Axis axis_y = setup_axis_y();
+Axis axis_y = setup_axis_y();
 
 // isr to handle encoder of x axis
 void isr_encoder_y()

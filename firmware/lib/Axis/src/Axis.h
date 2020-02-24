@@ -56,4 +56,8 @@ void TC0_Handler(void);
 // isr for operating x axis motor acceleration 
 void TC1_Handler(void);
 
+void setup_encoder_interrupts();
+
+void setup_ls_interrupts();
+
 #endif

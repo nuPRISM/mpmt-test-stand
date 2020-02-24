@@ -32,7 +32,8 @@ void isr_encoder_x()
     unsigned long interrupt_time = millis();
     // If interrupts come faster than 200ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 10) {
-        axis_x.encoder.current++;
+        if (axis_x.dir == positive) axis_x.encoder.current++;
+        else if (axis_x.dir == negative) axis_x.encoder.current--;
         print("Encoder ISR count: ", axis_x.encoder.current);
     }
     last_interrupt_time = interrupt_time;
@@ -47,12 +48,12 @@ void isr_limit_switch_x()
     if (interrupt_time - last_interrupt_time > 10) {
         NVIC_DisableIRQ(axis_x.isr_velocity);
         NVIC_DisableIRQ(axis_x.isr_accel);
-        print("Y Home Limit switch has been hit", 1);
+        print("X Home Limit switch has been hit", 1);
 
         if (axis_x.homing && digitalRead(LIMIT_SW_HOME_PIN_X) == depressed) {
             axis_x.encoder.current = 0;
             axis_x.homing = 0;
-            print("Y axis has been homed - SUCCESS", 1);
+            print("X axis has been homed - SUCCESS", 1);
         }
         else if (axis_x.homing && digitalRead(LIMIT_SW_HOME_PIN_X) == pressed) {
             home_axis(&axis_x);
@@ -151,23 +152,14 @@ Axis axis_y = setup_axis_y();
 
 // isr to handle encoder of x axis
 void isr_encoder_y()
-{   
+{
     static unsigned long last_interrupt_time = 0;
     unsigned long interrupt_time = millis();
-    // If interrupts come faster than 10ms, assume it's a bounce and ignore
+    // If interrupts come faster than 200ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 10) {
-        NVIC_DisableIRQ(axis_y.isr_velocity);
-        NVIC_DisableIRQ(axis_y.isr_accel);
-        print("X Home Limit switch has been hit", 1);
-
-        if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == depressed) {
-            axis_y.encoder.current = 0;
-            axis_y.homing = 0;
-            print("X axis has been homed - SUCCESS", 1);
-        }
-        else if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == pressed) {
-            home_axis(&axis_y);
-        }
+        if (axis_y.dir == positive) axis_y.encoder.current++;
+        else if (axis_y.dir == negative) axis_y.encoder.current--;
+        print("Encoder ISR count: ", axis_y.encoder.current);
     }
     last_interrupt_time = interrupt_time;
 }
@@ -181,12 +173,15 @@ void isr_limit_switch_y()
     if (interrupt_time - last_interrupt_time > 10) {
         NVIC_DisableIRQ(axis_y.isr_velocity);
         NVIC_DisableIRQ(axis_y.isr_accel);
-        print("Y Home Limit switch hit", 1);
+        print("Y Home Limit switch has been hit", 1);
 
         if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == depressed) {
             axis_y.encoder.current = 0;
             axis_y.homing = 0;
             print("Y axis has been homed - SUCCESS", 1);
+        }
+        else if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == pressed) {
+            home_axis(&axis_y);
         }
     }
     last_interrupt_time = interrupt_time;
@@ -252,4 +247,18 @@ void TC1_Handler(void)
             // print("decel d-c: ", delta);
         }
     }
+}
+
+void setup_encoder_interrupts()
+{
+    attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_A_X), isr_encoder_x, RISING);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_A_Y), isr_encoder_y, RISING);
+}
+
+void setup_ls_interrupts()
+{
+    attachInterrupt(digitalPinToInterrupt(LIMIT_SW_HOME_PIN_X), isr_limit_switch_x, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(LIMIT_SW_HOME_PIN_Y), isr_limit_switch_y, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(LIMIT_SW_FAR_PIN_X), isr_limit_switch_x, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(LIMIT_SW_FAR_PIN_Y), isr_limit_switch_y, CHANGE);
 }

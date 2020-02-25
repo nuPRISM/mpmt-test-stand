@@ -12,6 +12,7 @@ class Thermistor_10k
         const float kelvin_to_celsius = 273.15;
 
         int vLevel;
+        float seriesResistorVal;
         float vTherm;
         float logRTherm,RTherm, Tk, Tc;
 
@@ -19,7 +20,7 @@ class Thermistor_10k
          * Constructor to create a new thermistor object.
          * @param pin - Arduino Due pin
          */
-        Thermistor_10k(int pin);
+        Thermistor_10k(int pin, float seriesResistor);
 
         /**
          * Obtains analog thermistor reading and converts it to temperature in Celsius

@@ -1,36 +1,52 @@
 #include <Arduino.h>
 #include "thermistorUSP10976.h"
 // migrate pin assignment to separate header file later
-static const int thermistor1Pin = 14; // A0
-static const int thermistor2Pin = 15; // A1
-static const int thermistor3Pin = 16; // A2
+static const int thermistor1Pin = A0; 
+static const int thermistor2Pin = A1; 
+static const int thermistor3Pin = A2; 
 
-float seriesResistor1 = 20000;
-float seriesResistor2 = 20000;
-float seriesResistor3 = 20000;
+// data collection variables
+unsigned long currentTime = 0.0;
+unsigned long deltaTime = 250.0; 
+
+double seriesResistor1 = 9960.0;
+double seriesResistor2 = 9960.0;
+double seriesResistor3 = 9950.0;
 
 void setup()
 {
-    // put your setup code here, to run once:
+    //Ground unused analog pins to minimize interference
+    for (int i = A3; i <= A6; i++){
+        pinMode(i, OUTPUT); 
+        digitalWrite(i, LOW);
+    }
+    
     Serial.begin(9600);
 }
 
 void loop()
 {
-    // put your main code here, to run repeatedly:
-    Thermistor_10k thermistor_short_1(thermistor1Pin,seriesResistor1);
-    Thermistor_10k thermistor_short_2(thermistor2Pin,seriesResistor2);
-    Thermistor_10k thermistor_long(thermistor3Pin,seriesResistor3);
+    File dataFile = SD.open("temp_datalog.txt", FILE_WRITE);
     
-    float temp1 = thermistor_short_1.readTemperature();
-    float temp2 = thermistor_short_2.readTemperature();
-    float temp3 = thermistor_long.readTemperature();
+    Thermistor_10k thermistor_25cm(thermistor1Pin,seriesResistor1);
+    Thermistor_10k thermistor_50cm(thermistor2Pin,seriesResistor2);
+    Thermistor_10k thermistor_200cm(thermistor3Pin,seriesResistor3);
     
-    Serial.print(temp1);
-    Serial.print(",");
-    Serial.print(temp2);
-    Serial.print(",");
-    Serial.println(temp3);
+    if(millis() - currentTime >= deltaTime){
+        currentTime = millis();
+        double temp1 = thermistor_25cm.readTemperature();
+        double temp2 = thermistor_50cm.readTemperature();
+        double temp3 = thermistor_200cm.readTemperature();
 
-    delay(500);
+        // double temp1 = thermistor_25cm.readAveragedTemperature();
+        // double temp2 = thermistor_50cm.readAveragedTemperature();
+        // double temp3 = thermistor_200cm.readAveragedTemperature();
+        Serial.print(currentTime/1000.0);
+        Serial.print(",");
+        Serial.print(temp1);
+        Serial.print(",");
+        Serial.print(temp2);
+        Serial.print(",");
+        Serial.println(temp3);
+    }
 }

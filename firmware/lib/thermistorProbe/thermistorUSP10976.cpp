@@ -9,7 +9,7 @@
  * 
  * @param pin - Arduino Due pin
  */
-Thermistor_10k::Thermistor_10k(int pin, float seriesResistor){
+Thermistor_10k::Thermistor_10k(int pin, double seriesResistor){
     this->thermistorPin = pin;
     this->seriesResistorVal = seriesResistor; // measure actual resistance of the 20 kOhm series resistor
 }
@@ -17,8 +17,33 @@ Thermistor_10k::Thermistor_10k(int pin, float seriesResistor){
  * Obtains analog thermistor reading and converts it to temperature in Celsius
  * @return temperature in Celsius
  */
-float Thermistor_10k::readTemperature(){
+double Thermistor_10k::readTemperature(){
     vLevel = analogRead(thermistorPin);
+    Tc = convertToTemp(vLevel);
+    return Tc;
+}
+
+/**
+ * Obtains analog thermistor reading and converts it to temperature in Celsius
+ * @return temperature in Celsius
+ */
+double Thermistor_10k::readAveragedTemperature(){
+    double averageVLevel = 0.0;
+    for(int i = 0; i < numSamples; i++){
+        vLevelSamples[i] = analogRead(thermistorPin);
+        delay(10);
+    }
+
+    for(int i = 0; i < numSamples; i++){
+        averageVLevel += vLevelSamples[i];
+    }
+    averageVLevel /= numSamples;
+    Tc = convertToTemp(averageVLevel);
+
+    return Tc;
+}
+
+double Thermistor_10k::convertToTemp(int vLevel){
     vTherm = vLevel * (vRef/resolutionLim);
     RTherm = seriesResistorVal / (vRef/vTherm - 1.0);
     logRTherm = log(RTherm);

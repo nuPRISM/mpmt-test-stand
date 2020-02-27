@@ -123,6 +123,9 @@ void seq_callback(INT hDB, INT hseq, void *info)
 
 BOOL gStartHome;
 BOOL gStartMove;
+HNDLE handleHome;
+HNDLE handleMove;
+
 
 INT start_move(){
 
@@ -150,6 +153,11 @@ INT start_move(){
     printf(".");
   }
   printf("\nFinished move\n");
+
+  // Little magic to reset the key to 'n' without retriggering hotlink
+  BOOL move = false;
+  db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
+
   return 0;
 
 }
@@ -158,15 +166,18 @@ INT start_home(){
 
   // TOFIX: add some checks that we aren't already moving
 
-  if(gStartHome){  // if 'y', then start home
-    printf("Start home...\n");
-    sleep(3);
-    // TOFIX: instruct the Arduino to home
-    printf("Finished home\n");
-  }else{ // otherwise just return
-    printf("Nothing to do\n");
-  }
-  
+  if(!gStartHome) return 0; // Just return if home not requested...
+
+
+  printf("Start home...\n");
+  sleep(3);
+  // TOFIX: instruct the Arduino to home
+  printf("Finished home\n");
+
+  // Little magic to reset the key to 'n' without retriggering hotlink
+  BOOL home = false;
+  db_set_data_index1(hDB, handleHome, &home, sizeof(home), 0, TID_BOOL, FALSE);
+
   return 0;
 }
 
@@ -203,11 +214,10 @@ INT frontend_init()
   status = db_get_value(hDB, 0, varpath.c_str(), &gStartHome, &size, TID_BOOL, TRUE);
    
   // Setup actual hot-link
-  HNDLE handle;
-  status = db_find_key (hDB, 0, varpath.c_str(), &handle);
+  status = db_find_key (hDB, 0, varpath.c_str(), &handleHome);
 
   /* Enable hot-link on StartHome of the equipment */
-  if ((status = db_open_record(hDB, handle, &gStartHome, size, MODE_READ, start_home, NULL)) != DB_SUCCESS)
+  if ((status = db_open_record(hDB, handleHome, &gStartHome, size, MODE_READ, start_home, NULL)) != DB_SUCCESS)
     return status;
 
   
@@ -222,10 +232,10 @@ INT frontend_init()
   status = db_get_value(hDB, 0, varpath.c_str(), &gStartMove, &size, TID_BOOL, TRUE);
    
   // Setup actual hot-link
-  status = db_find_key (hDB, 0, varpath.c_str(), &handle);
+  status = db_find_key (hDB, 0, varpath.c_str(), &handleMove);
 
   /* Enable hot-link on StartHome of the equipment */
-  if ((status = db_open_record(hDB, handle, &gStartMove, size, MODE_READ, start_move, NULL)) != DB_SUCCESS)
+  if ((status = db_open_record(hDB, handleMove, &gStartMove, size, MODE_READ, start_move, NULL)) != DB_SUCCESS)
     return status;
 
   return SUCCESS;

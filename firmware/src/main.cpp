@@ -26,8 +26,7 @@ void setup()
 
 void loop()
 {
-    File dataFile = SD.open("temp_datalog.txt", FILE_WRITE);
-    
+  
     Thermistor_10k thermistor_25cm(thermistor1Pin,seriesResistor1);
     Thermistor_10k thermistor_50cm(thermistor2Pin,seriesResistor2);
     Thermistor_10k thermistor_200cm(thermistor3Pin,seriesResistor3);
@@ -41,6 +40,7 @@ void loop()
         // double temp1 = thermistor_25cm.readAveragedTemperature();
         // double temp2 = thermistor_50cm.readAveragedTemperature();
         // double temp3 = thermistor_200cm.readAveragedTemperature();
+        
         Serial.print(currentTime/1000.0);
         Serial.print(",");
         Serial.print(temp1);

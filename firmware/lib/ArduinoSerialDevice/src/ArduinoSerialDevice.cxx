@@ -5,7 +5,7 @@ ArduinoSerialDevice::ArduinoSerialDevice(HardwareSerial *device)
     this->device = device;
 }
 
-bool ArduinoSerialDevice::open(uint32_t baud_rate)
+bool ArduinoSerialDevice::connect(uint32_t baud_rate)
 {
     this->device->begin(baud_rate);
     return true;

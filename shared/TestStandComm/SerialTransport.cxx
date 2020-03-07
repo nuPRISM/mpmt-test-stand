@@ -3,11 +3,6 @@
 SerialTransport::SerialTransport(SerialDevice *device)
 {
     this->device = device;
-}
-
-void SerialTransport::start(uint32_t baud_rate)
-{
-    this->device->open(baud_rate);
     this->pending_message.current_segment = MSG_SEG_START;
 }
 
@@ -27,6 +22,7 @@ bool SerialTransport::check_for_message(Message *msg)
             switch (this->pending_message.current_segment) {
                 case MSG_SEG_START:
                     if (byte_in == MSG_DELIM) {
+                        this->msg_in_progress = true;
                         this->pending_message.current_segment = MSG_SEG_ID;
                     }
                     break;
@@ -61,6 +57,7 @@ bool SerialTransport::check_for_message(Message *msg)
                 case MSG_SEG_END:
                     if (byte_in == MSG_DELIM) {
                         this->pending_message.current_segment = MSG_SEG_START;
+                        this->msg_in_progress = false;
                         return true;
                     }
                 default:
@@ -68,13 +65,8 @@ bool SerialTransport::check_for_message(Message *msg)
             }
         }
     }
-    return false;
-}
 
-bool SerialTransport::recv_message(Message *msg)
-{
-    while (!this->check_for_message(msg)) {}
-    return true;
+    return false;
 }
 
 bool SerialTransport::send_message(Message *msg)

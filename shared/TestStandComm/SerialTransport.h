@@ -5,12 +5,12 @@
 #include "Messages.h"
 
 typedef enum {
-    MSG_SEG_START,
-    MSG_SEG_ID,
-    MSG_SEG_LENGTH,
-    MSG_SEG_DATA,
-    MSG_SEG_CRC,
-    MSG_SEG_END
+    MSG_SEG_START    = 0,
+    MSG_SEG_ID       = 1,
+    MSG_SEG_LENGTH   = 2,
+    MSG_SEG_DATA     = 3,
+    MSG_SEG_CRC      = 4,
+    MSG_SEG_END      = 5
 } MessageSegment;
 
 typedef struct {
@@ -23,10 +23,11 @@ typedef struct {
 class SerialTransport
 {
     public:
+        bool msg_in_progress = false;
+
         SerialTransport(SerialDevice *device);
-        void start(uint32_t baud_rate);
+        
         bool check_for_message(Message *msg);
-        bool recv_message(Message *msg);
         bool send_message(Message *msg);
 
     private:

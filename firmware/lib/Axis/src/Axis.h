@@ -1,21 +1,53 @@
 #ifndef AXIS_H
 #define AXIS_H
 
-#include "Debug.h"
+#define VELOCITY_HOMING 200
+
 #include "Kinematics.h"
-// -------------------------------- X AXIS SETUP -------------------------------- //
-#define ACCEL_X                 100
-#define VEL_MIN_X               100
-#define VEL_MAX_X               1000
-#define STEP_PIN_X              5 // need to know the register for fast operation pin 5 - PC25 
-#define DIR_PIN_X               6 // need to know the register for fast operation pin 6 - PC24
-#define ENCODER_PIN_A_X         7
-#define ENCODER_PIN_B_X         8
-#define LIMIT_SW_HOME_PIN_X     9
-#define LIMIT_SW_FAR_PIN_X      10
+#include "LimitSwitch.h"
+#include "Encoder.h"
 
-Axis setup_axis_x();
+typedef enum {PRESSED, DEPRESSED} Status;
+typedef enum {POSITIVE, NEGATIVE} Direction;
+typedef enum {ACCELERATE, HOLD, DECELERATE} Segment;
 
+typedef struct {
+    uint32_t dir_pin, step_pin, encoder_pin_a, encoder_pin_b, ls_home, ls_far;
+    uint32_t acceleration, vel_max, vel_min;
+    Tc *timer;
+    uint32_t channel_velocity, channel_accel;
+    IRQn_Type isr_velocity, isr_accel;
+    void (*isr_encoder)(void);
+    void (*isr_limit_switch)(void);
+} AxisConfig;
+
+typedef struct Axis
+{
+    uint32_t dir_pin;
+    uint32_t step_pin;
+    uint32_t accel;
+    uint32_t vel_min;
+    uint32_t vel_max;
+    uint32_t vel;
+    int32_t vel_profile_cur_trap[3] = {0, 0, 0}; // defined in counts accelerate, hold, decelerate
+    Segment tragectory_segment;
+    Encoder encoder;
+    LimitSwitch ls_home;
+    LimitSwitch ls_far_from_home;
+    // necessary timer info
+    Tc *timer;
+    uint32_t channel_velocity;
+    uint32_t channel_accel;
+    IRQn_Type isr_velocity;
+    IRQn_Type isr_accel;
+    Direction dir;
+    bool homing;
+} Axis;
+
+void setup_axis(AxisConfig *axis_config, Axis *axis);
+// -------------------------------- X AXIS -------------------------------- //
+
+extern AxisConfig axis_x_config;
 extern Axis axis_x;
 // isr to handle encoder of x axis
 void isr_encoder_x();
@@ -23,27 +55,10 @@ void isr_encoder_x();
 // isr to handle limit switch
 void isr_limit_switch_x();
 
-// isr for operating x axis motor velocity
-void TC3_Handler(void);
+// -------------------------------- Y AXIS -------------------------------- //
 
-// isr for operating x axis motor acceleration 
-void TC4_Handler(void);
-
-
-// -------------------------------- Y AXIS SETUP -------------------------------- //
-#define ACCEL_Y                 100
-#define VEL_MIN_Y               100
-#define VEL_MAX_Y               1000
-#define STEP_PIN_Y              22 // need to know the register for fast operation pin 5 - PB26 
-#define DIR_PIN_Y               23 // need to know the register for fast operation pin 6 - PA14
-#define ENCODER_PIN_A_Y         24
-#define ENCODER_PIN_B_Y         25
-#define LIMIT_SW_HOME_PIN_Y     26
-#define LIMIT_SW_FAR_PIN_Y      27
-
-Axis setup_axis_y();
-
-extern Axis axis_x;
+extern AxisConfig axis_y_config;
+extern Axis axis_y;
 // isr to handle encoder of x axis
 void isr_encoder_y();
 
@@ -56,8 +71,18 @@ void TC0_Handler(void);
 // isr for operating x axis motor acceleration 
 void TC1_Handler(void);
 
+// SETUP INTERRUPTS
 void setup_encoder_interrupts();
 
 void setup_ls_interrupts();
+
+// MOVEMENT
+void axis_trapezoidal_move_rel(Axis *axis, uint32_t vel_max, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel, Direction dir);
+
+void axis_trapezoidal_move_tri(Axis *axis, uint32_t vel_max, uint32_t counts_accel, uint32_t counts_decel, Direction dir);
+
+void axis_trapezoidal_move_abs(Axis *axis, uint32_t vel_max, uint32_t counts_accel, uint32_t counts_const, uint32_t counts_decel, Direction dir);
+
+void home_axis(Axis *axis);
 
 #endif

@@ -1,4 +1,5 @@
 #include "Timer.h"
+#include "Debug.h"
 
 void start_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity)
 {
@@ -45,7 +46,7 @@ void start_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel)
 void reset_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel)
 {   
     NVIC_DisableIRQ(irq);
-    uint32_t rc = VARIANT_MCK/128/accel; // over 2 because need to toggle down
+    uint32_t rc = VARIANT_MCK/128/accel;
     TC_SetRA(tc, channel, rc/2); //50% high, 50% low
     TC_SetRC(tc, channel, rc);
     TC_Start(tc, channel);

@@ -1,9 +1,11 @@
 #ifndef LIMITSWITCH_H
 #define LIMITSWITCH_H
 
+#include "Arduino.h"
+
 typedef struct LimitSwitch
 {
-    int pin;
+    uint32_t pin;
     int status;
 } LimitSwitch;
 

@@ -45,17 +45,17 @@ void loop()
         Serial.print("Length: ");
         Serial.println(serial_session.received_msg.length);
 
-        uint8_t data = 0x4E;
-        Message msg_to_send = {
-            .id = 0x40,
-            .length = 1,
-            .data = &data
-        };
-        if (serial_session.send_message(&msg_to_send)) {
-            Serial.println("\nSent response");
-        } else {
-            Serial.println("\nFailed to send response");
-        }
+        // uint8_t data = 0x4E;
+        // Message msg_to_send = {
+        //     .id = 0x40,
+        //     .length = 1,
+        //     .data = &data
+        // };
+        // if (serial_session.send_message(&msg_to_send)) {
+        //     Serial.println("\nSent response");
+        // } else {
+        //     Serial.println("\nFailed to send response");
+        // }
     }
 
     // put your main code here, to run repeatedly:

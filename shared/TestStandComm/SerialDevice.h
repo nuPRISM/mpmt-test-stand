@@ -6,7 +6,7 @@
 class SerialDevice
 {
     public:
-        virtual bool open(uint32_t baud_rate) = 0;
+        virtual bool connect(uint32_t baud_rate) = 0;
         virtual uint32_t available() = 0;
         virtual uint8_t read() = 0;
         virtual bool write(uint8_t *data, uint32_t length) = 0;

@@ -9,11 +9,11 @@ class ArduinoSerialDevice: public SerialDevice
     public:
         ArduinoSerialDevice(HardwareSerial *device);
         
-        bool connect(uint32_t baud_rate);
-        uint32_t available();
-        uint8_t read();
-        bool write(uint8_t *data, uint32_t length);
-        void close();
+        bool ser_connect(uint32_t baud_rate);
+        uint32_t ser_available();
+        uint8_t ser_read();
+        bool ser_write(uint8_t *data, uint32_t length);
+        void ser_disconnect();
 
     private:
         HardwareSerial *device;

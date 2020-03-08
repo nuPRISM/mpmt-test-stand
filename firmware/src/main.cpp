@@ -16,7 +16,7 @@ void setup()
     // put your setup code here, to run once:
     pinMode(LED_BUILTIN, OUTPUT);
 
-    serial_device.connect(BAUD_RATE);
+    serial_device.ser_connect(BAUD_RATE);
     Serial.println("mPMT Test Stand");
 }
 

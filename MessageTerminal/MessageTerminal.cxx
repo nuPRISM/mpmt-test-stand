@@ -9,7 +9,7 @@
 #define BAUD_RATE 115200
 
 #define BASIC_CMD(_name)                    \
-void _name(istringstream& iss)        \
+void _name(istringstream& iss)              \
 {                                           \
     if (comm._name()) cout << "OK" << endl; \
     else cout << "ERROR" << endl;           \

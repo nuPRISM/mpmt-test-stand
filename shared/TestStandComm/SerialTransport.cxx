@@ -8,15 +8,15 @@ SerialTransport::SerialTransport(SerialDevice *device)
 
 bool SerialTransport::check_for_message(Message *msg)
 {
-    if (this->device->available() > 0) {
+    if (this->device->ser_available() > 0) {
         // Wait for buffer to fill
         // delay(3);
-        uint32_t avail = this->device->available();
+        uint32_t avail = this->device->ser_available();
 
         uint8_t byte_in;
         while (avail > 0) {
             // Read next byte in
-            byte_in = this->device->read();
+            byte_in = this->device->ser_read();
             avail--;
 
             switch (this->pending_message.current_segment) {
@@ -75,21 +75,21 @@ bool SerialTransport::send_message(Message *msg)
 
     // START
     byte_out = MSG_DELIM;
-    if (!this->device->write(&byte_out, 1)) return false;
+    if (!this->device->ser_write(&byte_out, 1)) return false;
 
     // MESSAGE
-    if (!this->device->write(&(msg->id), sizeof(msg->id))) return false;
-    if (!this->device->write(&(msg->length), sizeof (msg->length))) return false;
-    if (!this->device->write(msg->data, msg->length)) return false;
+    if (!this->device->ser_write(&(msg->id), sizeof(msg->id))) return false;
+    if (!this->device->ser_write(&(msg->length), sizeof (msg->length))) return false;
+    if (!this->device->ser_write(msg->data, msg->length)) return false;
 
     // TODO CRC
     byte_out = 0;
-    if (!this->device->write(&byte_out, 1)) return false;
-    if (!this->device->write(&byte_out, 1)) return false;
+    if (!this->device->ser_write(&byte_out, 1)) return false;
+    if (!this->device->ser_write(&byte_out, 1)) return false;
 
     // END
     byte_out = MSG_DELIM;
-    if (!this->device->write(&byte_out, 1)) return false;
+    if (!this->device->ser_write(&byte_out, 1)) return false;
 
     return true;
 }

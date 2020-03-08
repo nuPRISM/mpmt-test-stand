@@ -9,18 +9,19 @@
 #include <errno.h> // Error integer and strerror() function
 #include <termios.h> // Contains POSIX terminal control definitions
 #include <unistd.h> // write(), read(), close()
+#include <sys/ioctl.h> // ioctl()
 
 LinuxSerialDevice::LinuxSerialDevice(std::string device_file) : device_file(device_file)
 {
     // Nothing else to do
 }
 
-bool LinuxSerialDevice::connect(uint32_t baud_rate)
+bool LinuxSerialDevice::ser_connect(uint32_t baud_rate)
 {
     // Reference: https://blog.mbedded.ninja/programming/operating-systems/linux/linux-serial-ports-using-c-cpp/
 
     // Open serial port device file
-    this->serial_port = open(this->device_file.c_str(), O_RDWR)
+    this->serial_port = open(this->device_file.c_str(), O_RDWR);
     if (serial_port < 0) {
         printf("Error %i from open: %s\n", errno, strerror(errno));
         return false;
@@ -67,25 +68,32 @@ bool LinuxSerialDevice::connect(uint32_t baud_rate)
     // Save tty settings
     if (tcsetattr(serial_port, TCSANOW, &tty) != 0) {
         printf("Error %i from tcsetattr: %s\n", errno, strerror(errno));
+        return false;
     }
+
+    return true;
 }
 
-uint32_t LinuxSerialDevice::available()
+uint32_t LinuxSerialDevice::ser_available()
 {
-
+    uint32_t bytes_avail;
+    ioctl(this->serial_port, FIONREAD, &bytes_avail);
+    return bytes_avail;
 }
 
-uint8_t LinuxSerialDevice::read()
+uint8_t LinuxSerialDevice::ser_read()
 {
-
+    uint8_t byte_in;
+    read(this->serial_port, &byte_in, 1);
+    return byte_in;
 }
 
-bool LinuxSerialDevice::write(uint8_t *data, uint32_t length)
+bool LinuxSerialDevice::ser_write(uint8_t *data, uint32_t length)
 {
-
+    return (write(this->serial_port, data, length) == length);
 }
 
-void LinuxSerialDevice::close()
+void LinuxSerialDevice::ser_disconnect()
 {
-
+    close(this->serial_port);
 }

@@ -26,6 +26,8 @@ class SerialTransport
         SerialDevice *device;
         PendingMessage pending_message;
 
+        void reset();
+
     public:
         bool msg_in_progress = false;
 

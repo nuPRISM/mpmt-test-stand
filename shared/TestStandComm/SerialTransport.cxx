@@ -6,6 +6,16 @@ SerialTransport::SerialTransport(SerialDevice *device)
     this->pending_message.current_segment = MSG_SEG_START;
 }
 
+void SerialTransport::reset()
+{
+    this->pending_message.current_segment = MSG_SEG_START;
+    this->pending_message.bytes_read = 0;
+    this->pending_message.msg_length = 0;
+    this->pending_message.crc = 0;
+
+    this->msg_in_progress = false;
+}
+
 bool SerialTransport::check_for_message(Message *msg)
 {
     uint32_t avail;
@@ -53,8 +63,7 @@ bool SerialTransport::check_for_message(Message *msg)
                     break;
                 case MSG_SEG_END:
                     if (byte_in == MSG_DELIM_END) {
-                        this->pending_message.current_segment = MSG_SEG_START;
-                        this->msg_in_progress = false;
+                        this->reset();
                         return true;
                     }
                     break;
@@ -75,7 +84,7 @@ bool SerialTransport::recv_message(Message *msg, uint32_t timeout_ms)
         // Check if we've hit the timeout
         if ((this->device->platform_millis() - time_start) > timeout_ms) {
             // Abandon the message
-            this->pending_message.current_segment = MSG_SEG_START;
+            this->reset();
             return false;
         }
     }

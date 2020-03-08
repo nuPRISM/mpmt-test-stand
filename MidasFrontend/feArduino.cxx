@@ -141,11 +141,24 @@ INT start_move(){
   // Get the destination position
   std::string destpath = path + "/Destination";
   float destination[2] = {0,0};
-  int size = sizeof(destination);
-  int status = db_get_value(hDB, 0, destpath.c_str(), &destination, &size, TID_FLOAT, TRUE);
-        
-  printf("Moving to position X=%f, Y=%f\n",destination[0],destination[1]);
+  int size_dest = sizeof(destination);
+  int status_dest = db_get_value(hDB, 0, destpath.c_str(), &destination, &size_dest, TID_FLOAT, TRUE);
 
+  // Get the velocity
+  std::string velpath = path + "/Velocity";
+  float velocity[2] = {0,0};
+  int size_vel = sizeof(velocity);
+  int status_vel = db_get_value(hDB, 0, velpath.c_str(), &velocity, &size_vel, TID_FLOAT, TRUE);
+
+  // Get the acceleration
+  std::string accelpath = path + "/Acceleration";
+  float acceleration[2] = {0,0};
+  int size_accel = sizeof(acceleration);
+  int status_accel = db_get_value(hDB, 0, accelpath.c_str(), &acceleration, &size_accel, TID_FLOAT, TRUE);
+
+  printf("Moving to position P_x=%f, P_y=%f\n",destination[0],destination[1]);
+  printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[0],velocity[1]);
+  printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[0],acceleration[1]);
   // TOFIX: instruct the Arduino to move to the specified destination at specified speed.
   
   for(int i = 0; i < 5; i++){

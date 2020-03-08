@@ -5,19 +5,18 @@
 
 class SerialSession
 {
-    public:
-        Message received_msg;
+    private:
+        Message *received_msg;
+        SerialTransport *transport;
 
-        SerialSession(SerialTransport *transport);
+        void ack();
+
+    public:
+        SerialSession(SerialTransport *transport, Message *received_msg);
         
         bool check_for_message();
-        bool recv_message();
+        bool recv_message(uint32_t timeout_ms);
         bool send_message(Message *msg);
-
-    private:
-        SerialTransport *transport;
-        uint8_t received_data[MSG_DATA_LENGTH_MAX];
-
 };
 
 #endif // SERIAL_SESSION_H

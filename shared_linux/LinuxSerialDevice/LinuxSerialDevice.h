@@ -7,6 +7,10 @@
 
 class LinuxSerialDevice: public SerialDevice
 {
+    private:
+        std::string device_file;
+        int serial_port;
+
     public:
         LinuxSerialDevice(std::string device_file);
 
@@ -16,9 +20,7 @@ class LinuxSerialDevice: public SerialDevice
         bool ser_write(uint8_t *data, uint32_t length);
         void ser_disconnect();
 
-    private:
-        std::string device_file;
-        int serial_port;
+        uint64_t platform_millis();
 };
 
 #endif // LINUX_SERIAL_DEVICE_H

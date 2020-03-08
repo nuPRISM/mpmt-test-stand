@@ -11,6 +11,8 @@ class SerialDevice
         virtual uint8_t ser_read() = 0;
         virtual bool ser_write(uint8_t *data, uint32_t length) = 0;
         virtual void ser_disconnect() = 0;
+
+        virtual uint64_t platform_millis() = 0;
 };
 
 #endif // SERIAL_DEVICE_H

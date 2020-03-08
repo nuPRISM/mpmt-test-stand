@@ -6,6 +6,9 @@
 
 class ArduinoSerialDevice: public SerialDevice
 {
+    private:
+        HardwareSerial *device;
+
     public:
         ArduinoSerialDevice(HardwareSerial *device);
         
@@ -15,8 +18,7 @@ class ArduinoSerialDevice: public SerialDevice
         bool ser_write(uint8_t *data, uint32_t length);
         void ser_disconnect();
 
-    private:
-        HardwareSerial *device;
+        uint64_t platform_millis();
 };
 
 #endif // ARDUINO_SERIAL_DEVICE_H

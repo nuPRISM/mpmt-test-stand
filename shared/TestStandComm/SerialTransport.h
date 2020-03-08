@@ -22,17 +22,18 @@ typedef struct {
 
 class SerialTransport
 {
+    private:
+        SerialDevice *device;
+        PendingMessage pending_message;
+
     public:
         bool msg_in_progress = false;
 
         SerialTransport(SerialDevice *device);
         
         bool check_for_message(Message *msg);
+        bool recv_message(Message *msg, uint32_t timeout_ms);
         bool send_message(Message *msg);
-
-    private:
-        SerialDevice *device;
-        PendingMessage pending_message;
 };
 
 #endif // SERIAL_COMM_H

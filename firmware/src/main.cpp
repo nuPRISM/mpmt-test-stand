@@ -1,15 +1,13 @@
 #include <Arduino.h>
 
 #include "ArduinoSerialDevice.h"
-#include "SerialTransport.h"
-#include "SerialSession.h"
+#include "TestStandCommController.h"
 #include "Messages.h"
 
 #define BAUD_RATE 115200
 
 ArduinoSerialDevice serial_device(&Serial);
-SerialTransport serial_transport(&serial_device);
-SerialSession serial_session(&serial_transport);
+TestStandCommController comm(&serial_device);
 
 void setup()
 {
@@ -17,17 +15,23 @@ void setup()
     pinMode(LED_BUILTIN, OUTPUT);
 
     serial_device.ser_connect(BAUD_RATE);
-    Serial.println("mPMT Test Stand");
+    // Serial.println("mPMT Test Stand");
 }
 
 void loop()
 {
-    if (serial_session.check_for_message()) {
-        Serial.println("\nMessage Received!");
-        Serial.print("ID: ");
-        Serial.println(serial_session.received_msg.id);
-        Serial.print("Length: ");
-        Serial.println(serial_session.received_msg.length);
+    if (comm.check_for_message()) {
+        // Serial.println("\nMessage Received!");
+        // Serial.print("ID: ");
+        // Serial.println(comm.received_msg.id);
+        // Serial.print("Length: ");
+        // Serial.println(comm.received_msg.length);
+
+        // if (comm.log(ERROR, "asdf")) {
+        //     Serial.println("\nSent response");
+        // } else {
+        //     Serial.println("\nFailed to send response");
+        // }
 
         // uint8_t data = 0x4E;
         // Message msg_to_send = {

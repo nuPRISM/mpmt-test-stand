@@ -10,6 +10,7 @@
 #include <termios.h> // Contains POSIX terminal control definitions
 #include <unistd.h> // write(), read(), close()
 #include <sys/ioctl.h> // ioctl()
+#include <sys/time.h>
 
 LinuxSerialDevice::LinuxSerialDevice(std::string device_file) : device_file(device_file)
 {
@@ -96,4 +97,11 @@ bool LinuxSerialDevice::ser_write(uint8_t *data, uint32_t length)
 void LinuxSerialDevice::ser_disconnect()
 {
     close(this->serial_port);
+}
+
+uint64_t LinuxSerialDevice::platform_millis()
+{
+    struct timeval tval;
+    gettimeofday(&tval, NULL);
+    return (tval.tv_usec / 1000);
 }

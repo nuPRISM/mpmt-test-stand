@@ -7,20 +7,23 @@
 
 class TestStandComm
 {
-    public:
-        TestStandComm(SerialDevice *device);
-
-        bool ping();
-        bool get_status(uint8_t *status_resp);
-        bool home();
-        bool move(uint16_t accel, uint16_t hold_vel, uint16_t dist, uint8_t axis, uint8_t dir); // TODO enums?
-        bool stop();
-        bool get_data(uint8_t data_id); // TODO structs for response?
-
     private:
         SerialDevice *device;
         SerialTransport transport;
+
+    protected:
+        bool send_empty_msg(uint8_t id);
         SerialSession session;
+
+    public:
+        Message received_msg;
+        uint8_t received_data[MSG_DATA_LENGTH_MAX];
+
+        TestStandComm(SerialDevice *device);
+
+        bool check_for_message();
+        bool recv_message(uint32_t timeout_ms);
+
 };
 
 #endif // TEST_STAND_COMM_H

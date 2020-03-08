@@ -5,7 +5,8 @@
 
 #define MSG_DATA_LENGTH_MAX  0xFF
 
-#define MSG_DELIM 0x7E
+#define MSG_DELIM_START 0x7B
+#define MSG_DELIM_END   0x7D
 
 /*****************************************************************************/
 /*                                MESSAGE IDS                                */
@@ -25,13 +26,40 @@
 #define MSG_ID_GET_DATA    0x45
 
 // Arduino -> PC Messages
-#define MSG_ID_STATUS      0x80
-#define MSG_ID_DATA        0x81
+#define MSG_ID_LOG         0x80
+#define MSG_ID_STATUS      0x81
+#define MSG_ID_DATA        0x82
 
 typedef struct {
     uint8_t id;
     uint8_t length;
     uint8_t *data;
 } Message;
+
+typedef enum {
+    POSITIVE = 0,
+    NEGATIVE = 1
+} Direction;
+
+typedef enum {
+    TEMP = 0,
+    MOTOR = 1
+} DataId;
+
+typedef enum {
+    DEBUG = 0,
+    INFO = 1,
+    WARNING = 2,
+    ERROR = 3,
+    CRITICAL = 4
+} LogLevel;
+
+typedef enum {
+    IDLE = 0,
+    HOMING = 1,
+    MOVING = 2,
+    MEASURING = 3,
+    LIMIT_REACHED = 4
+} Status;
 
 #endif // MESSAGES_H

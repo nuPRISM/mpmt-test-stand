@@ -37,29 +37,34 @@ typedef struct {
 } Message;
 
 typedef enum {
-    POSITIVE = 0,
-    NEGATIVE = 1
+    DIR_POSITIVE = 0,
+    DIR_NEGATIVE = 1
 } Direction;
 
 typedef enum {
-    TEMP = 0,
-    MOTOR = 1
+    AXIS_X = 0,
+    AXIS_Y = 1
+} AxisId;
+
+typedef enum {
+    DATA_TEMP = 0,
+    DATA_MOTOR = 1
 } DataId;
 
 typedef enum {
-    DEBUG = 0,
-    INFO = 1,
-    WARNING = 2,
-    ERROR = 3,
-    CRITICAL = 4
+    LL_DEBUG = 0,
+    LL_INFO = 1,
+    LL_WARNING = 2,
+    LL_ERROR = 3,
+    LL_CRITICAL = 4
 } LogLevel;
 
 typedef enum {
-    IDLE = 0,
-    HOMING = 1,
-    MOVING = 2,
-    MEASURING = 3,
-    LIMIT_REACHED = 4
+    STATUS_IDLE = 0,
+    STATUS_HOMING = 1,
+    STATUS_MOVING = 2,
+    STATUS_MEASURING = 3,
+    STATUS_LIMIT_REACHED = 4
 } Status;
 
 #endif // MESSAGES_H

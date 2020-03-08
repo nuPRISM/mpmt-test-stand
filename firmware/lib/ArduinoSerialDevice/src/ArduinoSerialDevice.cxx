@@ -30,3 +30,8 @@ void ArduinoSerialDevice::ser_disconnect()
 {
     // Do nothing
 }
+
+uint64_t ArduinoSerialDevice::platform_millis()
+{
+    return millis();
+}

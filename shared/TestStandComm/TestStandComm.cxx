@@ -1,42 +1,26 @@
 #include "TestStandComm.h"
 
-TestStandComm::TestStandComm(SerialDevice *device) : device(device), transport(device), session(&transport)
+TestStandComm::TestStandComm(SerialDevice *device) : device(device), transport(device), session(&transport, &(this->received_msg))
 {
-    // Nothing else to do
+    this->received_msg.data = this->received_data;
 }
 
-bool TestStandComm::ping()
+bool TestStandComm::send_empty_msg(uint8_t id)
 {
     Message msg = {
-        .id = MSG_ID_PING,
+        .id = id,
         .length = 0,
         .data = nullptr
     };
-    
     return this->session.send_message(&msg);
 }
 
-bool TestStandComm::get_status(uint8_t *status_resp)
+bool TestStandComm::check_for_message()
 {
-    return false;
+    return this->session.check_for_message();
 }
 
-bool TestStandComm::home()
+bool TestStandComm::recv_message(uint32_t timeout_ms)
 {
-    return false;
-}
-
-bool TestStandComm::move(uint16_t accel, uint16_t hold_vel, uint16_t dist, uint8_t axis, uint8_t dir)
-{
-    return false;
-}
-
-bool TestStandComm::stop()
-{
-    return false;
-}
-
-bool TestStandComm::get_data(uint8_t data_id)
-{
-    return false;
+    return this->session.recv_message(timeout_ms);
 }

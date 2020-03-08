@@ -1,7 +1,8 @@
 #include <stdio.h>
+#include <unistd.h>
 
 #include "LinuxSerialDevice.h"
-#include "TestStandComm.h"
+#include "TestStandCommHost.h"
 
 #define BAUD_RATE 115200
 
@@ -10,14 +11,17 @@ int main()
     printf("MessageTerminal Started\n");
 
     LinuxSerialDevice device("/dev/ttyS3");
-    TestStandComm comm(&device);
+    TestStandCommHost comm(&device);
 
     if (!device.ser_connect(BAUD_RATE)) return 1;
 
-    if (comm.ping()) {
-        printf("PING Successful!");
-    } else {
-        printf("PING failed!");
+    while (true) {
+        if (comm.ping()) {
+            printf("PING Successful!\n");
+        } else {
+            printf("PING failed!\n");
+        }
+        sleep(1);
     }
 
     device.ser_disconnect();

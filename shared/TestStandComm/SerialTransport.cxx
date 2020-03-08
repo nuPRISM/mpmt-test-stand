@@ -8,11 +8,8 @@ SerialTransport::SerialTransport(SerialDevice *device)
 
 bool SerialTransport::check_for_message(Message *msg)
 {
-    if (this->device->ser_available() > 0) {
-        // Wait for buffer to fill
-        // delay(3);
-        uint32_t avail = this->device->ser_available();
-
+    uint32_t avail;
+    if ((avail = this->device->ser_available()) > 0) {
         uint8_t byte_in;
         while (avail > 0) {
             // Read next byte in
@@ -21,7 +18,7 @@ bool SerialTransport::check_for_message(Message *msg)
 
             switch (this->pending_message.current_segment) {
                 case MSG_SEG_START:
-                    if (byte_in == MSG_DELIM) {
+                    if (byte_in == MSG_DELIM_START) {
                         this->msg_in_progress = true;
                         this->pending_message.current_segment = MSG_SEG_ID;
                     }
@@ -55,11 +52,12 @@ bool SerialTransport::check_for_message(Message *msg)
                     }
                     break;
                 case MSG_SEG_END:
-                    if (byte_in == MSG_DELIM) {
+                    if (byte_in == MSG_DELIM_END) {
                         this->pending_message.current_segment = MSG_SEG_START;
                         this->msg_in_progress = false;
                         return true;
                     }
+                    break;
                 default:
                     break;
             }
@@ -69,12 +67,28 @@ bool SerialTransport::check_for_message(Message *msg)
     return false;
 }
 
+bool SerialTransport::recv_message(Message *msg, uint32_t timeout_ms)
+{
+    uint32_t time_start = this->device->platform_millis();
+    // Continually check for messages
+    while (!this->check_for_message(msg)) {
+        // Check if we've hit the timeout
+        if ((this->device->platform_millis() - time_start) > timeout_ms) {
+            // Abandon the message
+            this->pending_message.current_segment = MSG_SEG_START;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool SerialTransport::send_message(Message *msg)
 {
     uint8_t byte_out;
 
     // START
-    byte_out = MSG_DELIM;
+    byte_out = MSG_DELIM_START;
     if (!this->device->ser_write(&byte_out, 1)) return false;
 
     // MESSAGE
@@ -88,7 +102,7 @@ bool SerialTransport::send_message(Message *msg)
     if (!this->device->ser_write(&byte_out, 1)) return false;
 
     // END
-    byte_out = MSG_DELIM;
+    byte_out = MSG_DELIM_END;
     if (!this->device->ser_write(&byte_out, 1)) return false;
 
     return true;

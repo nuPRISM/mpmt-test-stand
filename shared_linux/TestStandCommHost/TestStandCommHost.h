@@ -11,7 +11,7 @@ class TestStandCommHost : public TestStandComm
         bool ping();
         bool get_status();
         bool home();
-        bool move(uint16_t accel, uint16_t hold_vel, uint16_t dist, uint8_t axis, uint8_t dir);
+        bool move(uint16_t accel, uint16_t hold_vel, uint16_t dist, AxisId axis, Direction dir);
         bool stop();
         bool get_data(DataId data_id);
 };

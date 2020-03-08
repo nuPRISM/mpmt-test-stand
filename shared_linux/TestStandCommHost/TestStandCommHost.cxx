@@ -20,7 +20,7 @@ bool TestStandCommHost::home()
     return this->send_empty_msg(MSG_ID_HOME);
 }
 
-bool TestStandCommHost::move(uint16_t accel, uint16_t hold_vel, uint16_t dist, uint8_t axis, uint8_t dir)
+bool TestStandCommHost::move(uint16_t accel, uint16_t hold_vel, uint16_t dist, AxisId axis, Direction dir)
 {
     // TODO
     return false;

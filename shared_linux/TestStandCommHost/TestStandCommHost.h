@@ -6,7 +6,7 @@
 class TestStandCommHost : public TestStandComm
 {
     public:
-        TestStandCommHost(SerialDevice *device);
+        TestStandCommHost(SerialDevice& device);
 
         bool ping();
         bool get_status();

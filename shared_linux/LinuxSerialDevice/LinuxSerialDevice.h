@@ -8,11 +8,12 @@
 class LinuxSerialDevice: public SerialDevice
 {
     private:
-        std::string device_file;
+        const char *device_file;
         int serial_port;
 
     public:
-        LinuxSerialDevice(std::string device_file);
+        LinuxSerialDevice();
+        void set_device_file(const char *device_file);
 
         bool ser_connect(uint32_t baud_rate);
         uint32_t ser_available();

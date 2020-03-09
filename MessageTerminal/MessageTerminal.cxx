@@ -17,7 +17,7 @@ void _name(istringstream& iss)              \
 
 using namespace std;
 
-LinuxSerialDevice device("/dev/ttyS3");
+LinuxSerialDevice device;
 TestStandCommHost comm(device);
 
 typedef void (*cmd_handler)(istringstream& iss);
@@ -95,8 +95,14 @@ cmd_handler get_cmd_handler(const string& cmd_name)
     return nullptr;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc != 2) {
+        printf("\nusage: %s <serial device file>\n\nexample:\n    %s /dev/ttyS3\n\n", argv[0], argv[0]);
+        return 0;
+    }
+
+    device.set_device_file(argv[1]);
     if (!device.ser_connect(BAUD_RATE)) return 1;
 
     bool exit = false;

@@ -12,9 +12,14 @@
 #include <sys/ioctl.h> // ioctl()
 #include <sys/time.h>
 
-LinuxSerialDevice::LinuxSerialDevice(std::string device_file) : device_file(device_file)
+LinuxSerialDevice::LinuxSerialDevice()
 {
-    // Nothing else to do
+    // Nothing to do
+}
+
+void LinuxSerialDevice::set_device_file(const char *device_file)
+{
+    this->device_file = device_file;
 }
 
 bool LinuxSerialDevice::ser_connect(uint32_t baud_rate)
@@ -22,7 +27,7 @@ bool LinuxSerialDevice::ser_connect(uint32_t baud_rate)
     // Reference: https://blog.mbedded.ninja/programming/operating-systems/linux/linux-serial-ports-using-c-cpp/
 
     // Open serial port device file
-    this->serial_port = open(this->device_file.c_str(), O_RDWR);
+    this->serial_port = open(this->device_file, O_RDWR);
     if (serial_port < 0) {
         printf("Error %i from open: %s\n", errno, strerror(errno));
         return false;

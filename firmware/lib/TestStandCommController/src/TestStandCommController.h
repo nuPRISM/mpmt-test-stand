@@ -6,7 +6,7 @@
 class TestStandCommController : public TestStandComm
 {
     public:
-        TestStandCommController(SerialDevice *device);
+        TestStandCommController(SerialDevice& device);
 
         bool log(LogLevel log_level, const char *fmt, ...);
         bool status(Status status);

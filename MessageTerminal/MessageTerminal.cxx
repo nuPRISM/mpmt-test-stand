@@ -18,7 +18,7 @@ void _name(istringstream& iss)              \
 using namespace std;
 
 LinuxSerialDevice device("/dev/ttyS3");
-TestStandCommHost comm(&device);
+TestStandCommHost comm(device);
 
 typedef void (*cmd_handler)(istringstream& iss);
 
@@ -58,18 +58,13 @@ void move(istringstream& iss)
         else if (word == "neg") dir = DIR_NEGATIVE;
         else break;
 
-        printf("accel: %d\n", accel);
-        printf("hold_vel: %d\n", hold_vel);
-        printf("dist: %d\n", dist);
-        printf("axis: %d\n", axis);
-        printf("dir: %d\n", dir);
+        if (comm.move(accel, hold_vel, dist, axis, dir)) cout << "OK" << endl;
+        else cout << "ERROR" << endl;
 
-        if (comm.move(accel, hold_vel, dist, axis, dir)) {
-            cout << "OK" << endl;
+        if (comm.recv_message(5000) && comm.received_message().id == MSG_ID_LOG) {
+            printf("%s\n", &(comm.received_message().data[1]));
         }
-        else {
-            cout << "ERROR" << endl;
-        }
+
         return;
     } while(0);
 

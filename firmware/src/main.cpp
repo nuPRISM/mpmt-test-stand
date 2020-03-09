@@ -6,8 +6,8 @@
 
 #define BAUD_RATE 115200
 
-ArduinoSerialDevice serial_device(&Serial);
-TestStandCommController comm(&serial_device);
+ArduinoSerialDevice serial_device(Serial);
+TestStandCommController comm(serial_device);
 
 void setup()
 {
@@ -15,40 +15,46 @@ void setup()
     pinMode(LED_BUILTIN, OUTPUT);
 
     serial_device.ser_connect(BAUD_RATE);
-    // Serial.println("mPMT Test Stand");
+}
+
+void handle_home()
+{
+
+}
+
+void handle_move()
+{
+    uint16_t accel, hold_vel, dist;
+    uint8_t axis, dir;
+
+    uint8_t *data = comm.received_message().data;
+
+    accel    = ((uint16_t)data[0] << 8) | data[1];
+    hold_vel = ((uint16_t)data[2] << 8) | data[3];
+    dist     = ((uint16_t)data[4] << 8) | data[5];
+
+    axis = data[6];
+    dir = data[7];
+
+    // TODO call motor code
+    // TODO delete this log message:
+    comm.log(LL_INFO, "accel = %d, hold = %d, dist = %d, axis = %c, dir = %s",
+        accel,
+        hold_vel,
+        dist,
+        (axis == AXIS_X ? 'x' : 'y'),
+        (dir == DIR_POSITIVE ? "pos" : "neg"));
 }
 
 void loop()
 {
     if (comm.check_for_message()) {
-        // Serial.println("\nMessage Received!");
-        // Serial.print("ID: ");
-        // Serial.println(comm.received_msg.id);
-        // Serial.print("Length: ");
-        // Serial.println(comm.received_msg.length);
-
-        // if (comm.log(ERROR, "asdf")) {
-        //     Serial.println("\nSent response");
-        // } else {
-        //     Serial.println("\nFailed to send response");
-        // }
-
-        // uint8_t data = 0x4E;
-        // Message msg_to_send = {
-        //     .id = 0x40,
-        //     .length = 1,
-        //     .data = &data
-        // };
-        // if (serial_session.send_message(&msg_to_send)) {
-        //     Serial.println("\nSent response");
-        // } else {
-        //     Serial.println("\nFailed to send response");
-        // }
+        switch (comm.received_message().id) {
+            case MSG_ID_HOME:
+                break;
+            case MSG_ID_MOVE:
+                handle_move();
+                break;
+        }
     }
-
-    // put your main code here, to run repeatedly:
-    // delay(1000);
-    // digitalWrite(LED_BUILTIN, HIGH);
-    // delay(1000);
-    // digitalWrite(LED_BUILTIN, LOW);
 }

@@ -45,15 +45,15 @@ int get_acceleration_cts(float vel_mm_s, float accel_mm_s2)
     return counts;
 }
 
-int main ()
-{
-    float curr_pos_x_cts = 0.0;
-    float dest_x_mm = 8.0;
-    float vel_x_mm_s = 8.0;
-    float accel_x_mm_s2 = 1.0;
+// int main ()
+// {
+//     float curr_pos_x_cts = 0.0;
+//     float dest_x_mm = 8.0;
+//     float vel_x_mm_s = 8.0;
+//     float accel_x_mm_s2 = 1.0;
 
-    int counts_accel = get_acceleration_cts(vel_mm_s, accel_x_mm_s2);
-    int counts_holding = get_holding_velocity_cts(curr_pos_x_cts, dest_x_mm, vel_x_mm_s, accel_x_mm_s2);
-    std::cout << counts_accel << '\n';
-    std::cout << counts_holding << '\n';
-}
+//     int counts_accel = get_acceleration_cts(vel_mm_s, accel_x_mm_s2);
+//     int counts_holding = get_holding_velocity_cts(curr_pos_x_cts, dest_x_mm, vel_x_mm_s, accel_x_mm_s2);
+//     std::cout << counts_accel << '\n';
+//     std::cout << counts_holding << '\n';
+// }

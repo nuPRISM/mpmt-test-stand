@@ -1,7 +1,12 @@
 CC   = gcc
 CXX  = g++
 
-CFLAGS = -g -O2 -Wall -fpermissive
+# --std=c++11     : required to use nullptr
+# -g              : generate debug information
+# -O2             : enable moderate optimization
+# -Wall           : enable all warning messages
+# -fpermissive    : 
+CFLAGS = -std=c++11 -g -O2 -Wall
 
 TARGET = MessageTerminal
 
@@ -30,11 +35,11 @@ VPATH := $(dir $(SRCS))
 
 $(BUILD_DIR)/$(TARGET) : $(OBJS)
 	@mkdir -p $(@D)
-	@$(CXX) $(CFLAGS) $(INCS) $(DEFS) -o $@ $^
+	$(CXX) $(CFLAGS) $(INCS) $(DEFS) -o $@ $^
 
 $(BUILD_DIR)/%.o : %.cxx
 	@mkdir -p $(@D)
-	@$(CXX) $(CFLAGS) $(INCS) $(DEFS) -c $< -o $@
+	$(CXX) $(CFLAGS) $(INCS) $(DEFS) -c $< -o $@
 
 .PHONY: clean
 

@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "limits": "cpp",
+        "stepper.h": "c",
+        "*.tcc": "cpp",
+        "type_traits": "cpp"
+    }
+}

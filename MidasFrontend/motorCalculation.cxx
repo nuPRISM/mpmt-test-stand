@@ -14,7 +14,7 @@ Parameters:
 dest_mm: desired absolute position of gantry in millimeters
 curr_pos_mm: current absolute position of gantry in millimeters 
 */
-Direction get_direction(float dest_mm, uint32_t curr_pos_cts) {
+Direction get_direction(uint32_t curr_pos_cts, float dest_mm) {
     uint32_t dest_cts = mm_to_cts(dest_mm);
     uint32_t diff_cts = dest_cts - curr_pos_cts;
 

@@ -7,18 +7,30 @@ Arduino motor control for mPMT test stand.
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "midas.h"
-#include "mfe.h"
-#include "unistd.h"
-#include "time.h"
-#include "sys/time.h"
 #include <stdint.h>
 
+#include <unistd.h>
+#include <iostream>
+#include <sstream>
 
+#include "midas.h"
+#include "mfe.h"
+// #include "unistd.h"
+#include "time.h"
+#include "sys/time.h"
+
+#include "LinuxSerialDevice.h"
+#include "TestStandCommHost.h"
 
 #define  EQ_NAME   "ARDUINO"
 #define  EQ_EVID   1
 #define  EQ_TRGMSK 0x1111
+
+#define BAUD_RATE 115200
+
+using namespace std;
+LinuxSerialDevice device;
+TestStandCommHost comm(device);
 
 /* Hardware */
 extern HNDLE hDB;
@@ -150,7 +162,7 @@ INT start_move(){
   int size_vel = sizeof(velocity);
   int status_vel = db_get_value(hDB, 0, velpath.c_str(), &velocity, &size_vel, TID_FLOAT, TRUE);
 
-  // Get the acceleration
+  // Get the acceleration (have a default value)
   std::string accelpath = path + "/Acceleration";
   float acceleration[2] = {0,0};
   int size_accel = sizeof(acceleration);
@@ -159,6 +171,7 @@ INT start_move(){
   printf("Moving to position P_x=%f, P_y=%f\n",destination[0],destination[1]);
   printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[0],velocity[1]);
   printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[0],acceleration[1]);
+  
   // TOFIX: instruct the Arduino to move to the specified destination at specified speed.
   
   for(int i = 0; i < 5; i++){
@@ -197,9 +210,21 @@ INT start_home(){
 /*-- Frontend Init -------------------------------------------------*/
 INT frontend_init()
 {
-
   // Setup connection to Arduino
-  // TOFIX!!!
+  int argc;
+  char **argv; 
+
+  mfe_get_args(&argc, &argv);
+  for (int i=0 ; i<argc ; i++)
+    puts(argv[i]); 
+  
+  if (argc != 2) {
+        printf("\nusage: %s <serial device file>\n\nexample:\n    %s /dev/ttyACM0\n\n", argv[0], argv[0]);
+        return 0;
+    }
+
+    device.set_device_file(argv[1]);
+    if (!device.ser_connect(BAUD_RATE)) return 1;
   // 
 
 

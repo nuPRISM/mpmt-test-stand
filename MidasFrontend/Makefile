@@ -113,7 +113,7 @@ $(UFE).exe: $(LIB) $(MIDAS_LIB)/mfe.o $(DRIVERS) $(BUILD_DIR)/$(UFE).o
 	$(MIDAS_LIB)/mfe.o $(LIBMIDAS) $(LIBS)
 
 $(BUILD_DIR)/feArduino.o: feArduino.cxx
-	$(CXX) $(CFLAGS) $(INCS) $(OSFLAGS) -o $@ -c $<
+	$(CXX) $(CFLAGS) $(INCS) $(ARDUINO_INCS) $(OSFLAGS) -o $@ -c $<
 
 $(ARDUINO_BUILD_DIR)/%.o : %.cxx
 	@mkdir -p $(@D)

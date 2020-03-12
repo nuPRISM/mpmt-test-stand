@@ -1,5 +1,7 @@
 #include <cmath>
-#include <iostream> 
+#include <iostream>
+using namespace std;
+// #include "Messages.h" 
 
 const float encoder_cpr = 300.0;
 const float lead_screw_pitch_mm = 8.0;

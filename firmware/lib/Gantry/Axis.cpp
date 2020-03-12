@@ -1,12 +1,12 @@
 #include "Axis.h"
 #include "Debug.h"
 #include "Timer.h"
+#include "Movement.h"
 
-
-// -------------------------------- X AXIS SETUP -------------------------------- //
-#define ACCEL_X                 100
-#define VEL_MIN_X               40
-#define VEL_MAX_X               100
+// X AXIS
+#define ACCEL_X                 8000
+#define VEL_MIN_X               500
+#define VEL_MAX_X               25000
 #define STEP_PIN_X              5 // need to know the register for fast operation pin 5 - PC25 
 #define DIR_PIN_X               6 // need to know the register for fast operation pin 6 - PC24
 #define ENCODER_PIN_A_X         7
@@ -14,10 +14,31 @@
 #define LIMIT_SW_HOME_PIN_X     9
 #define LIMIT_SW_FAR_PIN_X      10
 
+// Y AXIS
+#define ACCEL_Y                 8000
+#define VEL_MIN_Y               500
+#define VEL_MAX_Y               25000
+#define STEP_PIN_Y              22 // need to know the register for fast operation pin 22 - PB26 
+#define DIR_PIN_Y               23 // need to know the register for fast operation pin 23 - PA14
+#define ENCODER_PIN_A_Y         24
+#define ENCODER_PIN_B_Y         25
+#define LIMIT_SW_HOME_PIN_Y     26
+#define LIMIT_SW_FAR_PIN_Y      27
+
+// Interrupt Declarations
+void isr_encoder_x();
+void isr_limit_switch_x();
+void isr_encoder_y();
+void isr_limit_switch_y();
+
 AxisConfig axis_x_config = {DIR_PIN_X, STEP_PIN_X, ENCODER_PIN_A_X, ENCODER_PIN_B_X, LIMIT_SW_HOME_PIN_X, LIMIT_SW_FAR_PIN_X,
                             ACCEL_X, VEL_MAX_X, VEL_MIN_X, TC1, 0, 1, TC3_IRQn, TC4_IRQn, isr_encoder_x, isr_limit_switch_x};
 
+AxisConfig axis_y_config = {DIR_PIN_Y, STEP_PIN_Y, ENCODER_PIN_A_Y, ENCODER_PIN_B_X, LIMIT_SW_HOME_PIN_Y, LIMIT_SW_FAR_PIN_Y,
+                            ACCEL_Y, VEL_MAX_Y, VEL_MIN_Y, TC0, 0, 1, TC0_IRQn, TC1_IRQn, isr_encoder_y, isr_limit_switch_y};
+
 Axis axis_x;
+Axis axis_y;
 
 static void setup_pins(AxisConfig *axis_config)
 {
@@ -44,8 +65,8 @@ static void setup_struct(AxisConfig *axis_config, Axis *axis)
     axis->timer = axis_config->timer;
     axis->channel_velocity = axis_config->channel_velocity;
     axis->channel_accel = axis_config->channel_accel;
-    axis->isr_velocity = axis_config->isr_velocity;
-    axis->isr_accel = axis_config->isr_accel;
+    axis->irq_velocity = axis_config->irq_velocity;
+    axis->irq_accel = axis_config->irq_accel;
 }
 
 static void setup_interrupts(AxisConfig *axis_config, Axis *axis)
@@ -73,6 +94,8 @@ void setup_axis(AxisConfig *axis_config, Axis *axis)
     reset_axis(axis_config, axis);
 }
 
+// -------------------------------- X AXIS INTERRUPTS -------------------------------- //
+
 // isr to handle encoder of x axis
 void isr_encoder_x()
 {
@@ -89,13 +112,13 @@ void isr_encoder_x()
 
 // isr to handle limit switch
 void isr_limit_switch_x()
-{   
+{
     static uint32_t last_interrupt_time = 0;
     uint32_t interrupt_time = millis();
     // If interrupts come faster than 10ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 100) {
-        NVIC_DisableIRQ(axis_x.isr_velocity);
-        NVIC_DisableIRQ(axis_x.isr_accel);
+        NVIC_DisableIRQ(axis_x.irq_velocity);
+        NVIC_DisableIRQ(axis_x.irq_accel);
         DEBUG_PRINT("X Home Limit switch has been hit", 1);
 
         if (axis_x.homing && digitalRead(LIMIT_SW_HOME_PIN_X) == DEPRESSED) {
@@ -170,21 +193,8 @@ void TC4_Handler(void)
 }
 
 
-// -------------------------------- Y AXIS SETUP -------------------------------- //
-#define ACCEL_Y                 100
-#define VEL_MIN_Y               40
-#define VEL_MAX_Y               100
-#define STEP_PIN_Y              22 // need to know the register for fast operation pin 22 - PB26 
-#define DIR_PIN_Y               23 // need to know the register for fast operation pin 23 - PA14
-#define ENCODER_PIN_A_Y         24
-#define ENCODER_PIN_B_Y         25
-#define LIMIT_SW_HOME_PIN_Y     26
-#define LIMIT_SW_FAR_PIN_Y      27
+// -------------------------------- Y AXIS INTERRUPTS -------------------------------- //
 
-AxisConfig axis_y_config = {DIR_PIN_Y, STEP_PIN_Y, ENCODER_PIN_A_Y, ENCODER_PIN_B_X, LIMIT_SW_HOME_PIN_Y, LIMIT_SW_FAR_PIN_Y,
-                            ACCEL_Y, VEL_MAX_Y, VEL_MIN_Y, TC0, 0, 1, TC0_IRQn, TC1_IRQn, isr_encoder_y, isr_limit_switch_y};
-
-Axis axis_y;
 // isr to handle encoder of x axis
 void isr_encoder_y()
 {
@@ -200,8 +210,8 @@ void isr_limit_switch_y()
     uint32_t interrupt_time = millis();
     // If interrupts come faster than 10ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 50) {
-        NVIC_DisableIRQ(axis_y.isr_velocity);
-        NVIC_DisableIRQ(axis_y.isr_accel);
+        NVIC_DisableIRQ(axis_y.irq_velocity);
+        NVIC_DisableIRQ(axis_y.irq_accel);
         DEBUG_PRINT("Y Home Limit switch has been hit", 1);
 
         if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == DEPRESSED) {
@@ -278,59 +288,4 @@ void TC1_Handler(void)
             DEBUG_PRINT("decel d-c: ", delta);
         }
     }
-}
-
-// MOVEMENT
-void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t counts_hold, uint32_t counts_decel, Direction dir)
-{   
-    if (counts_accel == 0 && counts_hold == 0 && counts_decel == 0) return;
-    axis->dir = dir;
-    digitalWrite(axis->dir_pin, dir);
-
-    if (dir == POSITIVE) {
-        axis->vel_profile_cur_trap[0] = counts_accel;
-        axis->vel_profile_cur_trap[1] = counts_hold;
-        axis->vel_profile_cur_trap[2] = counts_decel;
-    }
-    else if (dir == NEGATIVE) {
-        axis->vel_profile_cur_trap[0] = - counts_accel;
-        axis->vel_profile_cur_trap[1] = - counts_hold;
-        axis->vel_profile_cur_trap[2] = - counts_decel;
-    }
-    
-    axis->encoder.desired = axis->encoder.current + axis->vel_profile_cur_trap[0];
-    
-    DEBUG_PRINT("Desired count: ", axis->encoder.desired);
-    DEBUG_PRINT("Current count: ", axis->encoder.current);
-    start_timer(axis->timer, axis->channel_velocity, axis->isr_velocity, axis->vel);
-    start_timer_accel(axis->timer, axis->channel_accel, axis->isr_accel, axis->accel);
-}
-
-void axis_trapezoidal_move_tri(Axis *axis, uint32_t counts_accel, uint32_t counts_decel, Direction dir)
-{   
-    axis_trapezoidal_move_rel(axis, counts_accel, 0, counts_decel, dir);
-}
-
-void home_axis(Axis *axis)
-{   
-    axis->homing = 1;
-    // math to calculate number of accel counts
-    uint32_t counts_accel;
-    // check if the limit switched is pressed at home
-    if (digitalRead(axis->ls_home.pin) == PRESSED) {
-        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX, counts_accel, POSITIVE); // move until limit switch is depressed
-        return;
-    }
-    else {
-        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX, counts_accel, NEGATIVE);
-        return;
-    }
-}
-
-void stop_axis(Axis *axis)
-{
-    NVIC_DisableIRQ(TC0_IRQn);
-    NVIC_DisableIRQ(TC1_IRQn);
-    NVIC_DisableIRQ(TC3_IRQn);
-    NVIC_DisableIRQ(TC4_IRQn);
 }

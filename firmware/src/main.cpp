@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "Axis.h"
+#include "Movement.h"
 #include "Kinematics.h"
 #include "Debug.h"
 
@@ -17,13 +18,12 @@ void setup()
 {
     DEBUG_INIT;
     DEBUG_PRINT("setup ", 0);
-    delay(2000);
     // // for testing only
     setup_axis(&axis_x_config, &axis_x);
 
     // Example
-    // delay(2000);
-    // axis_trapezoidal_move_rel(&axis_x, 100, 100, 100, POSITIVE);
+    delay(2000);
+    axis_trapezoidal_move_rel(&axis_x, 10000, 10000, 10000, POSITIVE);
 }
 
 int count = 0;

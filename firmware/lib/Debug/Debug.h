@@ -6,8 +6,8 @@
 
 #ifdef ENABLE_DEBUG_PRINT
 
-#define DEBUG_SERIAL Serial2
-#define DEBUG_BAUD 115200
+#define DEBUG_SERIAL Serial
+#define DEBUG_BAUD 250000
 
 #define DEBUG_INIT DEBUG_SERIAL.begin(DEBUG_BAUD)
 
@@ -20,7 +20,7 @@ do {                             \
 #else // !ENABLE_DEBUG_PRINT
 
 #define DEBUG_INIT
-#define DEBUG_PRINT
+#define DEBUG_PRINT(_text, _val)
 
 #endif // !ENABLE_DEBUG_PRINT
 

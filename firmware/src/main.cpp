@@ -18,8 +18,8 @@ void setup()
     // setup_encoder_interrupts();
     // setup_ls_interrupts();
 
-    debug();
-    print("setup ", 0);
+    DEBUG_INIT;
+    DEBUG_PRINT("setup ", 0);
     delay(2000);
     // // for testing only
     setup_axis(&axis_x_config, &axis_x);
@@ -33,7 +33,7 @@ void loop()
 {   
     delay(1000);
     // digitalWrite(2, HIGH);
-    print("loop ", count);
+    DEBUG_PRINT("loop ", count);
     delay(1000);
     // digitalWrite(2, LOW);
     count++;

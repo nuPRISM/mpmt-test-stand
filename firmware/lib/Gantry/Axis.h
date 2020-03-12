@@ -45,12 +45,6 @@ typedef struct Axis
 } Axis;
 
 // setup functions
-static void setup_pins(AxisConfig *axis_config);
-
-static void setup_struct(AxisConfig *axis_config, Axis *axis);
-
-static void setup_interrupts(AxisConfig *axis_config, Axis *axis);
-
 void setup_axis(AxisConfig *axis_config, Axis *axis);
 
 void reset_axis(AxisConfig *axis_config, Axis *axis);

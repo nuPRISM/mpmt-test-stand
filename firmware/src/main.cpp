@@ -3,6 +3,7 @@
 #include "ArduinoSerialDevice.h"
 #include "TestStandCommController.h"
 #include "Messages.h"
+#include "macros.h"
 
 #define BAUD_RATE 115200
 
@@ -29,10 +30,9 @@ void handle_move()
 
     uint8_t *data = comm.received_message().data;
 
-    accel    = ((uint16_t)data[0] << 8) | data[1];
-    hold_vel = ((uint16_t)data[2] << 8) | data[3];
-    dist     = ((uint16_t)data[4] << 8) | data[5];
-
+    accel = RECONSTRUCT_UINT16(data);
+    hold_vel = RECONSTRUCT_UINT16(data+2);
+    dist = RECONSTRUCT_UINT16(data+4);
     axis = data[6];
     dir = data[7];
 

@@ -15,18 +15,29 @@ Arduino motor control for mPMT test stand.
 
 #include "midas.h"
 #include "mfe.h"
-// #include "unistd.h"
 #include "time.h"
 #include "sys/time.h"
 
 #include "LinuxSerialDevice.h"
 #include "TestStandCommHost.h"
+#include "macros.h"
 
 #define  EQ_NAME   "ARDUINO"
 #define  EQ_EVID   1
 #define  EQ_TRGMSK 0x1111
+#define  TIME_OUT  5000
 
 #define BAUD_RATE 115200
+
+// error checking user inputs
+const float gantry_x_min_mm = 0.0;
+const float gantry_x_max_mm = 1200.0; // max rail is 1219 mm
+const float gantry_y_min_mm = 0.0;
+const float gantry_y_max_mm = 1200.0;
+const float vel_min_mm_s = 10.0; 
+const float vel_max_mm_s = 10.0;
+const float accel_min_mm_s_2 = 0.0; // acceleration cannot be zero
+const float accel_max_mm_s_2 = 7.0; 
 
 using namespace std;
 LinuxSerialDevice device;
@@ -59,7 +70,6 @@ INT max_event_size_frag = 5 * 1024 * 1024;
 /* buffer size to hold events */
 INT event_buffer_size = 2 * max_event_size + 10000;
 
-
 /*-- Function declarations -----------------------------------------*/
 INT frontend_init();
 INT frontend_exit();
@@ -70,7 +80,6 @@ INT resume_run(INT run_number, char *error);
 INT frontend_loop();
 extern void interrupt_routine(void);
 INT read_arduino_state(char *pevent, INT off);
-
 
 /*-- Equipment list ------------------------------------------------*/
 #undef USE_INT
@@ -95,8 +104,6 @@ EQUIPMENT equipment[] = {
   },
   {""}
 };
-
-
 
 /********************************************************************\
               Callback routines for system transitions
@@ -138,8 +145,10 @@ BOOL gStartMove;
 HNDLE handleHome;
 HNDLE handleMove;
 
-
 INT start_move(){
+    uint16_t accel, hold_vel, dist;
+    AxisId axis;
+    Direction dir;
 
   // TOFIX: add some checks that we aren't already moving
 
@@ -167,13 +176,43 @@ INT start_move(){
   float acceleration[2] = {0,0};
   int size_accel = sizeof(acceleration);
   int status_accel = db_get_value(hDB, 0, accelpath.c_str(), &acceleration, &size_accel, TID_FLOAT, TRUE);
+  
+  //error-check motor
+  if (destination[AXIS_X] < gantry_x_min_mm || destination[AXIS_X] > gantry_x_max_mm){
+    cm_msg(MERROR, "start_move", "Destination on x-axis should be between %f and %f inclusive.\n", gantry_x_min_mm, gantry_x_max_mm);
+    printf("Destination on x-axis should be between %f mm and %f mm inclusive.\n", gantry_x_min_mm, gantry_x_max_mm);
+    return 0;
+  }
+  printf("Moving to position P_x=%f, P_y=%f\n",destination[AXIS_X],destination[AXIS_Y]);
+  printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[AXIS_X],velocity[AXIS_Y]);
+  printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[AXIS_X],acceleration[AXIS_Y]);
+  
+  //get motor position from Arduino
+  
+  if (!comm.get_data(DATA_MOTOR)) {
+    printf("Error getting data from the Arduino.");
+    return 0;
+  }
+  if (!(comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_DATA)) {
+    printf("Error: timeout or invalid ID received.");
+    return 0;
+  }
 
-  printf("Moving to position P_x=%f, P_y=%f\n",destination[0],destination[1]);
-  printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[0],velocity[1]);
-  printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[0],acceleration[1]);
+  uint8_t *gantry_position = comm.received_message().data;
+  uint16_t gantry_position_x = RECONSTRUCT_UINT32(gantry_position);
+  uint16_t gantry_position_y = RECONSTRUCT_UINT32(gantry_position+4);
   
-  // TOFIX: instruct the Arduino to move to the specified destination at specified speed.
-  
+  // instruct the Arduino to move to the specified destination at specified speed.
+  if (!comm.move(123,123,123,AXIS_X,DIR_POSITIVE)) {
+    printf("Error sending move command\n");
+    return 0;
+  }
+
+  //echo message back 
+  if (comm.recv_message(5000) && comm.received_message().id == MSG_ID_LOG) {
+    printf("%s\n", &(comm.received_message().data[1]));
+    }
+
   for(int i = 0; i < 5; i++){
     sleep(1);
     printf(".");
@@ -185,7 +224,6 @@ INT start_move(){
   db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
 
   return 0;
-
 }
 
 INT start_home(){

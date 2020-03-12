@@ -71,13 +71,14 @@ ARDUINO_DEFS = -DPLATFORM_MIDAS
 ARDUINO_LIB_TSC = ../shared/TestStandComm
 ARDUINO_LIB_TSCH = ../shared_linux/TestStandCommHost
 ARDUINO_LIB_LSD = ../shared_linux/LinuxSerialDevice
+ARDUINO_LIB_UTIL = ../shared/Util
 
-ARDUINO_INCS += -I$(ARDUINO_LIB_TSC) -I$(ARDUINO_LIB_TSCH) -I$(ARDUINO_LIB_LSD)
+ARDUINO_INCS += -I$(ARDUINO_LIB_TSC) -I$(ARDUINO_LIB_TSCH) -I$(ARDUINO_LIB_LSD) -I$(ARDUINO_LIB_UTIL)
 
 ARDUINO_SRCS = $(addprefix $(ARDUINO_LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx) \
                $(addprefix $(ARDUINO_LIB_TSCH)/, TestStandCommHost.cxx) \
                $(addprefix $(ARDUINO_LIB_LSD)/, LinuxSerialDevice.cxx) \
-               motorCalculation.cxx
+			   motorCalculation.cxx
 
 ARDUINO_OBJS = $(patsubst %.cxx, $(ARDUINO_BUILD_DIR)/%.o, $(notdir $(ARDUINO_SRCS)))
 

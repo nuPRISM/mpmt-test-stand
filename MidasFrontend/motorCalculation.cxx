@@ -1,61 +1,51 @@
-#include <cmath>
-#include <iostream>
-using namespace std;
-// #include "Messages.h" 
+#include "motorCalculation.h"
 
-const float encoder_cpr = 300.0;
-const float lead_screw_pitch_mm = 8.0;
-const float mm_cts_ratio = encoder_cpr/lead_screw_pitch_mm;
-const int negative = 0;
-const int positive = 1;
+using namespace std;
+
 //retreive values from memory
 float curr_pos_cts;
 //user inputs
 float dest_mm, vel_mm_s, accel_mm_s2;
 
 /*
-TODO: ERROR HANDLING
-* user inputs zero acceleration --> put default acceleration
-* user inputs NEGATIVE anything
-*/
+Returns the direction to move the gantry.
 
-
-/*
-0 - positive direction
-1 - negative direction
-TODO: what to do when difference_mm = 0
+Parameters:
+dest_mm: desired absolute position of gantry in millimeters
+curr_pos_mm: current absolute position of gantry in millimeters 
 */
-bool get_direction(float dest_mm, float curr_post_cts) {
-    float difference_mm = dest_mm - curr_pos_cts/mm_cts_ratio;
-    if (difference_mm < 0.0){
-        return negative;
+Direction get_direction(float dest_mm, uint32_t curr_pos_cts) {
+    uint32_t dest_cts = mm_to_cts(dest_mm);
+    uint32_t diff_cts = dest_cts - curr_pos_cts;
+
+    if (diff_cts < 0){
+        return DIR_NEGATIVE;
     } else{
-        return positive;
+        return DIR_POSITIVE; //defaults to positive if dest_cts = curr_pos_cts
     }
 }
-// finding the number of counts to hold constant velocity
-int get_holding_velocity_cts(float curr_pos_cts, float dest_mm, float vel_mm_s, float accel_mm_s2)
-{
-    int counts = mm_cts_ratio * (dest_mm - curr_pos_cts/mm_cts_ratio - 1.0/accel_mm_s2 * pow(vel_mm_s,2.0));
-    return abs(counts);
+
+/*
+Returns distance travelled in millimeters given encoder counts.
+*/
+float cts_to_mm(uint32_t counts){
+    return round(counts * mm_cts_ratio);
 }
 
-// find number of counts to accelerate or decelerate
-int get_acceleration_cts(float vel_mm_s, float accel_mm_s2)
-{
-    int counts = mm_cts_ratio * (0.50) * pow(vel_mm_s,2.0) / accel_mm_s2;
-    return counts;
+/*
+Returns encoder counts given value based in millimeters.
+This includes: distance (mm), velocity (mm/s), acceleration (mm/s^2)
+*/
+uint32_t mm_to_cts(float val_mm){
+    return round(val_mm / mm_cts_ratio);
 }
 
-// int main ()
-// {
-//     float curr_pos_x_cts = 0.0;
-//     float dest_x_mm = 8.0;
-//     float vel_x_mm_s = 8.0;
-//     float accel_x_mm_s2 = 1.0;
+/*
+Returns encoder counts given distance in millimeters.
+*/
+uint32_t abs_distance_to_rel_cts(uint32_t curr_counts, float dest_mm){
+    uint32_t abs_dist_cts = mm_to_cts(dest_mm);
+    uint32_t rel_dist_cts = abs(abs_dist_cts - curr_counts);
+    return rel_dist_cts;
+}
 
-//     int counts_accel = get_acceleration_cts(vel_mm_s, accel_x_mm_s2);
-//     int counts_holding = get_holding_velocity_cts(curr_pos_x_cts, dest_x_mm, vel_x_mm_s, accel_x_mm_s2);
-//     std::cout << counts_accel << '\n';
-//     std::cout << counts_holding << '\n';
-// }

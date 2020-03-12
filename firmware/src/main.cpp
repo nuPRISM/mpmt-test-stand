@@ -14,17 +14,16 @@ TODO:
 */
 
 void setup()
-{   
-    // setup_encoder_interrupts();
-    // setup_ls_interrupts();
-
+{
     DEBUG_INIT;
     DEBUG_PRINT("setup ", 0);
     delay(2000);
     // // for testing only
     setup_axis(&axis_x_config, &axis_x);
-    delay(2000);
-    axis_trapezoidal_move_rel(&axis_x, 100, 100, 100, POSITIVE);
+
+    // Example
+    // delay(2000);
+    // axis_trapezoidal_move_rel(&axis_x, 100, 100, 100, POSITIVE);
 }
 
 int count = 0;

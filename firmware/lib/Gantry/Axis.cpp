@@ -43,7 +43,6 @@ void setup_axis(AxisConfig *axis_config, Axis *axis)
     axis->vel_min = axis_config->vel_min;
     axis->vel_max = axis_config->vel_max;
     axis->vel = axis_config->vel_min;
-    // axis->vel_profile_cur_trap = int32_t[3] {0, 0, 0};
     axis->tragectory_segment = ACCELERATE;
     axis->timer = axis_config->timer;
     axis->channel_velocity = axis_config->channel_velocity;

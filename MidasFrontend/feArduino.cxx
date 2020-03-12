@@ -35,7 +35,7 @@ const float gantry_x_min_mm = 0.0;
 const float gantry_x_max_mm = 1200.0; // max rail is 1219 mm
 const float gantry_y_min_mm = 0.0;
 const float gantry_y_max_mm = 1200.0;
-const float vel_min_mm_s = 10.0; 
+const float vel_min_mm_s = 0.0; 
 const float vel_max_mm_s = 10.0;
 const float accel_min_mm_s_2 = 0.0; // acceleration cannot be zero
 const float accel_max_mm_s_2 = 7.0; 
@@ -160,7 +160,7 @@ INT start_move(){
   path += EQ_NAME;
   path += "/Settings";
 
-  // Get the destination position
+  // Get the destination position (absolute distance)
   std::string destpath = path + "/Destination";
   float destination[2] = {0,0};
   int size_dest = sizeof(destination);
@@ -185,12 +185,33 @@ INT start_move(){
     return 0;
   }
 
+  if (destination[AXIS_Y] < gantry_y_min_mm || destination[AXIS_Y] > gantry_y_max_mm){
+    cm_msg(MERROR, "start_move", "Destination on y-axis should be between %f and %f inclusive.\n", gantry_y_min_mm, gantry_y_max_mm);
+    printf("Destination on y-axis should be between %f mm and %f mm inclusive.\n", gantry_y_min_mm, gantry_y_max_mm);
+    return 0;
+  }
+
+  if (velocity[AXIS_X] < vel_min_mm_s || velocity[AXIS_X] > vel_max_mm_s
+   || velocity[AXIS_Y] < vel_min_mm_s || velocity[AXIS_Y] > vel_max_mm_s){
+    cm_msg(MERROR, "start_move", "Velocity should be between %f and %f inclusive.\n", vel_min_mm_s, vel_max_mm_s);
+    printf("Velocity should be between %f and %f inclusive.\n", vel_min_mm_s, vel_max_mm_s);
+    return 0;
+  }
+
+  if (acceleration[AXIS_X] <= accel_min_mm_s_2 || acceleration[AXIS_X] > accel_max_mm_s_2
+   || acceleration[AXIS_Y] <= accel_min_mm_s_2 || acceleration[AXIS_Y] > accel_max_mm_s_2){
+    cm_msg(MERROR, "start_move", "Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
+    printf("Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
+    return 0;
+  }
+  
   //get motor position from Arduino
   
   if (!comm.get_data(DATA_MOTOR)) {
     printf("Error getting data from the Arduino.");
     return 0;
   }
+  //commented out until MSG_ID_DATA is implemented
   // if (!(comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_DATA)) {
   //   printf("Error: timeout or invalid ID received.");
   //   return 0;

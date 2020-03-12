@@ -20,6 +20,7 @@ Arduino motor control for mPMT test stand.
 
 #include "LinuxSerialDevice.h"
 #include "TestStandCommHost.h"
+#include "motorCalculation.h"
 #include "macros.h"
 
 #define  EQ_NAME   "ARDUINO"
@@ -177,42 +178,79 @@ INT start_move(){
   int size_accel = sizeof(acceleration);
   int status_accel = db_get_value(hDB, 0, accelpath.c_str(), &acceleration, &size_accel, TID_FLOAT, TRUE);
   
-  //error-check motor
+  //error check user-input data
   if (destination[AXIS_X] < gantry_x_min_mm || destination[AXIS_X] > gantry_x_max_mm){
     cm_msg(MERROR, "start_move", "Destination on x-axis should be between %f and %f inclusive.\n", gantry_x_min_mm, gantry_x_max_mm);
     printf("Destination on x-axis should be between %f mm and %f mm inclusive.\n", gantry_x_min_mm, gantry_x_max_mm);
     return 0;
   }
-  printf("Moving to position P_x=%f, P_y=%f\n",destination[AXIS_X],destination[AXIS_Y]);
-  printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[AXIS_X],velocity[AXIS_Y]);
-  printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[AXIS_X],acceleration[AXIS_Y]);
-  
+
   //get motor position from Arduino
   
   if (!comm.get_data(DATA_MOTOR)) {
     printf("Error getting data from the Arduino.");
     return 0;
   }
-  if (!(comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_DATA)) {
-    printf("Error: timeout or invalid ID received.");
-    return 0;
-  }
+  // if (!(comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_DATA)) {
+  //   printf("Error: timeout or invalid ID received.");
+  //   return 0;
+  // }
 
   uint8_t *gantry_position = comm.received_message().data;
   uint16_t gantry_position_x = RECONSTRUCT_UINT32(gantry_position);
   uint16_t gantry_position_y = RECONSTRUCT_UINT32(gantry_position+4);
   
+  //convert user values in mm to encoder counts to send to Arduino
+  uint32_t user_rel_dist_x_cts = abs_distance_to_rel_cts(gantry_position_x, destination[AXIS_X]);
+  uint32_t user_rel_dist_y_cts = abs_distance_to_rel_cts(gantry_position_y, destination[AXIS_Y]);
+
+  uint32_t user_vel_x_cts = mm_to_cts(velocity[AXIS_X]);
+  uint32_t user_vel_y_cts = mm_to_cts(velocity[AXIS_Y]);
+
+  uint32_t user_accel_x_cts = mm_to_cts(acceleration[AXIS_X]);
+  uint32_t user_accel_y_cts = mm_to_cts(acceleration[AXIS_Y]);
+
+// float dest_mm, uint32_t curr_pos_cts
+  Direction user_x_dir = get_direction(gantry_position_x,destination[AXIS_X]);
+  Direction user_y_dir = get_direction(gantry_position_x,destination[AXIS_Y]);
+
   // instruct the Arduino to move to the specified destination at specified speed.
-  if (!comm.move(123,123,123,AXIS_X,DIR_POSITIVE)) {
-    printf("Error sending move command\n");
+  if(comm.move(user_accel_x_cts,
+              user_vel_x_cts, 
+              user_rel_dist_x_cts,
+              AXIS_X,
+              user_x_dir)) {
+    printf("Move x-direction OK\n");
+  } else {
+    printf("Error sending move command in x-direction\n");
     return 0;
   }
-
-  //echo message back 
-  if (comm.recv_message(5000) && comm.received_message().id == MSG_ID_LOG) {
+    //echo message back 
+  if (comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_LOG) {
     printf("%s\n", &(comm.received_message().data[1]));
     }
 
+  if(comm.move(user_accel_y_cts,
+              user_vel_y_cts, 
+              user_rel_dist_y_cts,
+              AXIS_Y,
+              user_y_dir)) {
+    printf("Move y-direction OK\n");
+  } else {
+    printf("Error sending move command in y-direction\n");
+    //TODO: should we stop both motors
+    return 0;
+  }
+
+    //echo message back 
+  if (comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_LOG) {
+    printf("%s\n", &(comm.received_message().data[1]));
+    }
+
+  printf("Moving to position P_x=%f, P_y=%f\n",destination[AXIS_X],destination[AXIS_Y]);
+  printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[AXIS_X],velocity[AXIS_Y]);
+  printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[AXIS_X],acceleration[AXIS_Y]);
+  
   for(int i = 0; i < 5; i++){
     sleep(1);
     printf(".");

@@ -53,8 +53,8 @@ static void setup_pins(AxisConfig *axis_config)
 static void setup_struct(AxisConfig *axis_config, Axis *axis)
 {
     axis->encoder = {axis_config->encoder_pin_a, 0, 0};
-    axis->ls_home = {axis_config->ls_home, digitalRead(axis_config->ls_home)};
-    axis->ls_far_from_home = {axis_config->ls_far, digitalRead(axis_config->ls_far)};
+    axis->ls_home = {axis_config->ls_home, (LimitSwitchStatus)digitalRead(axis_config->ls_home)};
+    axis->ls_far_from_home = {axis_config->ls_far, (LimitSwitchStatus)digitalRead(axis_config->ls_far)};
     axis->dir_pin = axis_config->dir_pin;
     axis->step_pin = axis_config->step_pin;
     axis->accel = axis_config->acceleration;
@@ -113,9 +113,9 @@ void isr_limit_switch_x()
     if (interrupt_time - last_interrupt_time > 100) {
         NVIC_DisableIRQ(axis_x.irq_velocity);
         NVIC_DisableIRQ(axis_x.irq_accel);
-        uint32_t status = digitalRead(LIMIT_SW_HOME_PIN_X);
+        LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_X);
         // DEBUG_PRINT("X Home Limit switch has been hit ", status);
-        if (axis_x.homing && (status == DEPRESSED)) {
+        if (axis_x.homing && (status == RELEASED)) {
             axis_x.encoder.current = 0;
             axis_x.homing = 0;
             DEBUG_PRINT("X axis has been homed - SUCCESS", 1);
@@ -209,12 +209,13 @@ void isr_limit_switch_y()
         NVIC_DisableIRQ(axis_y.irq_accel);
         DEBUG_PRINT("Y Home Limit switch has been hit", 1);
 
-        if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == DEPRESSED) {
+        LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_Y);
+        if (axis_y.homing && status == RELEASED) {
             axis_y.encoder.current = 0;
             axis_y.homing = 0;
             DEBUG_PRINT("Y axis has been homed - SUCCESS", 1);
         }
-        else if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == PRESSED) {
+        else if (axis_y.homing && status == PRESSED) {
             home_axis(&axis_y);
         }
     }

@@ -39,7 +39,7 @@ typedef struct {
 typedef enum {
     DIR_POSITIVE = 0,
     DIR_NEGATIVE = 1
-} Direction;
+} DirectionId;
 
 typedef enum {
     AXIS_X = 0,

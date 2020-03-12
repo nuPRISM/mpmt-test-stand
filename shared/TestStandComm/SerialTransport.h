@@ -38,4 +38,4 @@ class SerialTransport
         bool send_message(Message& msg);
 };
 
-#endif // SERIAL_COMM_H
+#endif // SERIAL_TRANSPORT_H

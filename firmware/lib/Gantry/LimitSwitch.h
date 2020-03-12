@@ -3,10 +3,15 @@
 
 #include "Arduino.h"
 
+typedef enum {
+    PRESSED = LOW,
+    RELEASED = HIGH
+} LimitSwitchStatus;
+
 typedef struct LimitSwitch
 {
     uint32_t pin;
-    int status;
+    LimitSwitchStatus status;
 } LimitSwitch;
 
 #endif // LIMIT_SWITCH_H

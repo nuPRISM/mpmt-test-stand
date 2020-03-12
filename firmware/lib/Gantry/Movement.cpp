@@ -36,12 +36,12 @@ void home_axis(Axis *axis)
     // math to calculate number of accel counts
     uint32_t counts_accel = calc_counts_accel(axis->accel, axis->vel_min, VELOCITY_HOMING);
     // check if the limit switched is pressed at home
-    uint32_t status = digitalRead(axis->ls_home.pin);
+    LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(axis->ls_home.pin);
     DEBUG_PRINT("LS STATUS: ", status);
     if (status == PRESSED) {
         DEBUG_PRINT("DRIVING IN POSITIVE", 0);
         axis->encoder.current = 0;
-        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, POSITIVE); // move until limit switch is depressed
+        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, POSITIVE); // move until limit switch is released
         return;
     }
     else {

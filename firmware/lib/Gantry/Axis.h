@@ -1,13 +1,12 @@
 #ifndef AXIS_H
 #define AXIS_H
 
-#define VELOCITY_HOMING 10000
-
 #include "Kinematics.h"
 #include "LimitSwitch.h"
 #include "Encoder.h"
 
-typedef enum {PRESSED, DEPRESSED} Status;
+#define VELOCITY_HOMING 10000
+
 typedef enum {POSITIVE, NEGATIVE} Direction;
 typedef enum {ACCELERATE, HOLD, DECELERATE} Segment;
 

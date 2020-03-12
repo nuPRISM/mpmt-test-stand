@@ -1,12 +1,9 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-// TODO: move to build args in platformio
-#define ENABLE_DEBUG_PRINT
-
 #ifdef ENABLE_DEBUG_PRINT
 
-#define DEBUG_SERIAL Serial
+#define DEBUG_SERIAL Serial2
 #define DEBUG_BAUD 250000
 
 #define DEBUG_INIT DEBUG_SERIAL.begin(DEBUG_BAUD)

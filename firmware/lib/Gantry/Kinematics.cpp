@@ -32,7 +32,7 @@ bool generate_vel_profile(uint32_t accel, uint32_t v_min, uint32_t v_max, uint32
 
     profile_out->counts_accel = counts_accel;
     profile_out->counts_hold = counts_hold;
-    profile_out->counts_accel = counts_accel;
+    profile_out->counts_decel = counts_accel;
 
     return true;
 }

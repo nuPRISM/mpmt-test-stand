@@ -23,7 +23,9 @@ void setup()
 
     // Example
     delay(2000);
-    axis_trapezoidal_move_rel(&axis_x, 10000, 10000, 10000, POSITIVE);
+    // axis_x.encoder.current = INT32_MAX;
+    // axis_trapezoidal_move_rel(&axis_x, 10000, 10000, 10000, POSITIVE);
+    home_axis(&axis_x);
 }
 
 int count = 0;
@@ -31,10 +33,10 @@ int count = 0;
 void loop()
 {   
     delay(1000);
-    // digitalWrite(2, HIGH);
-    DEBUG_PRINT("loop ", count);
+    digitalWrite(2, HIGH);
+    // DEBUG_PRINT("loop ", count);
     delay(1000);
-    // digitalWrite(2, LOW);
+    digitalWrite(2, LOW);
     count++;
 }
 

@@ -4,7 +4,9 @@
 #include "Timer.h"
 
 void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t counts_hold, uint32_t counts_decel, Direction dir)
-{
+{   
+    axis->tragectory_segment = ACCELERATE;
+    axis->vel = axis->vel_min;
     if (counts_accel == 0 && counts_hold == 0 && counts_decel == 0) return;
     axis->dir = dir;
     digitalWrite(axis->dir_pin, dir);
@@ -32,14 +34,20 @@ void home_axis(Axis *axis)
 {
     axis->homing = 1;
     // math to calculate number of accel counts
-    uint32_t counts_accel;
+    uint32_t counts_accel = calc_counts_accel(axis->accel, axis->vel_min, VELOCITY_HOMING);
     // check if the limit switched is pressed at home
-    if (digitalRead(axis->ls_home.pin) == PRESSED) {
-        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX, counts_accel, POSITIVE); // move until limit switch is depressed
+    uint32_t status = digitalRead(axis->ls_home.pin);
+    DEBUG_PRINT("LS STATUS: ", status);
+    if (status == PRESSED) {
+        DEBUG_PRINT("DRIVING IN POSITIVE", 0);
+        axis->encoder.current = 0;
+        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, POSITIVE); // move until limit switch is depressed
         return;
     }
     else {
-        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX, counts_accel, NEGATIVE);
+        DEBUG_PRINT("DRIVING IN NEGATIVE", 0);
+        axis->encoder.current = UINT32_MAX;
+        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, NEGATIVE);
         return;
     }
 }

@@ -1,7 +1,7 @@
 #ifndef AXIS_H
 #define AXIS_H
 
-#define VELOCITY_HOMING 200
+#define VELOCITY_HOMING 10000
 
 #include "Kinematics.h"
 #include "LimitSwitch.h"

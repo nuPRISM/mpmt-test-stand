@@ -207,23 +207,33 @@ INT start_move(){
   
   //get motor position from Arduino
   
-  if (!comm.get_data(DATA_MOTOR)) {
-    printf("Error getting data from the Arduino.");
-    return 0;
-  }
+  // if (!comm.get_data(DATA_MOTOR)) {
+  //   printf("Error getting data from the Arduino.");
+  //   return 0;
+  // }
   //commented out until MSG_ID_DATA is implemented
   // if (!(comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_DATA)) {
   //   printf("Error: timeout or invalid ID received.");
   //   return 0;
   // }
 
-  uint8_t *gantry_position = comm.received_message().data;
-  uint16_t gantry_position_x = RECONSTRUCT_UINT32(gantry_position);
-  uint16_t gantry_position_y = RECONSTRUCT_UINT32(gantry_position+4);
+  // uint8_t *gantry_position = comm.received_message().data;
+  // uint16_t gantry_position_x = RECONSTRUCT_UINT32(gantry_position);
+  // uint16_t gantry_position_y = RECONSTRUCT_UINT32(gantry_position+4);
+
+  // placeholder - initialize x and y position as 0
+  uint16_t gantry_position_x = 0;
+  uint16_t gantry_position_y = 0;
+
+  printf("check x gantry pos: %d\n", gantry_position_x);
+  printf("check y gantry pos: %d\n", gantry_position_y);
   
   //convert user values in mm to encoder counts to send to Arduino
   uint32_t user_rel_dist_x_cts = abs_distance_to_rel_cts(gantry_position_x, destination[AXIS_X]);
   uint32_t user_rel_dist_y_cts = abs_distance_to_rel_cts(gantry_position_y, destination[AXIS_Y]);
+
+  printf("check x cts: %d\n", user_rel_dist_x_cts);
+  printf("check y cts: %d\n", user_rel_dist_y_cts);
 
   uint32_t user_vel_x_cts = mm_to_cts(velocity[AXIS_X]);
   uint32_t user_vel_y_cts = mm_to_cts(velocity[AXIS_Y]);

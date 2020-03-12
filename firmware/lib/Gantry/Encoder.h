@@ -10,4 +10,4 @@ typedef struct Encoder
     uint32_t desired;
 } Encoder;
 
-#endif
+#endif // ENCODER_H

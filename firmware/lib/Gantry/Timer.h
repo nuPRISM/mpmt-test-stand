@@ -11,4 +11,4 @@ void start_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel);
 
 void reset_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel);
 
-#endif
+#endif // TIMER_H

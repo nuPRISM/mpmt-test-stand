@@ -8,6 +8,6 @@
 
 void debug();
 
-void print(String text, uint32_t val);
+void print(String text, int32_t val);
 
-#endif
+#endif // DEBUG_H

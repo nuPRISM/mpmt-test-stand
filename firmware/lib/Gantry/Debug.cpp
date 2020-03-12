@@ -4,7 +4,7 @@ void debug() {
     if (DEBUG) {Serial.begin(BAUDRATE);}
 }
 
-void print(String text, uint32_t val)
+void print(String text, int32_t val)
 {   
     if (DEBUG) {
         // Serial.print("DEBUG     ");

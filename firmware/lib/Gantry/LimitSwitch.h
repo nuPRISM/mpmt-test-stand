@@ -1,5 +1,5 @@
-#ifndef LIMITSWITCH_H
-#define LIMITSWITCH_H
+#ifndef LIMIT_SWITCH_H
+#define LIMIT_SWITCH_H
 
 #include "Arduino.h"
 
@@ -9,4 +9,4 @@ typedef struct LimitSwitch
     int status;
 } LimitSwitch;
 
-#endif
+#endif // LIMIT_SWITCH_H

@@ -1,6 +1,7 @@
 #include "Arduino.h"
 
 #include "Debug.h"
+#include "macros.h"
 
 #include "ArduinoSerialDevice.h"
 #include "TestStandCommController.h"
@@ -24,39 +25,37 @@ void setup()
 
     setup_axis(&axis_x_config, &axis_x);
     setup_axis(&axis_y_config, &axis_y);
-
-    delay(1000);
 }
 
 void handle_home()
 {
-
+    
 }
 
 void handle_move()
 {
-    uint16_t accel, hold_vel, dist;
+    uint32_t accel, hold_vel, dist;
     uint8_t axis, dir;
 
     uint8_t *data = comm.received_message().data;
 
-    accel    = ((uint16_t)data[0] << 8) | data[1];
-    hold_vel = ((uint16_t)data[2] << 8) | data[3];
-    dist     = ((uint16_t)data[4] << 8) | data[5];
+    accel    = RECONSTRUCT_UINT32(data);
+    hold_vel = RECONSTRUCT_UINT32(data + 4);
+    dist     = RECONSTRUCT_UINT32(data + 8);
 
-    axis = data[6];
-    dir = data[7];
+    axis = data[12];
+    dir = data[13];
 
     Axis *axis_ptr = (axis == AXIS_X ? &axis_x : &axis_y);
     VelProfile profile;
-    generate_vel_profile(accel, axis_x.vel_min, hold_vel, dist, &profile);
+    generate_vel_profile(accel, axis_ptr->vel_min, hold_vel, dist, &profile);
 
     axis_trapezoidal_move_rel(axis_ptr, profile.counts_accel, profile.counts_hold, profile.counts_decel, (Direction)dir);
     
     // TODO delete this log message:
-    comm.log(LL_INFO, "accel = %d, hold = %d, dist = %d, axis = %c, dir = %s",
-        accel,
-        hold_vel,
+    comm.log(LL_INFO, "cts_a = %d, cts_h = %d, dist = %d, axis = %c, dir = %s",
+        profile.counts_accel,
+        profile.counts_hold,
         dist,
         (axis == AXIS_X ? 'x' : 'y'),
         (dir == DIR_POSITIVE ? "pos" : "neg"));

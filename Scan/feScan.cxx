@@ -243,7 +243,7 @@ INT begin_of_run(INT run_number, char *error)
 {
 
   // Get Scan parameters...
-    std::string path;
+  std::string path;
   path += "/Equipment/";
   path += EQ_NAME;
   path += "/Settings";
@@ -366,6 +366,73 @@ INT resume_run(INT run_number, char *error)
 INT frontend_loop()
 {
 
+   INT status;
+  char str[128];
+
+  // Only want to start checking if the begin_of_run has been called.                                   
+  if (!gbl_called_BOR) return SUCCESS;
+
+  // Make sure we are running
+  if (run_state != STATE_RUNNING) return SUCCESS;
+
+				    
+  // Are we making a move?
+  DWORD gantry_moving = false;  // step size in mm.
+  int size = sizeof(gantry_moving);
+  status = db_get_value(hDB, 0, "/Equipment/ARDUINO/Variables/MOTO[0]", &gantry_moving, &size, TID_DWORD, TRUE);
+  // Reset for moment...
+  uint32_t test = rand()*100000;
+  gantry_moving = true;
+  if(test %100000 == 0) gantry_moving = false; 
+
+  if (!gantry_moving) { // No, we are not moving; then check the status of mesaurements
+
+    //std::cout << "test/moving: " << test << " " << gantry_moving << std::endl;
+
+    //    if (gbl_waiting_measurement) {
+    //return SUCCESS; /* processing has not yet finished i.e. all equipments have not run */
+    //}
+    //cm_msg(MDEBUG, "frontend_loop", "running: IN_CYCLE is false");
+    
+    // Terminate the sequence once we have finished last move.
+    if (gbl_current_point >= gScanPoints.size()) {
+      cm_msg(MINFO, "frontend_loop", "Stopping run after all points are done. Resetting current point number.");
+      gbl_current_point = 0;
+      // db_set_data(hDB, hCurrentPoint, &gbl_current_point, sizeof(INT), 1, TID_INT);
+      // Stop the run
+      status = cm_transition(TR_STOP, 0, str, sizeof(str), TR_SYNC, 0);   
+      return status;
+    }
+    
+    // = TRUE;
+    //time_move_next_position = ss_millitime();
+    //status = move_next_position();
+    
+
+    // Set the next destination
+    float destination[2];
+    destination[0] = gScanPoints[gbl_current_point].first;
+    destination[1] = gScanPoints[gbl_current_point].second;
+    size = sizeof(destination);
+    status = db_set_value(hDB, 0, "/Equipment/ARDUINO/Settings/Destination", &destination, size, 2, TID_FLOAT);    
+    // Start the move
+    BOOL start = 1;
+    size = sizeof(start);
+    status = db_set_value(hDB, 0, "/Equipment/ARDUINO/Settings/StartMove", &start, size, 1, TID_BOOL);    
+    
+    printf("Started move to position %f %f\n",destination[0],destination[1]);
+    
+    
+    sleep(6);
+    
+    // increment for next position
+    gbl_current_point++;
+    
+  }else{  // Yes, we are moving;
+
+  }
+
+
   return SUCCESS;
 }
 
@@ -420,55 +487,19 @@ INT read_scan_state(char *pevent, INT off)
   // Create event header
   bk_init32(pevent);
   
-  // Create a bank with some unsigned integers (move control variables))   
+  // Create bank with scan state
   
   // Bank data of unsigned int
   uint32_t *pddata;
-  
-  // Bank names must be exactly four char
-  bk_create(pevent, "MOTO", TID_DWORD, (void**)&pddata);
-  
-  // Read the state of the motors from Arduino
-  // TOFIX!!!
-  uint32_t moving = 1;
-  uint32_t homing = 0;
-  uint32_t is_initialized = 0;
-  uint32_t at_limit = 0x0202;
-  uint32_t counter = dummy_counter++;
-  uint32_t gantry_position_x = (dummy_counter %100);  // Maybe these should be floats?
-  uint32_t gantry_position_y = 200 - (dummy_counter %100);  // Maybe these should be floats?
 
-  // Save variables in bank
-  *pddata++ = moving;
-  *pddata++ = homing;
-  *pddata++ = is_initialized;
-  *pddata++ = at_limit;
-  *pddata++ = counter;
-  *pddata++ = gantry_position_x;
-  *pddata++ = gantry_position_y;
-    
+  
+  bk_create(pevent, "SCAN", TID_DWORD, (void**)&pddata);
+  
+  *pddata++ = 0; // In scan?
+  *pddata++ = gbl_current_point;
+  *pddata++ = gScanPoints.size();
   bk_close(pevent, pddata);	
 
-  // Create a bank with some float (temperature))  
-  
-  // Bank data of float
-  float *pddata2;
-  
-  // Bank names must be exactly four char
-  bk_create(pevent, "TEMP", TID_FLOAT, (void**)&pddata2);
-  
-  // Read the temperature from Arduino
-  // TOFIX!!!
-  float temp[5] = {34.2, 25.1, 34.4, 26.5, 34.3};
-  temp[3] += dummy_counter %4;
-  temp[4] -= dummy_counter %3;
-
-  // Save temperature variables in bank
-  for(int i = 0; i < 5; i++) *pddata2++ = temp[i];
-    
-  bk_close(pevent, pddata2);	
-  
-  
   return bk_size(pevent);
 
 }

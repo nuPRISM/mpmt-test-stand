@@ -16,7 +16,7 @@ March, 2002
 #include "time.h"
 #include "sys/time.h"
 #include <stdint.h>
-
+#include <iostream>
 
 
 #define  EQ_NAME   "Scan"
@@ -56,8 +56,9 @@ INT event_buffer_size = 2 * max_event_size + 10000;
 /* Scan Type Flags  */
 BOOL first_time = FALSE;  /* used by routine move_next_position to know if this is begin_of_run */
 BOOL gbl_first_call = TRUE; /* used for deferred stop routine */
-
-
+BOOL gbl_called_BOR = FALSE;
+int gbl_current_point = 0; // Which point are we on?
+std::vector<std::pair<float,float> > gScanPoints;  // All the points in the present scan (X, Y)
 
 
 /*-- Function declarations -----------------------------------------*/
@@ -124,6 +125,7 @@ EQUIPMENT equipment[] = {
 \********************************************************************/
 
 /********************************************************************/
+
 
 /*-- Sequencer callback info  --------------------------------------*/
 void seq_callback(INT hDB, INT hseq, void *info)
@@ -250,13 +252,86 @@ INT begin_of_run(INT run_number, char *error)
   // Setup hot-links (open record, callbacks) to StartHome variable
 
   // This is variable name
-  std::string varpath = path + "/";
+  std::string varpath = path + "/StepSize";
 
-  // Get the current value (just to initialize it...)
-  float step_size;  // step size in mm.
+  // Step size
+  float step_size = 10.0;  // step size in mm.
   int size = sizeof(step_size);
   int status = db_get_value(hDB, 0, varpath.c_str(), &step_size, &size, TID_FLOAT, TRUE);
    
+  // Start Position
+  varpath = path + "/StartPosition";
+  float start_position[2] = {50.0,50.0};  // in mm.
+  size = sizeof(start_position);
+  status = db_get_value(hDB, 0, varpath.c_str(), &start_position, &size, TID_FLOAT, TRUE);
+ 
+  // Start Position
+  varpath = path + "/Distance";
+  float distance[2] = {100.0,100.0};  // in mm.
+  size = sizeof(distance);
+  status = db_get_value(hDB, 0, varpath.c_str(), &distance, &size, TID_FLOAT, TRUE);
+ 
+  // Add some error checking that the distances and starting point are reasonable!!!
+  // *** ASDASDASD ASD*** ** 
+  if(distance[0] < step_size || distance[1] < step_size){
+    cm_msg(MERROR,"begin_of_run","Error, distance (%f %f) must be greater than step size %f \n",
+	   distance[0],distance[1],step_size);  
+  }
+
+  //status = gen_scan_path();
+  
+  gScanPoints.clear();
+  
+  // Setup a rectangular scan, moving in X first.
+  bool moving_forward = true; //ie, moving in +X direction.
+  float current_x_pos = start_position[0];
+  float current_y_pos = start_position[1];
+  float final_y_pos = start_position[1] + distance[1];
+
+  // Keep adding points until we go too far in +Y  
+  while(current_y_pos < final_y_pos && gScanPoints.size() < 100000){
+
+    // Add a point
+    std::cout << "Adding point (" <<gScanPoints.size()<< "): " 
+	      << current_x_pos << " " << current_y_pos << std::endl;
+    gScanPoints.push_back(std::pair<float,float>(current_x_pos,current_y_pos));
+
+    // Decide what the next point will be
+    if(moving_forward){  // Moving in +X direction
+      // Can we keep moving in +X direction?
+      float next_x_pos = current_x_pos + step_size;
+      if((next_x_pos - start_position[0]) > distance[0]){ // No! That's too far 
+	moving_forward = false;
+	current_y_pos += step_size;
+      }else{ // Yes. Can keep going in +X
+	current_x_pos = next_x_pos;
+      }
+    }else{  // Moving in -X direction
+      // Can we keep moving in -X direction?
+      float next_x_pos = current_x_pos - step_size;
+      if((next_x_pos - start_position[0]) < 0){ // No! That's too far 
+	moving_forward = true;
+	current_y_pos += step_size;
+      }else{ // Yes. Can keep going in -X
+	current_x_pos = next_x_pos;
+      }
+    }
+  }
+
+  cm_msg(MINFO,"begin_of_run","Setup scan: step size = %f mm, distance = {%f,%f}mm, total points = %i",
+	 step_size,distance[0],distance[1],gScanPoints.size());  
+
+  // We are starting to move;
+  gbl_called_BOR = TRUE;
+
+
+
+  ss_sleep(1000); /* sleep before starting loop*/
+
+  /* Start cycle */
+  first_time = TRUE;
+  gbl_current_point = 0;
+
 
 
 

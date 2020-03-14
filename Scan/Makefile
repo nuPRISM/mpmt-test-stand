@@ -28,7 +28,7 @@ endif
 
 OS_DIR = linux-m64
 OSFLAGS = -DOS_LINUX
-CFLAGS = -g -O2 -Wall -fpermissive
+CFLAGS = -g -O2 -Wall -fpermissive -std=c++11
 LIBS = -lm -lz -lutil -lnsl -lpthread -lrt
 #endif
 

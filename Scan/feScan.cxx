@@ -1,6 +1,7 @@
 /********************************************************************\
 
 Program to perform scan of laser over PMTs.
+Setups up then performs a rectangular scan in X and Y.
 
 T. Lindner
 March, 2002
@@ -17,7 +18,7 @@ March, 2002
 #include "sys/time.h"
 #include <stdint.h>
 #include <iostream>
-
+#include <chrono>
 
 #define  EQ_NAME   "Scan"
 #define  EQ_EVID   1
@@ -55,11 +56,13 @@ INT event_buffer_size = 2 * max_event_size + 10000;
 
 /* Scan Type Flags  */
 BOOL first_time = FALSE;  /* used by routine move_next_position to know if this is begin_of_run */
-BOOL gbl_first_call = TRUE; /* used for deferred stop routine */
 BOOL gbl_called_BOR = FALSE;
+bool gGantryWasMoving = false; // Was gantry previously moving?
 int gbl_current_point = 0; // Which point are we on?
 std::vector<std::pair<float,float> > gScanPoints;  // All the points in the present scan (X, Y)
-
+//time_t timeStartMeasurement; // time at the start of the measurement at particular point.
+typedef std::chrono::high_resolution_clock Clock;
+Clock::time_point timeStartMeasurement;  // time at the start of the measurement at particular point.   
 
 /*-- Function declarations -----------------------------------------*/
 INT frontend_init();
@@ -99,119 +102,10 @@ EQUIPMENT equipment[] = {
 
 
 
-/********************************************************************\
-              Callback routines for system transitions
-
-  These routines are called whenever a system transition like start/
-  stop of a run occurs. The routines are called on the following
-  occations:
-
-  frontend_init:  When the frontend program is started. This routine
-                  should initialize the hardware.
-
-  frontend_exit:  When the frontend program is shut down. Can be used
-                  to releas any locked resources like memory, commu-
-                  nications ports etc.
-
-  begin_of_run:   When a new run is started. Clear scalers, open
-                  rungates, etc.
-
-  end_of_run:     Called on a request to stop a run. Can send
-                  end-of-run event and close run gates.
-
-  pause_run:      When a run is paused. Should disable trigger events.
-
-  resume_run:     When a run is resumed. Should enable trigger events.
-\********************************************************************/
-
-/********************************************************************/
-
-
-/*-- Sequencer callback info  --------------------------------------*/
-void seq_callback(INT hDB, INT hseq, void *info)
-{
-  KEY key;
-
-  printf("odb ... Settings %x touched\n", hseq);
-}
-
-BOOL gStartHome;
-BOOL gStartMove;
-HNDLE handleHome;
-HNDLE handleMove;
-
-
-INT start_move(){
-
-  // TOFIX: add some checks that we aren't already moving
-  if(0){ // Something went wrong
-    cm_msg(MERROR,"start_move","Error in move! \n");
-  }
-
-  if(!gStartMove) return 0; // Just return if move not requested...
-
-  std::string path;
-  path += "/Equipment/";
-  path += EQ_NAME;
-  path += "/Settings";
-
-  // Get the destination position
-  std::string destpath = path + "/Destination";
-  float destination[2] = {0,0};
-  int size = sizeof(destination);
-  int status = db_get_value(hDB, 0, destpath.c_str(), &destination, &size, TID_FLOAT, TRUE);
-
-  // Get the velocity
-  std::string velpath = path + "/Velocity";
-  float velocity[2] = {1,1};
-  size = sizeof(velocity);
-  status = db_get_value(hDB, 0, velpath.c_str(), &velocity, &size, TID_FLOAT, TRUE);
-        
-  //printf("Moving to position X=%f, Y=%f with speed %f %f\n",destination[0],destination[1],velocity[0], velocity[1]);
-  cm_msg(MINFO,"start_move","Moving to position X=%f, Y=%f with speed %f %f\n",destination[0],destination[1],velocity[0], velocity[1]);
-
-  // TOFIX: instruct the Arduino to move to the specified destination at specified speed.
-  
-  for(int i = 0; i < 5; i++){
-    sleep(1);
-    printf(".");
-  }
-  printf("\nFinished move\n");
-
-  // Little magic to reset the key to 'n' without retriggering hotlink
-  BOOL move = false;
-  db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
-
-  return 0;
-
-}
-
-INT start_home(){
-
-  // TOFIX: add some checks that we aren't already moving
-
-  if(!gStartHome) return 0; // Just return if home not requested...
-
-
-  printf("Start home...\n");
-  sleep(3);
-  // TOFIX: instruct the Arduino to home
-  printf("Finished home\n");
-
-  // Little magic to reset the key to 'n' without retriggering hotlink
-  BOOL home = false;
-  db_set_data_index1(hDB, handleHome, &home, sizeof(home), 0, TID_BOOL, FALSE);
-
-  return 0;
-}
 
 /*-- Frontend Init -------------------------------------------------*/
 INT frontend_init()
 {
-
-  // Setup connection to Arduino
-  // TOFIX!!!
-  // 
 
 
   // setup connection to ODB (online database)
@@ -228,10 +122,6 @@ INT frontend_init()
 /*-- Frontend Exit -------------------------------------------------*/
 INT frontend_exit()
 {
-
-  // Close connection to Arduino
-  // TOFIX!!!
-  //
 
   return SUCCESS;
 }
@@ -321,9 +211,6 @@ INT begin_of_run(INT run_number, char *error)
   cm_msg(MINFO,"begin_of_run","Setup scan: step size = %f mm, distance = {%f,%f}mm, total points = %i",
 	 step_size,distance[0],distance[1],gScanPoints.size());  
 
-  // We are starting to move;
-  gbl_called_BOR = TRUE;
-
 
 
   ss_sleep(1000); /* sleep before starting loop*/
@@ -331,8 +218,10 @@ INT begin_of_run(INT run_number, char *error)
   /* Start cycle */
   first_time = TRUE;
   gbl_current_point = 0;
+  gGantryWasMoving = false;
 
-
+  // We are starting to move;
+  gbl_called_BOR = TRUE;
 
 
   //------ FINAL ACTIONS before BOR -----------
@@ -344,6 +233,10 @@ INT begin_of_run(INT run_number, char *error)
 /*-- End of Run ----------------------------------------------------*/
 INT end_of_run(INT run_number, char *error)
 {
+
+  //Finished moving
+  gbl_called_BOR = FALSE;
+  gGantryWasMoving = false;
 
   printf("EOR\n");
   
@@ -366,16 +259,16 @@ INT resume_run(INT run_number, char *error)
 INT frontend_loop()
 {
 
-   INT status;
+  INT status;
   char str[128];
-
+  
   // Only want to start checking if the begin_of_run has been called.                                   
   if (!gbl_called_BOR) return SUCCESS;
-
+  
   // Make sure we are running
   if (run_state != STATE_RUNNING) return SUCCESS;
-
-				    
+  
+  
   // Are we making a move?
   DWORD gantry_moving = false;  // step size in mm.
   int size = sizeof(gantry_moving);
@@ -385,7 +278,38 @@ INT frontend_loop()
   gantry_moving = true;
   if(test %100000 == 0) gantry_moving = false; 
 
-  if (!gantry_moving) { // No, we are not moving; then check the status of mesaurements
+
+  //  time_t timeNow;
+  //time(&timeNow);        
+  Clock::time_point timeNow = Clock::now();
+  
+  //  double timediff = difftime(timeNow, timeStartMeasurement);
+  
+  std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - timeStartMeasurement);
+  double timediff = ms.count();
+
+  //  std::cout << "out " << timediff << std::endl;
+  gantry_moving = true;
+  if(timediff < 5000 || timediff > 10000){ // If we haven't finished scan time, then keep waiting)
+    gantry_moving = false;
+  }
+
+
+  if (!gantry_moving ) { // No, we are not moving; 
+
+    if(gGantryWasMoving){ // We just finished moving.  Start the measurement (record current time)
+      //      time(&timeStartMeasurement);        
+      timeStartMeasurement = Clock::now();
+      gGantryWasMoving = false;
+      printf("Starting measurement at this point\n");
+    }
+
+    //    double timediff = difftime(timeNow, timeStartMeasurement);
+
+    //std::cout << timediff << std::endl;
+    if(timediff < 5000.0){ // If we haven't finished scan time, then keep waiting)
+      return SUCCESS;
+    }
 
     //std::cout << "test/moving: " << test << " " << gantry_moving << std::endl;
 
@@ -393,6 +317,8 @@ INT frontend_loop()
     //return SUCCESS; /* processing has not yet finished i.e. all equipments have not run */
     //}
     //cm_msg(MDEBUG, "frontend_loop", "running: IN_CYCLE is false");
+    
+    std::cout << "On point: " << gbl_current_point << " " <<  gScanPoints.size() << std::endl;;
     
     // Terminate the sequence once we have finished last move.
     if (gbl_current_point >= gScanPoints.size()) {
@@ -421,15 +347,16 @@ INT frontend_loop()
     status = db_set_value(hDB, 0, "/Equipment/ARDUINO/Settings/StartMove", &start, size, 1, TID_BOOL);    
     
     printf("Started move to position %f %f\n",destination[0],destination[1]);
+    gGantryWasMoving = true;    
     
-    
-    sleep(6);
+    //    sleep(6);
     
     // increment for next position
     gbl_current_point++;
     
   }else{  // Yes, we are moving;
-
+    gGantryWasMoving = true;    
+    usleep(1);
   }
 
 

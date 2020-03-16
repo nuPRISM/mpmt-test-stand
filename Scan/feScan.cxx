@@ -55,10 +55,9 @@ INT event_buffer_size = 2 * max_event_size + 10000;
 
 
 /* Scan Type Flags  */
-BOOL first_time = FALSE;  /* used by routine move_next_position to know if this is begin_of_run */
 BOOL gbl_called_BOR = FALSE;
 bool gGantryWasMoving = false; // Was gantry previously moving?
-int gbl_current_point = 0; // Which point are we on?
+int gbl_current_point = -1; // Which point are we on?
 std::vector<std::pair<float,float> > gScanPoints;  // All the points in the present scan (X, Y)
 float gScanTime; // Scan time in milliseconds.
 typedef std::chrono::high_resolution_clock Clock;
@@ -224,8 +223,7 @@ INT begin_of_run(INT run_number, char *error)
   ss_sleep(1000); /* sleep before starting loop*/
 
   /* Start cycle */
-  first_time = TRUE;
-  gbl_current_point = 0;
+  gbl_current_point = -1;
   gGantryWasMoving = false;
 
   // We are starting to move;
@@ -288,9 +286,12 @@ INT frontend_loop()
   double timediff = ms.count();
 
   gantry_moving = true;
-  if(timediff < gScanTime || timediff > (20000 + gScanTime)){ 
+  if(timediff < (gScanTime+2000.0) || timediff > (5000 + gScanTime)){     
     gantry_moving = false;
   }
+
+  if(0)  if(((int)timediff)%1000 == 0)
+    std::cout << timediff << " " << gScanTime << " " << gantry_moving << std::endl;
 
 
   if (!gantry_moving ) { // No, we are not moving; 
@@ -302,13 +303,10 @@ INT frontend_loop()
     }
 
     // Have we finished doing the measurements at this point
-    if(timediff < (gScanTime + 5000.0)){ // If no, keep waiting
+    if(timediff < (gScanTime + 1000)){ // If no, keep waiting
       return SUCCESS;
     }
 
-    std::cout << "Finished measurement at this point " << std::endl;
-    std::cout << "On point: " << gbl_current_point << " " <<  gScanPoints.size() << std::endl;;
-    
     // Terminate the sequence once we have finished last move.
     if (gbl_current_point >= gScanPoints.size()) {
       cm_msg(MINFO, "frontend_loop", "Stopping run after all points are done. Resetting current point number.");
@@ -317,7 +315,14 @@ INT frontend_loop()
       status = cm_transition(TR_STOP, 0, str, sizeof(str), TR_SYNC, 0);   
       return status;
     }
-    
+
+    // increment for next position
+    gbl_current_point++;
+
+
+    std::cout << "Finished measurement at this point. On point: " 
+	      << gbl_current_point << " " <<  gScanPoints.size() << std::endl;;
+        
     // Set the next destination
     float destination[2];
     destination[0] = gScanPoints[gbl_current_point].first;
@@ -333,9 +338,9 @@ INT frontend_loop()
     printf("Started move to position %f %f\n",destination[0],destination[1]);
     gGantryWasMoving = true;    
     
-    // increment for next position
-    gbl_current_point++;
-    
+    // give feArduino a little time to start moving...
+    usleep(200000);
+
   }else{  // Yes, we are moving;
     gGantryWasMoving = true;    
     usleep(1);

@@ -12,9 +12,41 @@
       .mtable td { padding: 10px; }
    </style>
 
+   <script>
+   var gStatusInflight = false;
+   function statusPeriodicUpdate(){
+
+      // don't make another request if the last request is still outstanding.
+      if(gStatusInflight) return;     
+      gStatusInflight = true;
+
+      // Get padiwa values
+      mjsonrpc_send_request([
+         mjsonrpc_make_request("db_get_values",{"paths":["/Equipment/Scan/Variables"]}),
+      ]).then(function (rpc) {         
+         
+
+        //console.log(parseInt(rpc[0].result.data[0].scan[2]));
+        document.getElementById("progressbar").setAttribute("data-max-value",parseInt(rpc[0].result.data[0].scan[2]))
+//        document.getElementById("progressbar").setAttribute("data-max-value",200)
+
+      }).catch(function(error) {
+         if (error.request) {
+            var s = mjsonrpc_decode_error(error);
+            console.log("mjsonrpc_error_alert: " + s);
+         } else {
+            console.log("mjsonroc_error_alert: " + error);
+         }
+      });
+   }
+
+  </script>
+
+
+
 </head>
 
-<body class="mcss" onload="mhttpd_init('DT5743 Setup');;">
+<body class="mcss" onload="statusPeriodicUpdate();mhttpd_init('Scan Setup'); setInterval(statusPeriodicUpdate,5000);statusPeriodicUpdate();">
 
 <!-- header and side navigation will be filled in mhttpd_init -->
 <div id="mheader"></div>
@@ -85,8 +117,9 @@
 
     <tr>
       <th colspan="2" style="text-align: left;"> 
-	<div class="modbhbar" style="width:300px;height:20px;color:orange;" data-odb-path="/Equipment/Scan/Variables/SCAN[1]"
-             data-min-value="0" data-max-value="100" data-print-value="1"></div>
+	<div id="progressbar" class="modbhbar" style="width:300px;height:20px;color:orange;" 
+	     data-odb-path="/Equipment/Scan/Variables/SCAN[1]"
+             data-min-value="0" data-max-value="10" data-print-value="1"></div>
       </th>
     </tr>
 

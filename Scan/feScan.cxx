@@ -60,7 +60,7 @@ BOOL gbl_called_BOR = FALSE;
 bool gGantryWasMoving = false; // Was gantry previously moving?
 int gbl_current_point = 0; // Which point are we on?
 std::vector<std::pair<float,float> > gScanPoints;  // All the points in the present scan (X, Y)
-//time_t timeStartMeasurement; // time at the start of the measurement at particular point.
+float gScanTime; // Scan time in milliseconds.
 typedef std::chrono::high_resolution_clock Clock;
 Clock::time_point timeStartMeasurement;  // time at the start of the measurement at particular point.   
 
@@ -168,6 +168,14 @@ INT begin_of_run(INT run_number, char *error)
 	   distance[0],distance[1],step_size);  
   }
 
+  // Scan Time in Milliseconds
+  varpath = path + "/ScanTime";
+  gScanTime = 5000.0;
+  size = sizeof(gScanTime);
+  status = db_get_value(hDB, 0, varpath.c_str(), &gScanTime, &size, TID_FLOAT, TRUE);
+ 
+
+
   //status = gen_scan_path();
   
   gScanPoints.clear();
@@ -208,8 +216,8 @@ INT begin_of_run(INT run_number, char *error)
     }
   }
 
-  cm_msg(MINFO,"begin_of_run","Setup scan: step size = %f mm, distance = {%f,%f}mm, total points = %i",
-	 step_size,distance[0],distance[1],gScanPoints.size());  
+  cm_msg(MINFO,"begin_of_run","Setup scan: step size = %f mm, distance = {%f,%f}mm, scan time = %f total points = %i",
+	 step_size,distance[0],distance[1],gScanTime, gScanPoints.size());  
 
 
 
@@ -273,24 +281,14 @@ INT frontend_loop()
   DWORD gantry_moving = false;  // step size in mm.
   int size = sizeof(gantry_moving);
   status = db_get_value(hDB, 0, "/Equipment/ARDUINO/Variables/MOTO[0]", &gantry_moving, &size, TID_DWORD, TRUE);
-  // Reset for moment...
-  uint32_t test = rand()*100000;
-  gantry_moving = true;
-  if(test %100000 == 0) gantry_moving = false; 
 
-
-  //  time_t timeNow;
-  //time(&timeNow);        
+  // Temporary kludge to make the move routines work.
   Clock::time_point timeNow = Clock::now();
-  
-  //  double timediff = difftime(timeNow, timeStartMeasurement);
-  
   std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - timeStartMeasurement);
   double timediff = ms.count();
 
-  //  std::cout << "out " << timediff << std::endl;
   gantry_moving = true;
-  if(timediff < 5000 || timediff > 10000){ // If we haven't finished scan time, then keep waiting)
+  if(timediff < gScanTime || timediff > (20000 + gScanTime)){ 
     gantry_moving = false;
   }
 
@@ -298,49 +296,35 @@ INT frontend_loop()
   if (!gantry_moving ) { // No, we are not moving; 
 
     if(gGantryWasMoving){ // We just finished moving.  Start the measurement (record current time)
-      //      time(&timeStartMeasurement);        
       timeStartMeasurement = Clock::now();
       gGantryWasMoving = false;
       printf("Starting measurement at this point\n");
     }
 
-    //    double timediff = difftime(timeNow, timeStartMeasurement);
-
-    //std::cout << timediff << std::endl;
-    if(timediff < 5000.0){ // If we haven't finished scan time, then keep waiting)
+    // Have we finished doing the measurements at this point
+    if(timediff < (gScanTime + 5000.0)){ // If no, keep waiting
       return SUCCESS;
     }
 
-    //std::cout << "test/moving: " << test << " " << gantry_moving << std::endl;
-
-    //    if (gbl_waiting_measurement) {
-    //return SUCCESS; /* processing has not yet finished i.e. all equipments have not run */
-    //}
-    //cm_msg(MDEBUG, "frontend_loop", "running: IN_CYCLE is false");
-    
+    std::cout << "Finished measurement at this point " << std::endl;
     std::cout << "On point: " << gbl_current_point << " " <<  gScanPoints.size() << std::endl;;
     
     // Terminate the sequence once we have finished last move.
     if (gbl_current_point >= gScanPoints.size()) {
       cm_msg(MINFO, "frontend_loop", "Stopping run after all points are done. Resetting current point number.");
       gbl_current_point = 0;
-      // db_set_data(hDB, hCurrentPoint, &gbl_current_point, sizeof(INT), 1, TID_INT);
       // Stop the run
       status = cm_transition(TR_STOP, 0, str, sizeof(str), TR_SYNC, 0);   
       return status;
     }
     
-    // = TRUE;
-    //time_move_next_position = ss_millitime();
-    //status = move_next_position();
-    
-
     // Set the next destination
     float destination[2];
     destination[0] = gScanPoints[gbl_current_point].first;
     destination[1] = gScanPoints[gbl_current_point].second;
     size = sizeof(destination);
     status = db_set_value(hDB, 0, "/Equipment/ARDUINO/Settings/Destination", &destination, size, 2, TID_FLOAT);    
+
     // Start the move
     BOOL start = 1;
     size = sizeof(start);
@@ -348,8 +332,6 @@ INT frontend_loop()
     
     printf("Started move to position %f %f\n",destination[0],destination[1]);
     gGantryWasMoving = true;    
-    
-    //    sleep(6);
     
     // increment for next position
     gbl_current_point++;

@@ -18,7 +18,7 @@ Thermistor_10k::Thermistor_10k(int pin, double seriesResistor){
  * @return temperature in Celsius
  */
 double Thermistor_10k::readTemperature(){
-    vLevel = analogRead(thermistorPin);
+    vLevel = analogRead(thermistorPin); //defaults to 10 bit if analogReadResolution(12) is not set
     Tc = convertToTemp(vLevel);
     return Tc;
 }

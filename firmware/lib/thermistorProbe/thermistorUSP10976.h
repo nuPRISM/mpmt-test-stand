@@ -5,7 +5,8 @@
 class Thermistor_10k
 {
     public:
-        const double resolutionLim = 1023.0; // 12-bit, (4095-1) for Arduino Due
+        // const double resolutionLim = 1023.0; // 10-bit Arduino Uno
+        const double resolutionLim = 4094.0; // 12-bit Arduino Due
         // const float seriesResistor = 10000.0; 
         const double vRef = 3.3;
         const double c1 = 0.001127354682, c2 = 0.0002343978227, c3 = 0.00000008674847738; //Steinhart-hart equation constants

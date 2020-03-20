@@ -4,38 +4,36 @@
 static const int thermistor1Pin = A0; 
 static const int thermistor2Pin = A1; 
 static const int thermistor3Pin = A2; 
+static const int thermistor4Pin = A3;
+static const int thermistor5Pin = A4;
 
 // data collection variables
 unsigned long currentTime = 0.0;
 unsigned long deltaTime = 250.0; 
 
-double seriesResistor1 = 9960.0;
-double seriesResistor2 = 9960.0;
-double seriesResistor3 = 9950.0;
-
+// use of precision resistors removes need to specify resistor values for each thermistor
+double seriesResistor = 10000.0;
 void setup()
 {
-    //Ground unused analog pins to minimize interference
-    for (int i = A3; i <= A6; i++){
-        pinMode(i, OUTPUT); 
-        digitalWrite(i, LOW);
-    }
-    
     Serial.begin(9600);
+    analogReadResolution(12);
 }
 
 void loop()
 {
-  
-    Thermistor_10k thermistor_25cm(thermistor1Pin,seriesResistor1);
-    Thermistor_10k thermistor_50cm(thermistor2Pin,seriesResistor2);
-    Thermistor_10k thermistor_200cm(thermistor3Pin,seriesResistor3);
+    Thermistor_10k thermistor_ambient(thermistor1Pin,seriesResistor);
+    Thermistor_10k thermistor_motor1(thermistor2Pin,seriesResistor);
+    Thermistor_10k thermistor_mpmt(thermistor3Pin,seriesResistor);
+    Thermistor_10k thermistor_motor2(thermistor4Pin,seriesResistor);
+    Thermistor_10k thermistor_optical_box(thermistor5Pin,seriesResistor);
     
     if(millis() - currentTime >= deltaTime){
         currentTime = millis();
-        double temp1 = thermistor_25cm.readTemperature();
-        double temp2 = thermistor_50cm.readTemperature();
-        double temp3 = thermistor_200cm.readTemperature();
+        double temp1 = thermistor_ambient.readTemperature();
+        double temp2 = thermistor_motor1.readTemperature();
+        double temp3 = thermistor_mpmt.readTemperature();
+        double temp4 = thermistor_motor2.readTemperature();
+        double temp5 = thermistor_optical_box.readTemperature();
 
         // double temp1 = thermistor_25cm.readAveragedTemperature();
         // double temp2 = thermistor_50cm.readAveragedTemperature();
@@ -47,6 +45,10 @@ void loop()
         Serial.print(",");
         Serial.print(temp2);
         Serial.print(",");
-        Serial.println(temp3);
+        Serial.print(temp3);
+        Serial.print(",");
+        Serial.print(temp4);
+        Serial.print(",");
+        Serial.println(temp5);
     }
 }

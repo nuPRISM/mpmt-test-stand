@@ -10,7 +10,7 @@
 #include "Movement.h"
 #include "Kinematics.h"
 
-#define BAUD_RATE 115200
+#define COMM_BAUD_RATE 115200
 
 ArduinoSerialDevice serial_device(Serial);
 TestStandCommController comm(serial_device);
@@ -21,7 +21,7 @@ void setup()
     pinMode(LED_BUILTIN, OUTPUT);
 
     DEBUG_INIT;
-    serial_device.ser_connect(BAUD_RATE);
+    serial_device.ser_connect(COMM_BAUD_RATE);
 
     setup_axis(&axis_x_config, &axis_x);
     setup_axis(&axis_y_config, &axis_y);

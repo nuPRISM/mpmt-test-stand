@@ -26,8 +26,8 @@ void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t count
 
     axis->encoder.desired = axis->encoder.current + axis->vel_profile_cur_trap[0];
 
-    DEBUG_PRINT("Desired count: ", axis->encoder.desired);
-    DEBUG_PRINT("Current count: ", axis->encoder.current);
+    DEBUG_PRINT_VAL("Desired count", axis->encoder.desired);
+    DEBUG_PRINT_VAL("Current count", axis->encoder.current);
     start_timer(axis->timer, axis->channel_velocity, axis->irq_velocity, axis->vel);
     start_timer_accel(axis->timer, axis->channel_accel, axis->irq_accel, axis->accel);
 }
@@ -39,15 +39,15 @@ void home_axis(Axis *axis)
     uint32_t counts_accel = calc_counts_accel(axis->accel, axis->vel_min, VELOCITY_HOMING);
     // check if the limit switched is pressed at home
     LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(axis->ls_home.pin);
-    DEBUG_PRINT("LS STATUS: ", status);
+    DEBUG_PRINT_VAL("LS STATUS", status);
     if (status == PRESSED) {
-        DEBUG_PRINT("DRIVING IN POSITIVE", 0);
+        DEBUG_PRINT_VAL("DRIVING IN POSITIVE", 0);
         axis->encoder.current = 0;
         axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, DIR_POSITIVE); // move until limit switch is released
         return;
     }
     else {
-        DEBUG_PRINT("DRIVING IN NEGATIVE", 0);
+        DEBUG_PRINT_VAL("DRIVING IN NEGATIVE", 0);
         axis->encoder.current = UINT32_MAX;
         axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, DIR_NEGATIVE);
         return;

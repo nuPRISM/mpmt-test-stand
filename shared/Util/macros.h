@@ -1,14 +1,38 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#define RECONSTRUCT_UINT16(_data)\
-    ((uint16_t)(*((_data) + 0)) << 8)\
-    | (*((_data) + 1))
+/******************************************************************************/
+/* BYTE ORDER MACROS                                                          */
+/******************************************************************************/
 
-#define RECONSTRUCT_UINT32(_data) \
-    ((uint32_t)(*((_data) + 0)) << 24) \
-    | ((uint32_t)(*((_data) + 1)) << 16) \
-    | ((uint32_t)(*((_data) + 2)) << 8) \
-    | (*((_data) + 3))
+#define NTOHS(_ptr)                     \
+    (                                   \
+    ((uint16_t)(*((_ptr) + 0)) << 8)  | \
+    ((uint16_t)(*((_ptr) + 1)) << 0)    \
+    )
+
+#define NTOHL(_ptr)                     \
+    (                                   \
+    ((uint32_t)(*((_ptr) + 0)) << 24) | \
+    ((uint32_t)(*((_ptr) + 1)) << 16) | \
+    ((uint32_t)(*((_ptr) + 2)) << 8)  | \
+    ((uint32_t)(*((_ptr) + 3)) << 0)    \
+    )
+
+#define GET_BYTE(_x, _n) ((uint8_t)(((_x) >> ((_n)*8)) & 0xFF))
+
+#define HTONS(_ptr, _val)                    \
+    do {                                     \
+        (*((_ptr) + 0)) = GET_BYTE(_val, 1); \
+        (*((_ptr) + 1)) = GET_BYTE(_val, 0); \
+    } while (0)
+
+#define HTONL(_ptr, _val)                    \
+    do {                                     \
+        (*((_ptr) + 0)) = GET_BYTE(_val, 3); \
+        (*((_ptr) + 1)) = GET_BYTE(_val, 2); \
+        (*((_ptr) + 2)) = GET_BYTE(_val, 1); \
+        (*((_ptr) + 3)) = GET_BYTE(_val, 0); \
+    } while (0)
 
 #endif // MACROS_H

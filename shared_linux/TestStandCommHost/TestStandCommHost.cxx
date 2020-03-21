@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "TestStandCommHost.h"
-
-#define GET_BYTE(_x, _n) (uint8_t)(((_x) >> ((_n)*8)) & 0x00FF)
+#include "macros.h"
 
 TestStandCommHost::TestStandCommHost(SerialDevice& device) : TestStandComm(device)
 {
@@ -23,18 +22,15 @@ bool TestStandCommHost::home()
     return this->send_basic_msg(MSG_ID_HOME);
 }
 
-bool TestStandCommHost::move(uint16_t accel, uint16_t hold_vel, uint16_t dist, AxisId axis, Direction dir)
+bool TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, DirectionId dir)
 {
     // Transmit in big endian order
-    uint8_t data[8];
-    data[0] = GET_BYTE(accel, 1);
-    data[1] = GET_BYTE(accel, 0);
-    data[2] = GET_BYTE(hold_vel, 1);
-    data[3] = GET_BYTE(hold_vel, 0);
-    data[4] = GET_BYTE(dist, 1);
-    data[5] = GET_BYTE(dist, 0);
-    data[6] = (uint8_t)axis;
-    data[7] = (uint8_t)dir;
+    uint8_t data[14];
+    HTONL(data, accel);
+    HTONL(data + 4, hold_vel);
+    HTONL(data + 8, dist);
+    data[12] = (uint8_t)axis;
+    data[13] = (uint8_t)dir;
 
     Message msg = {
         .id = MSG_ID_MOVE,

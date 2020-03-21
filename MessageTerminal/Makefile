@@ -7,24 +7,19 @@ TARGET = MessageTerminal
 
 BUILD_DIR = build
 
-INCS = -I.
-SRCS = MessageTerminal.cxx
-DEFS = -DPLATFORM_MIDAS
-
-# TestStandComm
 LIB_TSC = ../shared/TestStandComm
-INCS += -I$(LIB_TSC)
-SRCS += $(addprefix $(LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx)
-
-# TestStandCommHost
 LIB_TSCH = ../shared_linux/TestStandCommHost
-INCS += -I$(LIB_TSCH)
-SRCS += $(addprefix $(LIB_TSCH)/, TestStandCommHost.cxx)
-
-# LinuxSerialDevice
 LIB_LSD = ../shared_linux/LinuxSerialDevice
-INCS += -I$(LIB_LSD)
-SRCS += $(addprefix $(LIB_LSD)/, LinuxSerialDevice.cxx)
+LIB_UTIL = ../shared/Util
+
+INCS = -I. -I$(LIB_TSC) -I$(LIB_TSCH) -I$(LIB_LSD) -I$(LIB_UTIL)
+
+SRCS = MessageTerminal.cxx                                                               \
+       $(addprefix $(LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx) \
+       $(addprefix $(LIB_TSCH)/, TestStandCommHost.cxx)                                  \
+       $(addprefix $(LIB_LSD)/, LinuxSerialDevice.cxx)
+
+DEFS = -DPLATFORM_MIDAS
 
 OBJS = $(patsubst %.cxx, $(BUILD_DIR)/%.o, $(notdir $(SRCS)))
 

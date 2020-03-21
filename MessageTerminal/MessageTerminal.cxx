@@ -29,9 +29,9 @@ BASIC_CMD(stop);
 
 void move(istringstream& iss)
 {
-    uint16_t accel, hold_vel, dist;
+    uint32_t accel, hold_vel, dist;
     AxisId axis;
-    Direction dir;
+    DirectionId dir;
 
     do {
         // accel, hold_vel, dist

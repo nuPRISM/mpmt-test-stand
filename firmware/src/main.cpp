@@ -39,9 +39,9 @@ void handle_move()
 
     uint8_t *data = comm.received_message().data;
 
-    accel    = RECONSTRUCT_UINT32(data);
-    hold_vel = RECONSTRUCT_UINT32(data + 4);
-    dist     = RECONSTRUCT_UINT32(data + 8);
+    accel    = NTOHL(data);
+    hold_vel = NTOHL(data + 4);
+    dist     = NTOHL(data + 8);
 
     axis = data[12];
     dir = data[13];

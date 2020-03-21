@@ -6,6 +6,8 @@
 #include "LinuxSerialDevice.h"
 #include "TestStandCommHost.h"
 
+#include "shared_defs.h"
+
 #define BAUD_RATE 115200
 
 #define BASIC_CMD(_name)                    \
@@ -31,7 +33,7 @@ void move(istringstream& iss)
 {
     uint32_t accel, hold_vel, dist;
     AxisId axis;
-    DirectionId dir;
+    Direction dir;
 
     do {
         // accel, hold_vel, dist

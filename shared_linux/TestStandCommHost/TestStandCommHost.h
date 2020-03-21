@@ -3,6 +3,8 @@
 
 #include "TestStandComm.h"
 
+#include "shared_defs.h"
+
 class TestStandCommHost : public TestStandComm
 {
     public:
@@ -11,7 +13,7 @@ class TestStandCommHost : public TestStandComm
         bool ping();
         bool get_status();
         bool home();
-        bool move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, DirectionId dir);
+        bool move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, Direction dir);
         bool stop();
         bool get_data(DataId data_id);
 };

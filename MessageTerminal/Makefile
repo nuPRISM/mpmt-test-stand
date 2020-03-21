@@ -7,12 +7,15 @@ TARGET = MessageTerminal
 
 BUILD_DIR = build
 
-LIB_TSC = ../shared/TestStandComm
-LIB_TSCH = ../shared_linux/TestStandCommHost
-LIB_LSD = ../shared_linux/LinuxSerialDevice
-LIB_UTIL = ../shared/Util
+LIB_SHARED = ../shared
+LIB_SHARED_LINUX = ../shared_linux
 
-INCS = -I. -I$(LIB_TSC) -I$(LIB_TSCH) -I$(LIB_LSD) -I$(LIB_UTIL)
+LIB_TSC = $(LIB_SHARED)/TestStandComm
+LIB_UTIL = $(LIB_SHARED)/Util
+LIB_TSCH = $(LIB_SHARED_LINUX)/TestStandCommHost
+LIB_LSD = $(LIB_SHARED_LINUX)/LinuxSerialDevice
+
+INCS = -I. -I$(LIB_SHARED) -I$(LIB_UTIL) -I$(LIB_TSC) -I$(LIB_TSCH) -I$(LIB_LSD)
 
 SRCS = MessageTerminal.cxx                                                               \
        $(addprefix $(LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx) \

@@ -3,6 +3,8 @@
 
 #include "TestStandComm.h"
 
+#include "shared_defs.h"
+
 class TestStandCommController : public TestStandComm
 {
     public:

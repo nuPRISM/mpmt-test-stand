@@ -22,7 +22,7 @@ bool TestStandCommHost::home()
     return this->send_basic_msg(MSG_ID_HOME);
 }
 
-bool TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, DirectionId dir)
+bool TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, Direction dir)
 {
     // Transmit in big endian order
     uint8_t data[14];

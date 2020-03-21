@@ -3,20 +3,22 @@
 #include "Debug.h"
 #include "Timer.h"
 
+#include "shared_defs.h"
+
 void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t counts_hold, uint32_t counts_decel, Direction dir)
 {   
-    axis->tragectory_segment = ACCELERATE;
+    axis->tragectory_segment = VEL_SEG_ACCELERATE;
     axis->vel = axis->vel_min;
     if (counts_accel == 0 && counts_hold == 0 && counts_decel == 0) return;
     axis->dir = dir;
     digitalWrite(axis->dir_pin, dir);
 
-    if (dir == POSITIVE) {
+    if (dir == DIR_POSITIVE) {
         axis->vel_profile_cur_trap[0] = counts_accel;
         axis->vel_profile_cur_trap[1] = counts_hold;
         axis->vel_profile_cur_trap[2] = counts_decel;
     }
-    else if (dir == NEGATIVE) {
+    else if (dir == DIR_NEGATIVE) {
         axis->vel_profile_cur_trap[0] = - counts_accel;
         axis->vel_profile_cur_trap[1] = - counts_hold;
         axis->vel_profile_cur_trap[2] = - counts_decel;
@@ -41,13 +43,13 @@ void home_axis(Axis *axis)
     if (status == PRESSED) {
         DEBUG_PRINT("DRIVING IN POSITIVE", 0);
         axis->encoder.current = 0;
-        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, POSITIVE); // move until limit switch is released
+        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, DIR_POSITIVE); // move until limit switch is released
         return;
     }
     else {
         DEBUG_PRINT("DRIVING IN NEGATIVE", 0);
         axis->encoder.current = UINT32_MAX;
-        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, NEGATIVE);
+        axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, DIR_NEGATIVE);
         return;
     }
 }

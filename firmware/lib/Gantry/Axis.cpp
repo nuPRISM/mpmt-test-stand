@@ -61,7 +61,7 @@ static void setup_struct(AxisConfig *axis_config, Axis *axis)
     axis->vel_min = axis_config->vel_min;
     axis->vel_max = axis_config->vel_max;
     axis->vel = axis_config->vel_min;
-    axis->tragectory_segment = ACCELERATE;
+    axis->tragectory_segment = VEL_SEG_ACCELERATE;
     axis->timer = axis_config->timer;
     axis->channel_velocity = axis_config->channel_velocity;
     axis->channel_accel = axis_config->channel_accel;
@@ -99,8 +99,8 @@ void setup_axis(AxisConfig *axis_config, Axis *axis)
 // isr to handle encoder of x axis
 void isr_encoder_x()
 {
-    if (axis_x.dir == POSITIVE) axis_x.encoder.current++;
-    else if (axis_x.dir == NEGATIVE) axis_x.encoder.current--;
+    if (axis_x.dir == DIR_POSITIVE) axis_x.encoder.current++;
+    else if (axis_x.dir == DIR_NEGATIVE) axis_x.encoder.current--;
     // DEBUG_PRINT("", axis_x.encoder.current);
 }
 
@@ -145,32 +145,32 @@ void TC4_Handler(void)
     // DEBUG_PRINT("Current count: ", axis_x.encoder.current);
     TC_GetStatus(TC1, 1); // Get current status on the selected channel
     // first accelerate
-    if (axis_x.tragectory_segment == ACCELERATE) {
+    if (axis_x.tragectory_segment == VEL_SEG_ACCELERATE) {
         if (((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir) && axis_x.vel < axis_x.vel_max) {
             axis_x.vel++;
         }
         else {
-            axis_x.tragectory_segment = HOLD;
+            axis_x.tragectory_segment = VEL_SEG_HOLD;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
             axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur_trap[1] + delta;
             // DEBUG_PRINT("accel d-c: ", delta);
         }
     }
     // hold velocity
-    else if (axis_x.tragectory_segment == HOLD) {
+    else if (axis_x.tragectory_segment == VEL_SEG_HOLD) {
         if ((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir) {
             // DEBUG_PRINT("DC H: ", axis_x.encoder.desired);
             // DEBUG_PRINT("CC H: ", axis_x.encoder.current);
         }
         else {
-            axis_x.tragectory_segment = DECELERATE;
+            axis_x.tragectory_segment = VEL_SEG_DECELERATE;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
             axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur_trap[2] + delta;
             // DEBUG_PRINT("hold d-c: ", delta);
         }
     }
     // decelerate
-    else if (axis_x.tragectory_segment == DECELERATE) {
+    else if (axis_x.tragectory_segment == VEL_SEG_DECELERATE) {
         if (((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir)) {
             if (axis_x.vel > axis_x.vel_min) {
                 axis_x.vel--;
@@ -181,8 +181,7 @@ void TC4_Handler(void)
         else {
             NVIC_DisableIRQ(TC3_IRQn);
             NVIC_DisableIRQ(TC4_IRQn);
-            int delta = axis_x.encoder.desired - axis_x.encoder.current;
-            DEBUG_PRINT("decel d-c: ", delta);
+            DEBUG_PRINT("decel d-c: ", (axis_x.encoder.desired - axis_x.encoder.current));
         }
     }
 }
@@ -193,8 +192,8 @@ void TC4_Handler(void)
 // isr to handle encoder of x axis
 void isr_encoder_y()
 {
-    if (axis_y.dir == POSITIVE) axis_y.encoder.current++;
-    else if (axis_y.dir == NEGATIVE) axis_y.encoder.current--;
+    if (axis_y.dir == DIR_POSITIVE) axis_y.encoder.current++;
+    else if (axis_y.dir == DIR_NEGATIVE) axis_y.encoder.current--;
     DEBUG_PRINT("Encoder ISR count: ", axis_y.encoder.current);
 }
 
@@ -239,13 +238,13 @@ void TC1_Handler(void)
     // DEBUG_PRINT("Current count: ", axis_x.encoder.current);
     TC_GetStatus(TC0, 1); // Get current status on the selected channel
     // first accelerate
-    if (axis_y.tragectory_segment == ACCELERATE) {
+    if (axis_y.tragectory_segment == VEL_SEG_ACCELERATE) {
         if (((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) && axis_y.vel < axis_y.vel_max) {
             axis_y.vel++;
             return;
         }
         else {
-            axis_y.tragectory_segment = HOLD;
+            axis_y.tragectory_segment = VEL_SEG_HOLD;
             int delta = axis_y.encoder.desired - axis_y.encoder.current;
             axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur_trap[1] + delta;
             // DEBUG_PRINT("accel d-c: ", delta);
@@ -253,14 +252,14 @@ void TC1_Handler(void)
         }
     }
     // hold velocity
-    else if (axis_y.tragectory_segment == HOLD) {
+    else if (axis_y.tragectory_segment == VEL_SEG_HOLD) {
         if ((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) {
             // DEBUG_PRINT("DC H: ", axis_x.encoder.desired);
             // DEBUG_PRINT("CC H: ", axis_x.encoder.current);
             return;
         }
         else {
-            axis_y.tragectory_segment = DECELERATE;
+            axis_y.tragectory_segment = VEL_SEG_DECELERATE;
             int delta = axis_y.encoder.desired - axis_y.encoder.current;
             axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur_trap[2] + delta;
             // DEBUG_PRINT("hold d-c: ", delta);
@@ -268,7 +267,7 @@ void TC1_Handler(void)
         }
     }
     // decelerate
-    else if (axis_y.tragectory_segment == DECELERATE) {
+    else if (axis_y.tragectory_segment == VEL_SEG_DECELERATE) {
         if ((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) {
             if (axis_y.vel > axis_y.vel_min) {
                 axis_y.vel--;
@@ -280,8 +279,7 @@ void TC1_Handler(void)
         else {
             NVIC_DisableIRQ(TC0_IRQn);
             NVIC_DisableIRQ(TC1_IRQn);
-            int delta = axis_y.encoder.desired - axis_y.encoder.current;
-            DEBUG_PRINT("decel d-c: ", delta);
+            DEBUG_PRINT("decel d-c: ", (axis_y.encoder.desired - axis_y.encoder.current));
         }
     }
 }

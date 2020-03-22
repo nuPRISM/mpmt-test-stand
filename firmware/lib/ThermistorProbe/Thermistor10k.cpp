@@ -1,9 +1,9 @@
 /**
- * @file thermistor10k.cpp
+ * @file Thermistor10k.cpp
  * Thermistor 10k temperature measurements.
  */
 #include <Arduino.h>
-#include "thermistor10k.h"
+#include "Thermistor10k.h"
 
 /**
  * @param pin - Arduino Due pin
@@ -52,4 +52,3 @@ double Thermistor10k::convertToTemp(int vLevel)
     double Tc = Tk - kelvin_to_celsius;
     return Tc;
 }
-

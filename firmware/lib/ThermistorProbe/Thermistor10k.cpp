@@ -8,10 +8,9 @@
 /**
  * @param pin - Arduino Due pin
  */
-Thermistor10k::Thermistor10k(uint32_t pin, double seriesResistor)
+Thermistor10k::Thermistor10k(uint32_t pin)
 {
     this->thermistorPin = pin;
-    this->seriesResistorVal = seriesResistor; // measure actual resistance of the 10 kOhm series resistor
 }
 /**
  * Obtains analog thermistor reading and converts it to temperature in Celsius

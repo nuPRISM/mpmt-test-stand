@@ -27,6 +27,12 @@ void setup()
 {
     // put your setup code here, to run once:
     pinMode(LED_BUILTIN, OUTPUT);
+    // thermistor pin configurations
+    pinMode(thermistor1Pin, INPUT);
+    pinMode(thermistor2Pin, INPUT);
+    pinMode(thermistor3Pin, INPUT);
+    pinMode(thermistor4Pin, INPUT);
+    pinMode(thermistor5Pin, INPUT);
 
     DEBUG_INIT;
     serial_device.ser_connect(COMM_BAUD_RATE);

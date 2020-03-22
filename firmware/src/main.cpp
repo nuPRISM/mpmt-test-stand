@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "thermistorUSP10976.h"
+#include "thermistor10k.h"
 // migrate pin assignment to separate header file later
 static const int thermistor1Pin = A0; 
 static const int thermistor2Pin = A1; 
@@ -21,11 +21,11 @@ void setup()
 
 void loop()
 {
-    Thermistor_10k thermistor_ambient(thermistor1Pin,seriesResistor);
-    Thermistor_10k thermistor_motor1(thermistor2Pin,seriesResistor);
-    Thermistor_10k thermistor_mpmt(thermistor3Pin,seriesResistor);
-    Thermistor_10k thermistor_motor2(thermistor4Pin,seriesResistor);
-    Thermistor_10k thermistor_optical_box(thermistor5Pin,seriesResistor);
+    Thermistor10k thermistor_ambient(thermistor1Pin,seriesResistor);
+    Thermistor10k thermistor_motor1(thermistor2Pin,seriesResistor);
+    Thermistor10k thermistor_mpmt(thermistor3Pin,seriesResistor);
+    Thermistor10k thermistor_motor2(thermistor4Pin,seriesResistor);
+    Thermistor10k thermistor_optical_box(thermistor5Pin,seriesResistor);
     
     if(millis() - currentTime >= deltaTime){
         currentTime = millis();
@@ -35,9 +35,9 @@ void loop()
         double temp4 = thermistor_motor2.readTemperature();
         double temp5 = thermistor_optical_box.readTemperature();
 
-        // double temp1 = thermistor_25cm.readAveragedTemperature();
-        // double temp2 = thermistor_50cm.readAveragedTemperature();
-        // double temp3 = thermistor_200cm.readAveragedTemperature();
+        // double temp1 = thermistor_25cm.readAveragedTemperature(5);
+        // double temp2 = thermistor_50cm.readAveragedTemperature(5);
+        // double temp3 = thermistor_200cm.readAveragedTemperature(5);
         
         Serial.print(currentTime/1000.0);
         Serial.print(",");

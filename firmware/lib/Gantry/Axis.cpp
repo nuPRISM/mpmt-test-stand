@@ -53,15 +53,15 @@ static void setup_pins(AxisConfig *axis_config)
 static void setup_struct(AxisConfig *axis_config, Axis *axis)
 {
     axis->encoder = {axis_config->encoder_pin_a, 0, 0};
-    axis->ls_home = {axis_config->ls_home, digitalRead(axis_config->ls_home)};
-    axis->ls_far_from_home = {axis_config->ls_far, digitalRead(axis_config->ls_far)};
+    axis->ls_home = {axis_config->ls_home, (LimitSwitchStatus)digitalRead(axis_config->ls_home)};
+    axis->ls_far_from_home = {axis_config->ls_far, (LimitSwitchStatus)digitalRead(axis_config->ls_far)};
     axis->dir_pin = axis_config->dir_pin;
     axis->step_pin = axis_config->step_pin;
     axis->accel = axis_config->acceleration;
     axis->vel_min = axis_config->vel_min;
     axis->vel_max = axis_config->vel_max;
     axis->vel = axis_config->vel_min;
-    axis->tragectory_segment = ACCELERATE;
+    axis->tragectory_segment = VEL_SEG_ACCELERATE;
     axis->timer = axis_config->timer;
     axis->channel_velocity = axis_config->channel_velocity;
     axis->channel_accel = axis_config->channel_accel;
@@ -90,7 +90,7 @@ void setup_axis(AxisConfig *axis_config, Axis *axis)
     setup_interrupts(axis_config, axis);
     
     // reseting axis in case encoder has be triggered or a limit switch due to noise on initilization
-    DEBUG_PRINT("Reseting axis", 0);
+    DEBUG_PRINT_VAL("Reseting axis", 0);
     reset_axis(axis_config, axis);
 }
 
@@ -99,9 +99,9 @@ void setup_axis(AxisConfig *axis_config, Axis *axis)
 // isr to handle encoder of x axis
 void isr_encoder_x()
 {
-    if (axis_x.dir == POSITIVE) axis_x.encoder.current++;
-    else if (axis_x.dir == NEGATIVE) axis_x.encoder.current--;
-    // DEBUG_PRINT("", axis_x.encoder.current);
+    if (axis_x.dir == DIR_POSITIVE) axis_x.encoder.current++;
+    else if (axis_x.dir == DIR_NEGATIVE) axis_x.encoder.current--;
+    // DEBUG_PRINT_VAL("", axis_x.encoder.current);
 }
 
 // isr to handle limit switch
@@ -113,15 +113,15 @@ void isr_limit_switch_x()
     if (interrupt_time - last_interrupt_time > 100) {
         NVIC_DisableIRQ(axis_x.irq_velocity);
         NVIC_DisableIRQ(axis_x.irq_accel);
-        uint32_t status = digitalRead(LIMIT_SW_HOME_PIN_X);
-        // DEBUG_PRINT("X Home Limit switch has been hit ", status);
-        if (axis_x.homing && (status == DEPRESSED)) {
+        LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_X);
+        // DEBUG_PRINT_VAL("X Home Limit switch has been hit ", status);
+        if (axis_x.homing && (status == RELEASED)) {
             axis_x.encoder.current = 0;
             axis_x.homing = 0;
-            DEBUG_PRINT("X axis has been homed - SUCCESS", 1);
+            DEBUG_PRINT_VAL("X axis has been homed - SUCCESS", 1);
         }
         else if (axis_x.homing && (status == PRESSED)) {
-            DEBUG_PRINT("HOMING IN POSITIVE DIR ", 0);
+            DEBUG_PRINT_VAL("HOMING IN POSITIVE DIR ", 0);
             home_axis(&axis_x);
         }
     }
@@ -131,8 +131,8 @@ void isr_limit_switch_x()
 // isr for operating x axis motor velocity
 void TC3_Handler(void)
 {   
-    // DEBUG_PRINT("Desired count: ", axis_x.encoder.desired);
-    // DEBUG_PRINT("Current count: ", axis_x.encoder.current);
+    // DEBUG_PRINT_VAL("Desired count", axis_x.encoder.desired);
+    // DEBUG_PRINT_VAL("Current count", axis_x.encoder.current);
     TC_GetStatus(TC1, 0); // Get current status on the selected channel
     PIOC->PIO_ODSR ^= PIO_ODSR_P25;
     reset_timer(TC1, 0, TC3_IRQn, axis_x.vel); 
@@ -141,48 +141,47 @@ void TC3_Handler(void)
 // isr for operating x axis motor acceleration 
 void TC4_Handler(void)
 {   
-    // DEBUG_PRINT("Desired count: ", axis_x.encoder.desired);
-    // DEBUG_PRINT("Current count: ", axis_x.encoder.current);
+    // DEBUG_PRINT_VAL("Desired count", axis_x.encoder.desired);
+    // DEBUG_PRINT_VAL("Current count", axis_x.encoder.current);
     TC_GetStatus(TC1, 1); // Get current status on the selected channel
     // first accelerate
-    if (axis_x.tragectory_segment == ACCELERATE) {
+    if (axis_x.tragectory_segment == VEL_SEG_ACCELERATE) {
         if (((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir) && axis_x.vel < axis_x.vel_max) {
             axis_x.vel++;
         }
         else {
-            axis_x.tragectory_segment = HOLD;
+            axis_x.tragectory_segment = VEL_SEG_HOLD;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
             axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur_trap[1] + delta;
-            // DEBUG_PRINT("accel d-c: ", delta);
+            // DEBUG_PRINT_VAL("accel d-c", delta);
         }
     }
     // hold velocity
-    else if (axis_x.tragectory_segment == HOLD) {
+    else if (axis_x.tragectory_segment == VEL_SEG_HOLD) {
         if ((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir) {
-            // DEBUG_PRINT("DC H: ", axis_x.encoder.desired);
-            // DEBUG_PRINT("CC H: ", axis_x.encoder.current);
+            // DEBUG_PRINT_VAL("DC H", axis_x.encoder.desired);
+            // DEBUG_PRINT_VAL("CC H", axis_x.encoder.current);
         }
         else {
-            axis_x.tragectory_segment = DECELERATE;
+            axis_x.tragectory_segment = VEL_SEG_DECELERATE;
             int delta = axis_x.encoder.desired - axis_x.encoder.current;
             axis_x.encoder.desired = axis_x.encoder.current + axis_x.vel_profile_cur_trap[2] + delta;
-            // DEBUG_PRINT("hold d-c: ", delta);
+            // DEBUG_PRINT_VAL("hold d-c", delta);
         }
     }
     // decelerate
-    else if (axis_x.tragectory_segment == DECELERATE) {
+    else if (axis_x.tragectory_segment == VEL_SEG_DECELERATE) {
         if (((axis_x.encoder.current < axis_x.encoder.desired) != axis_x.dir)) {
             if (axis_x.vel > axis_x.vel_min) {
                 axis_x.vel--;
             }
-            // DEBUG_PRINT("DC H: ", axis_x.encoder.desired);
-            // DEBUG_PRINT("CC H: ", axis_x.encoder.current);
+            // DEBUG_PRINT_VAL("DC H", axis_x.encoder.desired);
+            // DEBUG_PRINT_VAL("CC H", axis_x.encoder.current);
         }
         else {
             NVIC_DisableIRQ(TC3_IRQn);
             NVIC_DisableIRQ(TC4_IRQn);
-            int delta = axis_x.encoder.desired - axis_x.encoder.current;
-            DEBUG_PRINT("decel d-c: ", delta);
+            DEBUG_PRINT_VAL("decel d-c", (axis_x.encoder.desired - axis_x.encoder.current));
         }
     }
 }
@@ -193,9 +192,9 @@ void TC4_Handler(void)
 // isr to handle encoder of x axis
 void isr_encoder_y()
 {
-    if (axis_y.dir == POSITIVE) axis_y.encoder.current++;
-    else if (axis_y.dir == NEGATIVE) axis_y.encoder.current--;
-    DEBUG_PRINT("Encoder ISR count: ", axis_y.encoder.current);
+    if (axis_y.dir == DIR_POSITIVE) axis_y.encoder.current++;
+    else if (axis_y.dir == DIR_NEGATIVE) axis_y.encoder.current--;
+    DEBUG_PRINT_VAL("Encoder ISR count", axis_y.encoder.current);
 }
 
 // isr to handle limit switch
@@ -207,14 +206,15 @@ void isr_limit_switch_y()
     if (interrupt_time - last_interrupt_time > 50) {
         NVIC_DisableIRQ(axis_y.irq_velocity);
         NVIC_DisableIRQ(axis_y.irq_accel);
-        DEBUG_PRINT("Y Home Limit switch has been hit", 1);
+        DEBUG_PRINT_VAL("Y Home Limit switch has been hit", 1);
 
-        if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == DEPRESSED) {
+        LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_Y);
+        if (axis_y.homing && status == RELEASED) {
             axis_y.encoder.current = 0;
             axis_y.homing = 0;
-            DEBUG_PRINT("Y axis has been homed - SUCCESS", 1);
+            DEBUG_PRINT_VAL("Y axis has been homed - SUCCESS", 1);
         }
-        else if (axis_y.homing && digitalRead(LIMIT_SW_HOME_PIN_Y) == PRESSED) {
+        else if (axis_y.homing && status == PRESSED) {
             home_axis(&axis_y);
         }
     }
@@ -224,8 +224,8 @@ void isr_limit_switch_y()
 // isr for operating x axis motor velocity
 void TC0_Handler(void)
 {   
-    // DEBUG_PRINT("Desired count: ", axis_x.encoder.desired);
-    // DEBUG_PRINT("Current count: ", axis_x.encoder.current);
+    // DEBUG_PRINT_VAL("Desired count", axis_x.encoder.desired);
+    // DEBUG_PRINT_VAL("Current count", axis_x.encoder.current);
     TC_GetStatus(TC0, 0); // Get current status on the selected channel
     PIOB->PIO_ODSR ^= PIO_ODSR_P26;
     reset_timer(TC0, 0, TC0_IRQn, axis_y.vel);
@@ -234,53 +234,52 @@ void TC0_Handler(void)
 // isr for operating x axis motor acceleration 
 void TC1_Handler(void)
 {   
-    // DEBUG_PRINT("Desired count: ", axis_x.encoder.desired);
-    // DEBUG_PRINT("Current count: ", axis_x.encoder.current);
+    // DEBUG_PRINT_VAL("Desired count", axis_x.encoder.desired);
+    // DEBUG_PRINT_VAL("Current count", axis_x.encoder.current);
     TC_GetStatus(TC0, 1); // Get current status on the selected channel
     // first accelerate
-    if (axis_y.tragectory_segment == ACCELERATE) {
+    if (axis_y.tragectory_segment == VEL_SEG_ACCELERATE) {
         if (((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) && axis_y.vel < axis_y.vel_max) {
             axis_y.vel++;
             return;
         }
         else {
-            axis_y.tragectory_segment = HOLD;
+            axis_y.tragectory_segment = VEL_SEG_HOLD;
             int delta = axis_y.encoder.desired - axis_y.encoder.current;
             axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur_trap[1] + delta;
-            // DEBUG_PRINT("accel d-c: ", delta);
+            // DEBUG_PRINT_VAL("accel d-c", delta);
             return;
         }
     }
     // hold velocity
-    else if (axis_y.tragectory_segment == HOLD) {
+    else if (axis_y.tragectory_segment == VEL_SEG_HOLD) {
         if ((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) {
-            // DEBUG_PRINT("DC H: ", axis_x.encoder.desired);
-            // DEBUG_PRINT("CC H: ", axis_x.encoder.current);
+            // DEBUG_PRINT_VAL("DC H", axis_x.encoder.desired);
+            // DEBUG_PRINT_VAL("CC H", axis_x.encoder.current);
             return;
         }
         else {
-            axis_y.tragectory_segment = DECELERATE;
+            axis_y.tragectory_segment = VEL_SEG_DECELERATE;
             int delta = axis_y.encoder.desired - axis_y.encoder.current;
             axis_y.encoder.desired = axis_y.encoder.current + axis_y.vel_profile_cur_trap[2] + delta;
-            // DEBUG_PRINT("hold d-c: ", delta);
+            // DEBUG_PRINT_VAL("hold d-c", delta);
             return;
         }
     }
     // decelerate
-    else if (axis_y.tragectory_segment == DECELERATE) {
+    else if (axis_y.tragectory_segment == VEL_SEG_DECELERATE) {
         if ((axis_y.encoder.current < axis_y.encoder.desired) != axis_y.dir) {
             if (axis_y.vel > axis_y.vel_min) {
                 axis_y.vel--;
             }
-            // DEBUG_PRINT("DC H: ", axis_x.encoder.desired);
-            // DEBUG_PRINT("CC H: ", axis_x.encoder.current);
+            // DEBUG_PRINT_VAL("DC H", axis_x.encoder.desired);
+            // DEBUG_PRINT_VAL("CC H", axis_x.encoder.current);
             return;
         }
         else {
             NVIC_DisableIRQ(TC0_IRQn);
             NVIC_DisableIRQ(TC1_IRQn);
-            int delta = axis_y.encoder.desired - axis_y.encoder.current;
-            DEBUG_PRINT("decel d-c: ", delta);
+            DEBUG_PRINT_VAL("decel d-c", (axis_y.encoder.desired - axis_y.encoder.current));
         }
     }
 }

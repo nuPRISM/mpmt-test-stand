@@ -1,15 +1,19 @@
 #ifndef AXIS_H
 #define AXIS_H
 
-#define VELOCITY_HOMING 10000
-
 #include "Kinematics.h"
 #include "LimitSwitch.h"
 #include "Encoder.h"
 
-typedef enum {PRESSED, DEPRESSED} Status;
-typedef enum {POSITIVE, NEGATIVE} Direction;
-typedef enum {ACCELERATE, HOLD, DECELERATE} Segment;
+#include "shared_defs.h"
+
+#define VELOCITY_HOMING 10000
+
+typedef enum {
+    VEL_SEG_ACCELERATE,
+    VEL_SEG_HOLD,
+    VEL_SEG_DECELERATE
+} VelocitySegment;
 
 typedef struct {
     uint32_t dir_pin, step_pin, encoder_pin_a, encoder_pin_b, ls_home, ls_far;
@@ -30,7 +34,7 @@ typedef struct Axis
     uint32_t vel_max;
     uint32_t vel;
     int32_t vel_profile_cur_trap[3] = {0, 0, 0}; // defined in counts accelerate, hold, decelerate
-    Segment tragectory_segment;
+    VelocitySegment tragectory_segment;
     Encoder encoder;
     LimitSwitch ls_home;
     LimitSwitch ls_far_from_home;

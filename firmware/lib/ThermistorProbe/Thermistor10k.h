@@ -13,7 +13,7 @@ class Thermistor10k
          * Constructor to create a new thermistor object.
          * @param pin - Arduino Due pin
          */
-        Thermistor10k(uint32_t pin, double seriesResistor);
+        Thermistor10k(uint32_t pin);
 
         /**
          * Obtains an analog thermistor reading and converts it to temperature in Celsius
@@ -33,9 +33,9 @@ class Thermistor10k
         static constexpr double vRef = 3.3;
         static constexpr double c1 = 0.001127354682, c2 = 0.0002343978227, c3 = 0.00000008674847738; //Steinhart-hart equation constants
         static constexpr double kelvin_to_celsius = 273.15;
+        static constexpr double seriesResistorVal = 10000.0; //10k precision resistor
 
         uint32_t thermistorPin;
-        double seriesResistorVal;
 
         double convertToTemp(int vLevel);
 };

@@ -23,14 +23,13 @@ if [ "$#" -ne 1 ]; then
     echo "        5 = Initialize ODB"
     echo "        6 = Create SSL certificate"
     echo "        7 = Create password file"
-    echo "        8 = Run MIDAS"
     exit 0
 fi
 
 START=$1
 
 echo "Killing running MIDAS processes..."
-if pgrep mhttpd; then pkill mhttpd; fi
+if pgrep mhttpd; then killall mhttpd; fi
 
 if [ "$START" -le "0" ]; then
     echo "0: Installing prerequesites..."
@@ -54,13 +53,16 @@ if [ "$START" -le "2" ]; then
     echo "2: Cloning MIDAS..."
     mkdir $HOME/packages
     cd $HOME/packages
-    git clone https://bitbucket.org/tmidas/midas --recursive
+    git clone https://bitbucket.org/tmidas/midas --branch midas-2020-03-a --depth 1 --recursive
 fi
 
 # Build MIDAS
 if [ "$START" -le "3" ]; then
     echo "3: Building MIDAS..."
     cd $MIDASSYS
+    make clean
+    rm -rf build
+
     mkdir build
     cd build
     cmake ..
@@ -92,27 +94,24 @@ if [ "$START" -le "5" ]; then
     odbedit -c exit
 fi
 
-# if [ "$START" -le "6" ]; then
-#     echo "6: Creating SSL certificate..."
-#     cd $HOME/online
-#     openssl req -new -nodes -newkey rsa:2048 -sha256 -out ssl_cert.csr -keyout ssl_cert.key -subj '/CN=localhost'
-#     openssl x509 -req -days 365 -sha256 -in ssl_cert.csr -signkey ssl_cert.key -out ssl_cert.pem
-#     cat ssl_cert.key >> ssl_cert.pem
-# fi
+if [ "$START" -le "6" ]; then
+    echo "6: Creating SSL certificate..."
+    cd $HOME/online
+    openssl req -new -nodes -newkey rsa:2048 -sha256 -out ssl_cert.csr -keyout ssl_cert.key -subj '/CN=localhost'
+    openssl x509 -req -days 365 -sha256 -in ssl_cert.csr -signkey ssl_cert.key -out ssl_cert.pem
+    cat ssl_cert.key >> ssl_cert.pem
+fi
 
-# if [ "$START" -le "7" ]; then
-#     echo "7: Creating password file..."
-#     MIDAS_USER_NAME=midas
-#     MIDAS_USER_REALM=$MIDAS_EXPT_NAME
-#     MIDAS_USER_PW=midas
-#     digest="$( printf "%s:%s:%s" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$MIDAS_USER_PW" |
-#                md5sum | awk '{print $1}' )"
-#     printf "%s:%s:%s\n" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$digest" > "$HOME/online/htpasswd.txt"
-# fi
-
-if [ "$START" -le "8" ]; then
-    echo "8: Running MIDAS..."
-    mhttpd -D -a localhost
+if [ "$START" -le "7" ]; then
+    echo "7: Creating password file..."
+    MIDAS_USER_NAME=midas
+    MIDAS_USER_REALM=$MIDAS_EXPT_NAME
+    MIDAS_USER_PW=midas
+    digest="$( printf "%s:%s:%s" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$MIDAS_USER_PW" |
+               md5sum | awk '{print $1}' )"
+    printf "%s:%s:%s\n" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$digest" > "$HOME/online/htpasswd.txt"
+    echo "MIDAS Username: $MIDAS_USER_NAME"
+    echo "MIDAS Password: $MIDAS_USER_PW"
 fi
 
 echo "Done"

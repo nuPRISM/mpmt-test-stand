@@ -45,7 +45,6 @@ Returns encoder counts given distance in millimeters.
 */
 uint32_t abs_distance_to_rel_cts(uint32_t curr_counts, float dest_mm){
     uint32_t abs_dist_cts = mm_to_cts(dest_mm);
-    uint32_t rel_dist_cts = abs(abs_dist_cts - curr_counts);
+    uint32_t rel_dist_cts = abs((int32_t)abs_dist_cts - (int32_t)curr_counts);
     return rel_dist_cts;
 }
-

@@ -5,7 +5,6 @@ CXX  = g++
 # -g              : generate debug information
 # -O2             : enable moderate optimization
 # -Wall           : enable all warning messages
-# -fpermissive    : 
 CFLAGS = -std=c++11 -g -O2 -Wall
 
 TARGET = MessageTerminal

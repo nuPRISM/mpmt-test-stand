@@ -3,7 +3,9 @@
 
 #include <cmath>
 #include <iostream>
+
 #include "Messages.h" 
+#include "shared_defs.h"
 
 const float encoder_cpr = 300.0;
 const float lead_screw_pitch_mm = 8.0;

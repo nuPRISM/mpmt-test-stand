@@ -68,17 +68,20 @@ BUILD_DIR = build
 ARDUINO_BUILD_DIR = $(BUILD_DIR)/arduino
 ARDUINO_DEFS = -DPLATFORM_MIDAS
 
-ARDUINO_LIB_TSC = ../shared/TestStandComm
-ARDUINO_LIB_TSCH = ../shared_linux/TestStandCommHost
-ARDUINO_LIB_LSD = ../shared_linux/LinuxSerialDevice
-ARDUINO_LIB_UTIL = ../shared/Util
+ARDUINO_LIB_SHARED = ../shared
+ARDUINO_LIB_SHARED_LINUX = ../shared_linux
 
-ARDUINO_INCS += -I$(ARDUINO_LIB_TSC) -I$(ARDUINO_LIB_TSCH) -I$(ARDUINO_LIB_LSD) -I$(ARDUINO_LIB_UTIL)
+ARDUINO_LIB_UTIL = $(ARDUINO_LIB_SHARED)/Util
+ARDUINO_LIB_TSC = $(ARDUINO_LIB_SHARED)/TestStandComm
+ARDUINO_LIB_TSCH = $(ARDUINO_LIB_SHARED_LINUX)/TestStandCommHost
+ARDUINO_LIB_LSD = $(ARDUINO_LIB_SHARED_LINUX)/LinuxSerialDevice
+
+ARDUINO_INCS += -I$(ARDUINO_LIB_TSC) -I$(ARDUINO_LIB_TSCH) -I$(ARDUINO_LIB_LSD) -I$(ARDUINO_LIB_UTIL) -I$(ARDUINO_LIB_SHARED)
 
 ARDUINO_SRCS = $(addprefix $(ARDUINO_LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx) \
                $(addprefix $(ARDUINO_LIB_TSCH)/, TestStandCommHost.cxx) \
                $(addprefix $(ARDUINO_LIB_LSD)/, LinuxSerialDevice.cxx) \
-			   motorCalculation.cxx
+               motorCalculation.cxx
 
 ARDUINO_OBJS = $(patsubst %.cxx, $(ARDUINO_BUILD_DIR)/%.o, $(notdir $(ARDUINO_SRCS)))
 

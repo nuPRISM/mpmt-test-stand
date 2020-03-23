@@ -41,6 +41,7 @@ const float accel_min_mm_s_2 = 0.0; // acceleration cannot be zero
 const float accel_max_mm_s_2 = 7.0; 
 
 using namespace std;
+
 LinuxSerialDevice device;
 TestStandCommHost comm(device);
 
@@ -152,6 +153,10 @@ void start_move(INT hDB, INT hkey, void *info)
 
   if(!gStartMove) return; // Just return if move not requested...
 
+  // Little magic to reset the key to 'n' without retriggering hotlink
+  BOOL move = false;
+  db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
+
   string path;
   path += "/Equipment/";
   path += EQ_NAME;
@@ -224,8 +229,8 @@ void start_move(INT hDB, INT hkey, void *info)
   // }
 
   // uint8_t *gantry_position = comm.received_message().data;
-  // uint16_t gantry_position_x = RECONSTRUCT_UINT32(gantry_position);
-  // uint16_t gantry_position_y = RECONSTRUCT_UINT32(gantry_position+4);
+  // uint16_t gantry_position_x = NTOHL(gantry_position);
+  // uint16_t gantry_position_y = NTOHL(gantry_position+4);
 
   // placeholder - initialize x and y position as 0
   uint16_t gantry_position_x = 0;
@@ -287,16 +292,6 @@ void start_move(INT hDB, INT hkey, void *info)
   printf("Moving to position P_x=%f, P_y=%f\n",destination[AXIS_X],destination[AXIS_Y]);
   printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[AXIS_X],velocity[AXIS_Y]);
   printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[AXIS_X],acceleration[AXIS_Y]);
-  
-  for (int i = 0; i < 5; i++) {
-    sleep(1);
-    printf(".");
-  }
-  printf("\nFinished move\n");
-
-  // Little magic to reset the key to 'n' without retriggering hotlink
-  BOOL move = false;
-  db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
 }
 
 void start_home(INT hDB, INT hkey, void *info)
@@ -304,7 +299,6 @@ void start_home(INT hDB, INT hkey, void *info)
   // TOFIX: add some checks that we aren't already moving
 
   if(!gStartHome) return; // Just return if home not requested...
-
 
   printf("Start home...\n");
   sleep(3);

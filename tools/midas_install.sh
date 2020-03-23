@@ -29,6 +29,9 @@ fi
 
 START=$1
 
+echo "Killing running MIDAS processes..."
+if pgrep mhttpd; then pkill mhttpd; fi
+
 if [ "$START" -le "0" ]; then
     echo "0: Installing prerequesites..."
     sudo apt-get update
@@ -76,6 +79,7 @@ fi
 # Set up Experiment
 if [ "$START" -le "4" ]; then
     echo "4: Setting up Experiment..."
+    rm -rf $HOME/online
     mkdir $HOME/online
     cd $HOME/online
 
@@ -85,31 +89,30 @@ fi
 # Configure MIDAS
 if [ "$START" -le "5" ]; then
     echo "5: Initializing ODB..."
-    echo "exit" | odbedit
+    odbedit -c exit
 fi
 
-if [ "$START" -le "6" ]; then
-    echo "6: Creating SSL certificate..."
-    cd $HOME/online
-    openssl req -new -nodes -newkey rsa:2048 -sha256 -out ssl_cert.csr -keyout ssl_cert.key -subj '/CN=localhost'
-    openssl x509 -req -days 365 -sha256 -in ssl_cert.csr -signkey ssl_cert.key -out ssl_cert.pem
-    cat ssl_cert.key >> ssl_cert.pem
-fi
+# if [ "$START" -le "6" ]; then
+#     echo "6: Creating SSL certificate..."
+#     cd $HOME/online
+#     openssl req -new -nodes -newkey rsa:2048 -sha256 -out ssl_cert.csr -keyout ssl_cert.key -subj '/CN=localhost'
+#     openssl x509 -req -days 365 -sha256 -in ssl_cert.csr -signkey ssl_cert.key -out ssl_cert.pem
+#     cat ssl_cert.key >> ssl_cert.pem
+# fi
 
-if [ "$START" -le "7" ]; then
-    echo "7: Creating password file..."
-    MIDAS_USER_NAME=midas
-    MIDAS_USER_REALM=$MIDAS_EXPT_NAME
-    MIDAS_USER_PW=midas
-    digest="$( printf "%s:%s:%s" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$MIDAS_USER_PW" | 
-               md5sum | awk '{print $1}' )"
-    printf "%s:%s:%s\n" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$digest" > "$HOME/online/htpasswd.txt"
-fi    
+# if [ "$START" -le "7" ]; then
+#     echo "7: Creating password file..."
+#     MIDAS_USER_NAME=midas
+#     MIDAS_USER_REALM=$MIDAS_EXPT_NAME
+#     MIDAS_USER_PW=midas
+#     digest="$( printf "%s:%s:%s" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$MIDAS_USER_PW" |
+#                md5sum | awk '{print $1}' )"
+#     printf "%s:%s:%s\n" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$digest" > "$HOME/online/htpasswd.txt"
+# fi
 
 if [ "$START" -le "8" ]; then
     echo "8: Running MIDAS..."
-    mhttpd -D
-    mlogger -D
+    mhttpd -D -a localhost
 fi
 
 echo "Done"

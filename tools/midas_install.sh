@@ -3,6 +3,12 @@
 # Exit when any command fails
 set -e
 
+# Check for root
+if [[ $EUID -eq 0 ]]; then
+   echo "This script is NOT meant to be run as root" 
+   exit 1
+fi
+
 export MIDASSYS=$HOME/packages/midas
 export MIDAS_EXPTAB=$HOME/online/exptab
 export MIDAS_EXPT_NAME=mpmttest

@@ -309,6 +309,14 @@ INT frontend_init()
 
   device.set_device_file(argv[1]);
   if (!device.ser_connect(BAUD_RATE)) return FE_ERR_HW;
+  
+  printf("Waiting for Arduino...");
+  while (!(comm.check_for_message() && comm.received_message().id == MSG_ID_PING)) {
+    // Wait for ping
+  }
+  // There might be more ping messages sitting in the buffer, so flush them all out
+  device.ser_flush();
+  printf("Connected!\n");
 
   // setup connection to ODB (online database)
   int status = cm_get_experiment_database(&hDB, NULL);

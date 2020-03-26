@@ -32,10 +32,21 @@ bool TestStandCommController::log(LogLevel log_level, const char *fmt, ...)
 
 bool TestStandCommController::status(Status status)
 {
-    return false;
+    uint8_t status8 = (uint8_t)status;
+    Message msg = {
+        .id = MSG_ID_STATUS,
+        .length = 1,
+        .data = &status8
+    };
+    return this->session.send_message(msg);
 }
 
 bool TestStandCommController::data(uint8_t *data, uint8_t length)
 {
-    return false;
+    Message msg = {
+        .id = MSG_ID_DATA,
+        .length = length,
+        .data = data
+    };
+    return this->session.send_message(msg);
 }

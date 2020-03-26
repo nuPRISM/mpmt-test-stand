@@ -17,11 +17,13 @@ mPMTTestStand::mPMTTestStand(const mPMTTestStandIO& io) :
     thermistor_optical(io.pin_therm_optical)
 {
     // Nothing else to do
-};
+}
 
 void mPMTTestStand::setup()
 {
+    DEBUG_PRINTLN("\n\n==================================================");
     DEBUG_PRINTLN("mPMT Test Stand");
+    DEBUG_PRINTLN("==================================================\n");
 
     // Thermistor pin configuration
     analogReadResolution(12); // enable 12 bit resolution mode in Arduino Due. Default is 10 bit.
@@ -44,12 +46,20 @@ void mPMTTestStand::setup()
         DEBUG_PRINTLN("Waiting for host...");
     }
     DEBUG_PRINTLN("Host connected!");
-};
+
+    this->status = STATUS_IDLE;
+}
 
 void mPMTTestStand::handle_home()
 {
-    
-};
+    this->status = STATUS_HOMING;
+
+    // These are both non-blocking
+    home_axis(&axis_x);
+    home_axis(&axis_y);
+
+    DEBUG_PRINTLN("HOMING");
+}
 
 void mPMTTestStand::handle_move()
 {
@@ -72,29 +82,87 @@ void mPMTTestStand::handle_move()
         // Start the movement if the velocity profile is valid
         axis_trapezoidal_move_rel(axis_ptr, profile.counts_accel, profile.counts_hold, profile.counts_decel, (Direction)dir);
     }
-    
-    // TODO delete this log message:
-    this->comm.log(LL_INFO, "cts_a = %d, cts_h = %d, dist = %d, axis = %c, dir = %s",
-        profile.counts_accel,
-        profile.counts_hold,
-        dist,
-        (axis == AXIS_X ? 'x' : 'y'),
-        (dir == DIR_POSITIVE ? "pos" : "neg"));
-};
+
+    DEBUG_PRINTLN("MOVING");
+    DEBUG_PRINT_VAL("    accel", accel);
+    DEBUG_PRINT_VAL("    hold_vel", hold_vel);
+    DEBUG_PRINT_VAL("    dist", dist);
+    DEBUG_PRINT_VAL("    axis", axis);
+    DEBUG_PRINT_VAL("    dir", dir);
+    DEBUG_PRINT_VAL("    cts_a", profile.counts_accel);
+    DEBUG_PRINT_VAL("    cts_h", profile.counts_hold);
+}
+
+void mPMTTestStand::handle_stop()
+{
+    stop_axis(&axis_x);
+    stop_axis(&axis_y);
+
+    DEBUG_PRINTLN("STOPPING");
+}
+
+void mPMTTestStand::handle_get_status()
+{
+    this->comm.status(this->status);
+}
+
+void mPMTTestStand::handle_get_data()
+{
+    DataId data_id = (DataId)((this->comm.received_message().data)[0]);
+    switch (data_id) {
+        case DATA_MOTOR:
+            uint8_t data[2*4];
+            HTONL(data, axis_x.encoder.current);
+            HTONL(data + 4, axis_y.encoder.current);
+            this->comm.data(data, sizeof(data));
+            break;
+
+        case DATA_TEMP:
+            // TODO
+            break;
+    }
+}
 
 void mPMTTestStand::execute()
 {
+    // Update status
+    Status old_status = this->status;
+    if (axis_x.moving || axis_y.moving) {
+        this->status = (axis_x.homing || axis_y.homing) ? STATUS_HOMING : STATUS_MOVING;
+    }
+    else if (axis_x.fault || axis_y.fault) {
+        this->status = STATUS_FAULT;
+    }
+    else {
+        this->status = STATUS_IDLE;
+    }
+
+    if (this->status != old_status) {
+        DEBUG_PRINT_VAL("Status updated to", this->status);
+    }
+
     // Check for any messages
     if (this->comm.check_for_message()) {
-        switch (this->comm.received_message().id) {
+        uint8_t id = this->comm.received_message().id;
+        DEBUG_PRINT_VAL("Received Message w/ ID", id);
+        switch (id) {
             case MSG_ID_HOME:
-                handle_home();
+                this->handle_home();
                 break;
             case MSG_ID_MOVE:
-                handle_move();
+                this->handle_move();
+                break;
+            case MSG_ID_STOP:
+                this->handle_stop();
+                break;
+            case MSG_ID_GET_STATUS:
+                this->handle_get_status();
+                break;
+            case MSG_ID_GET_DATA:
+                this->handle_get_data();
                 break;
             default:
                 break;
         }
     }
-};
+}

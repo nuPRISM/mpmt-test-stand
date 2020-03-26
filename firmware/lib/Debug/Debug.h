@@ -23,7 +23,7 @@
 #define DEBUG_PRINT_VAL(_name, _val) \
 do {                                 \
     DEBUG_PRINT(_name);              \
-    DEBUG_PRINT(" = ");              \
+    DEBUG_PRINT(": ");              \
     DEBUG_PRINTLN(_val);             \
 } while (0)
 

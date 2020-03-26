@@ -8,7 +8,11 @@
 
 #include "shared_defs.h"
 
+#include "macros.h"
+
 #define BAUD_RATE 115200
+
+#define RECV_MSG_TIMEOUT 5000
 
 #define BASIC_CMD(_name)                     \
 void _name(istringstream& iss)               \
@@ -30,7 +34,6 @@ TestStandCommHost comm(device);
 typedef void (*cmd_handler)(istringstream& iss);
 
 BASIC_CMD(ping);
-BASIC_CMD(get_status);
 BASIC_CMD(home);
 BASIC_CMD(stop);
 
@@ -70,10 +73,7 @@ void move(istringstream& iss)
         }
         else {
             printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
-        }
-
-        if (comm.recv_message(5000) && comm.received_message().id == MSG_ID_LOG) {
-            printf("%s\n", &(comm.received_message().data[1]));
+            return;
         }
 
         return;
@@ -82,16 +82,79 @@ void move(istringstream& iss)
     cout << "usage: move <accel> <hold_vel> <dist> <x|y> <pos|neg>" << endl;
 }
 
-void get_data(istringstream& iss)
+void get_status(istringstream& iss)
 {
-    // TODO parse arguments
-
-    if (comm.ping()) {
+    if (comm.get_status()) {
         cout << "OK" << endl;
     }
     else {
-        cout << "ERROR" << endl;
+        printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+        return;
     }
+
+    if (comm.recv_message(RECV_MSG_TIMEOUT)) {
+        if (comm.received_message().id == MSG_ID_STATUS) {
+            Status status = (Status)((comm.received_message().data)[0]);
+            switch (status) {
+                case STATUS_IDLE:   puts("Status: IDLE"); break;
+                case STATUS_MOVING: puts("Status: MOVING"); break;
+                case STATUS_HOMING: puts("Status: HOMING"); break;
+                case STATUS_FAULT:  puts("Status: FAULT"); break;
+                default:            puts("ERR: Invalid status"); break;
+            }
+        }
+        else {
+            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+        }
+    }
+    else {
+        printf("ERR: No response\n");
+    }
+}
+
+void get_data(istringstream& iss)
+{
+    string data_word;
+    DataId data_id;
+
+    do {
+        if (!iss.good()) break;
+        iss >> data_word;
+        if (data_word == "MOTOR") data_id = DATA_MOTOR;
+        else if (data_word == "TEMP") data_id = DATA_TEMP;
+        else break;
+
+        if (comm.get_data(data_id)) {
+            cout << "OK" << endl;
+        }
+        else {
+            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+            return;
+        }
+
+        if (comm.recv_message(RECV_MSG_TIMEOUT) && comm.received_message().id == MSG_ID_DATA) {
+            switch (data_id) {
+                case DATA_MOTOR:
+                {
+                    uint8_t *data = comm.received_message().data;
+                    uint32_t motor_x = NTOHL(data);
+                    uint32_t motor_y = NTOHL(data);
+                    printf("Motor Position: (%u, %u)\n", motor_x, motor_y);
+                    break;
+                }
+                case DATA_TEMP:
+                    // TODO
+                    break;
+            }
+        }
+        else {
+            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+        }
+
+        return;
+    } while (0);
+
+    cout << "usage: data <MOTOR|TEMP>" << endl;
 }
 
 cmd_handler get_cmd_handler(const string& cmd_name)
@@ -106,15 +169,10 @@ cmd_handler get_cmd_handler(const string& cmd_name)
     return nullptr;
 }
 
-int main(int argc, char *argv[])
+bool connect_to_arduino()
 {
-    if (argc != 2) {
-        printf("\nusage: %s <serial device file>\n\nexample:\n    %s /dev/ttyS3\n\n", argv[0], argv[0]);
-        return 0;
-    }
-
-    device.set_device_file(argv[1]);
-    if (!device.ser_connect(BAUD_RATE)) return 1;
+    if (!device.ser_connect(BAUD_RATE)) return false;
+    device.ser_flush();
 
     cout << "Waiting for Arduino..." << flush;
     while (!(comm.check_for_message() && comm.received_message().id == MSG_ID_PING)) {
@@ -124,6 +182,19 @@ int main(int argc, char *argv[])
     device.ser_flush();
 
     cout << "Connected!" << endl;
+    return true;
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc != 2) {
+        printf("\nusage: %s <serial device file>\n\nexample:\n    %s /dev/ttyS3\n\n", argv[0], argv[0]);
+        return 0;
+    }
+
+    device.set_device_file(argv[1]);
+
+    if (!connect_to_arduino()) return 1;
 
     bool exit = false;
     while (!exit) {
@@ -145,9 +216,13 @@ int main(int argc, char *argv[])
         // Get first word
         iss >> word;
 
-        // Check for exit
+        // Check for special commands first
         if (word == "exit") {
             exit = true;
+        }
+        else if (word == "reset") {
+            device.ser_disconnect();
+            if (!connect_to_arduino()) return 1;
         }
         else {
             // Handle command

@@ -14,7 +14,7 @@ bool TestStandCommHost::ping()
 
 bool TestStandCommHost::get_status()
 {
-    return this->send_basic_msg(MSG_ID_STATUS);
+    return this->send_basic_msg(MSG_ID_GET_STATUS);
 }
 
 bool TestStandCommHost::home()

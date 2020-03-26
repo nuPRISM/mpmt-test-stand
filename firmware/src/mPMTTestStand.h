@@ -7,6 +7,8 @@
 #include "TestStandCommController.h"
 #include "Thermistor10k.h"
 
+#include "shared_defs.h"
+
 typedef struct {
     // Serial Devices
     UARTClass& serial_comm;
@@ -33,12 +35,6 @@ typedef struct {
     uint8_t pin_motor_y_ls_far;
 } mPMTTestStandIO;
 
-typedef enum {
-    IDLE,
-    HOMING,
-    MOVING
-} SystemState;
-
 class mPMTTestStand
 {
     private:
@@ -50,9 +46,14 @@ class mPMTTestStand
         Thermistor10k thermistor_mpmt;
         Thermistor10k thermistor_motor2;
         Thermistor10k thermistor_optical;
-        
+
+        Status status;
+
         void handle_home();
         void handle_move();
+        void handle_stop();
+        void handle_get_status();
+        void handle_get_data();
 
     public:
         mPMTTestStand(const mPMTTestStandIO& io);

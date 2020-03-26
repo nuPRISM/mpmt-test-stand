@@ -67,6 +67,10 @@ static void setup_struct(AxisConfig *axis_config, Axis *axis)
     axis->channel_accel = axis_config->channel_accel;
     axis->irq_velocity = axis_config->irq_velocity;
     axis->irq_accel = axis_config->irq_accel;
+
+    axis->moving = false;
+    axis->homing = false;
+    axis->fault = false;
 }
 
 static void setup_interrupts(AxisConfig *axis_config, Axis *axis)
@@ -94,6 +98,20 @@ void setup_axis(AxisConfig *axis_config, Axis *axis)
     reset_axis(axis_config, axis);
 }
 
+void start_axis(Axis *axis)
+{
+    axis->moving = true;
+    start_timer(axis->timer, axis->channel_velocity, axis->irq_velocity, axis->vel);
+    start_timer_accel(axis->timer, axis->channel_accel, axis->irq_accel, axis->accel);
+}
+
+void stop_axis(Axis *axis)
+{
+    NVIC_DisableIRQ(axis->irq_accel);
+    NVIC_DisableIRQ(axis->irq_velocity);
+    axis->moving = false;
+}
+
 // -------------------------------- X AXIS INTERRUPTS -------------------------------- //
 
 // isr to handle encoder of x axis
@@ -111,18 +129,22 @@ void isr_limit_switch_x()
     uint32_t interrupt_time = millis();
     // If interrupts come faster than 10ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 100) {
-        NVIC_DisableIRQ(axis_x.irq_velocity);
-        NVIC_DisableIRQ(axis_x.irq_accel);
+        stop_axis(&axis_x);
         LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_X);
         // DEBUG_PRINT_VAL("X Home Limit switch has been hit ", status);
-        if (axis_x.homing && (status == RELEASED)) {
-            axis_x.encoder.current = 0;
-            axis_x.homing = 0;
-            DEBUG_PRINT_VAL("X axis has been homed - SUCCESS", 1);
+        if (axis_x.homing) {
+            if (status == RELEASED) {
+                axis_x.encoder.current = 0;
+                axis_x.homing = false;
+                DEBUG_PRINT_VAL("X axis has been homed - SUCCESS", 1);
+            }
+            else if (status == PRESSED) {
+                DEBUG_PRINT_VAL("HOMING IN POSITIVE DIR ", 0);
+                home_axis(&axis_x);
+            }
         }
-        else if (axis_x.homing && (status == PRESSED)) {
-            DEBUG_PRINT_VAL("HOMING IN POSITIVE DIR ", 0);
-            home_axis(&axis_x);
+        else {
+            axis_x.fault = true;
         }
     }
     last_interrupt_time = interrupt_time;
@@ -204,18 +226,22 @@ void isr_limit_switch_y()
     uint32_t interrupt_time = millis();
     // If interrupts come faster than 10ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 50) {
-        NVIC_DisableIRQ(axis_y.irq_velocity);
-        NVIC_DisableIRQ(axis_y.irq_accel);
+        stop_axis(&axis_x);
         DEBUG_PRINT_VAL("Y Home Limit switch has been hit", 1);
 
         LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_Y);
-        if (axis_y.homing && status == RELEASED) {
-            axis_y.encoder.current = 0;
-            axis_y.homing = 0;
-            DEBUG_PRINT_VAL("Y axis has been homed - SUCCESS", 1);
+        if (axis_y.homing) {
+            if (status == RELEASED) {
+                axis_y.encoder.current = 0;
+                axis_y.homing = false;
+                DEBUG_PRINT_VAL("Y axis has been homed - SUCCESS", 1);
+            }
+            else if (status == PRESSED) {
+                home_axis(&axis_y);
+            }
         }
-        else if (axis_y.homing && status == PRESSED) {
-            home_axis(&axis_y);
+        else {
+            axis_y.fault = true;
         }
     }
     last_interrupt_time = interrupt_time;

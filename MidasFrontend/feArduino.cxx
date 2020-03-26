@@ -179,15 +179,6 @@ void start_move(INT hDB, INT hkey, void *info)
     // TODO error message
     return;
   }
-
-  // Get the acceleration (have a default value)
-  // string accelpath = path + "/Acceleration";
-  // float acceleration[2] = {0,0};
-  // int size_accel = sizeof(acceleration);
-  // if (db_get_value(hDB, 0, accelpath.c_str(), &acceleration, &size_accel, TID_FLOAT, TRUE) != DB_SUCCESS) {
-  //   // TODO error message
-  //   return;
-  // }
   
   //error check user-input data
   if (destination[AXIS_X] < gantry_x_min_mm || destination[AXIS_X] > gantry_x_max_mm) {
@@ -209,13 +200,6 @@ void start_move(INT hDB, INT hkey, void *info)
     return;
   }
 
-  // if (acceleration[AXIS_X] <= accel_min_mm_s_2 || acceleration[AXIS_X] > accel_max_mm_s_2
-  //  || acceleration[AXIS_Y] <= accel_min_mm_s_2 || acceleration[AXIS_Y] > accel_max_mm_s_2) {
-  //   cm_msg(MERROR, "start_move", "Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
-  //   printf("Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
-  //   return;
-  // }
-  
   //get motor position from Arduino
   
   // if (!comm.get_data(DATA_MOTOR)) {
@@ -249,10 +233,6 @@ void start_move(INT hDB, INT hkey, void *info)
   uint32_t user_vel_x_cts = mm_to_cts(velocity[AXIS_X]);
   uint32_t user_vel_y_cts = mm_to_cts(velocity[AXIS_Y]);
 
-  // uint32_t user_accel_x_cts = mm_to_cts(acceleration[AXIS_X]);
-  // uint32_t user_accel_y_cts = mm_to_cts(acceleration[AXIS_Y]);
-
-  // float dest_mm, uint32_t curr_pos_cts
   Direction user_x_dir = get_direction(gantry_position_x,destination[AXIS_X]);
   Direction user_y_dir = get_direction(gantry_position_x,destination[AXIS_Y]);
 
@@ -341,7 +321,6 @@ INT frontend_init()
   path += "/Equipment/";
   path += EQ_NAME;
   path += "/Settings";
-
 
   // Setup hot-links (open record, callbacks) to StartHome variable
 

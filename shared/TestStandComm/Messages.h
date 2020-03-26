@@ -17,13 +17,14 @@
 #define MSG_ID_ACK         0x01
 #define MSG_ID_NACK        0x02
 
+#define MSG_ID_PING        0x03
+
 // PC -> Arduino Messages
-#define MSG_ID_PING        0x40
-#define MSG_ID_GET_STATUS  0x41
-#define MSG_ID_HOME        0x42
-#define MSG_ID_MOVE        0x43
-#define MSG_ID_STOP        0x44
-#define MSG_ID_GET_DATA    0x45
+#define MSG_ID_GET_STATUS  0x40
+#define MSG_ID_HOME        0x41
+#define MSG_ID_MOVE        0x42
+#define MSG_ID_STOP        0x43
+#define MSG_ID_GET_DATA    0x44
 
 // Arduino -> PC Messages
 #define MSG_ID_LOG         0x80

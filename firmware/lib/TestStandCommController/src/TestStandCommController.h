@@ -10,6 +10,7 @@ class TestStandCommController : public TestStandComm
     public:
         TestStandCommController(SerialDevice& device);
 
+        bool ping();
         bool log(LogLevel log_level, const char *fmt, ...);
         bool status(Status status);
         bool data(uint8_t *data, uint8_t length);

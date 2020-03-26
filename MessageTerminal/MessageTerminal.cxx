@@ -10,11 +10,16 @@
 
 #define BAUD_RATE 115200
 
-#define BASIC_CMD(_name)                    \
-void _name(istringstream& iss)              \
-{                                           \
-    if (comm._name()) cout << "OK" << endl; \
-    else cout << "ERROR" << endl;           \
+#define BASIC_CMD(_name)                     \
+void _name(istringstream& iss)               \
+{                                            \
+    if (comm._name()) {                      \
+        cout << "OK" << endl;                \
+    }                                        \
+    else {                                   \
+        printf("ERR: Received MSG ID: %d\n", \
+                comm.received_message().id); \
+    }                                        \
 }
 
 using namespace std;
@@ -60,8 +65,12 @@ void move(istringstream& iss)
         else if (word == "neg") dir = DIR_NEGATIVE;
         else break;
 
-        if (comm.move(accel, hold_vel, dist, axis, dir)) cout << "OK" << endl;
-        else cout << "ERROR" << endl;
+        if (comm.move(accel, hold_vel, dist, axis, dir)) {
+            cout << "OK" << endl;
+        }
+        else {
+            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+        }
 
         if (comm.recv_message(5000) && comm.received_message().id == MSG_ID_LOG) {
             printf("%s\n", &(comm.received_message().data[1]));
@@ -107,6 +116,15 @@ int main(int argc, char *argv[])
     device.set_device_file(argv[1]);
     if (!device.ser_connect(BAUD_RATE)) return 1;
 
+    cout << "Waiting for Arduino..." << flush;
+    while (!(comm.check_for_message() && comm.received_message().id == MSG_ID_PING)) {
+        // Wait for ping
+    }
+    // There might be more ping messages sitting in the buffer, so flush them all out
+    device.ser_flush();
+
+    cout << "Connected!" << endl;
+
     bool exit = false;
     while (!exit) {
         // Output prompt
@@ -115,6 +133,10 @@ int main(int argc, char *argv[])
         // Read line
         string line;
         getline(cin, line);
+
+        if (line.empty()) {
+            continue;
+        }
 
         // Split line into words
         istringstream iss(line);

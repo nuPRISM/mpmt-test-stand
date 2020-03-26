@@ -80,6 +80,13 @@ bool LinuxSerialDevice::ser_connect(uint32_t baud_rate)
     return true;
 }
 
+void LinuxSerialDevice::ser_flush()
+{
+    // Wait for 10 ms for last bits of data
+    usleep(10000);
+    tcflush(this->serial_port, TCIOFLUSH);
+}
+
 uint32_t LinuxSerialDevice::ser_available()
 {
     uint32_t bytes_avail;

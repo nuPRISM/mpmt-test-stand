@@ -2,17 +2,24 @@
 
 using namespace std;
 
-//retreive values from memory
-float curr_pos_cts;
-//user inputs
-float dest_mm, vel_mm_s, accel_mm_s2;
+const float encoder_cpr = 300.0; //Note: new gantry encoder is 500 counts
+const float lead_screw_pitch_mm = 8.0;
+const float gear_ratio = 26.0 + 103.0/121.0;
+const float mm_cts_ratio =  lead_screw_pitch_mm/(encoder_cpr*gear_ratio);
+
+/**
+ * This file contains functionality to convert user input values 
+ * based in milimeters (destination, velocity), and converts them 
+ * to parameters needed for motor commands.
+ * / 
 
 /*
 Returns the direction to move the gantry.
 
 Parameters:
 dest_mm: desired absolute position of gantry in millimeters
-curr_pos_mm: current absolute position of gantry in millimeters 
+curr_pos_cts: current absolute position of gantry in counts.
+              This will be a value returned from the motor encoder when requested.
 */
 Direction get_direction(uint32_t curr_pos_cts, float dest_mm) {
     uint32_t dest_cts = mm_to_cts(dest_mm);
@@ -33,7 +40,7 @@ float cts_to_mm(uint32_t counts){
 }
 
 /*
-Returns encoder counts given value based in millimeters.
+Returns encoder counts given value (val_mm) based in millimeters.
 This includes: distance (mm), velocity (mm/s), acceleration (mm/s^2)
 */
 uint32_t mm_to_cts(float val_mm){

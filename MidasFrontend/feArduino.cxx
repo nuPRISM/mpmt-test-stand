@@ -26,9 +26,9 @@ Arduino motor control for mPMT test stand.
 #define  EQ_NAME   "ARDUINO"
 #define  EQ_EVID   1
 #define  EQ_TRGMSK 0x1111
-#define  TIME_OUT  5000
+#define  MSG_RECEIVE_TIMEOUT  5000
 
-#define BAUD_RATE 115200
+#define  BAUD_RATE 115200
 
 // error checking user inputs
 const float gantry_x_min_mm = 0.0;
@@ -37,8 +37,8 @@ const float gantry_y_min_mm = 0.0;
 const float gantry_y_max_mm = 1200.0;
 const float vel_min_mm_s = 0.0; 
 const float vel_max_mm_s = 10.0;
-const float accel_min_mm_s_2 = 0.0; // acceleration cannot be zero
-const float accel_max_mm_s_2 = 7.0; 
+const float accel_default_mm_s_2 = 5.0; // acceleration cannot be zero, between 0 to 7.0 mm/s^2
+const uint32_t accel_default_cts = mm_to_cts(accel_default_mm_s_2);
 
 using namespace std;
 
@@ -181,13 +181,13 @@ void start_move(INT hDB, INT hkey, void *info)
   }
 
   // Get the acceleration (have a default value)
-  string accelpath = path + "/Acceleration";
-  float acceleration[2] = {0,0};
-  int size_accel = sizeof(acceleration);
-  if (db_get_value(hDB, 0, accelpath.c_str(), &acceleration, &size_accel, TID_FLOAT, TRUE) != DB_SUCCESS) {
-    // TODO error message
-    return;
-  }
+  // string accelpath = path + "/Acceleration";
+  // float acceleration[2] = {0,0};
+  // int size_accel = sizeof(acceleration);
+  // if (db_get_value(hDB, 0, accelpath.c_str(), &acceleration, &size_accel, TID_FLOAT, TRUE) != DB_SUCCESS) {
+  //   // TODO error message
+  //   return;
+  // }
   
   //error check user-input data
   if (destination[AXIS_X] < gantry_x_min_mm || destination[AXIS_X] > gantry_x_max_mm) {
@@ -209,12 +209,12 @@ void start_move(INT hDB, INT hkey, void *info)
     return;
   }
 
-  if (acceleration[AXIS_X] <= accel_min_mm_s_2 || acceleration[AXIS_X] > accel_max_mm_s_2
-   || acceleration[AXIS_Y] <= accel_min_mm_s_2 || acceleration[AXIS_Y] > accel_max_mm_s_2) {
-    cm_msg(MERROR, "start_move", "Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
-    printf("Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
-    return;
-  }
+  // if (acceleration[AXIS_X] <= accel_min_mm_s_2 || acceleration[AXIS_X] > accel_max_mm_s_2
+  //  || acceleration[AXIS_Y] <= accel_min_mm_s_2 || acceleration[AXIS_Y] > accel_max_mm_s_2) {
+  //   cm_msg(MERROR, "start_move", "Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
+  //   printf("Acceleration should be between %f and %f and cannot be zero.\n", accel_min_mm_s_2, accel_max_mm_s_2);
+  //   return;
+  // }
   
   //get motor position from Arduino
   
@@ -223,7 +223,7 @@ void start_move(INT hDB, INT hkey, void *info)
   //   return 0;
   // }
   //commented out until MSG_ID_DATA is implemented
-  // if (!(comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_DATA)) {
+  // if (!(comm.recv_message(MSG_RECEIVE_TIMEOUT) && comm.received_message().id == MSG_ID_DATA)) {
   //   printf("Error: timeout or invalid ID received.");
   //   return 0;
   // }
@@ -249,15 +249,15 @@ void start_move(INT hDB, INT hkey, void *info)
   uint32_t user_vel_x_cts = mm_to_cts(velocity[AXIS_X]);
   uint32_t user_vel_y_cts = mm_to_cts(velocity[AXIS_Y]);
 
-  uint32_t user_accel_x_cts = mm_to_cts(acceleration[AXIS_X]);
-  uint32_t user_accel_y_cts = mm_to_cts(acceleration[AXIS_Y]);
+  // uint32_t user_accel_x_cts = mm_to_cts(acceleration[AXIS_X]);
+  // uint32_t user_accel_y_cts = mm_to_cts(acceleration[AXIS_Y]);
 
   // float dest_mm, uint32_t curr_pos_cts
   Direction user_x_dir = get_direction(gantry_position_x,destination[AXIS_X]);
   Direction user_y_dir = get_direction(gantry_position_x,destination[AXIS_Y]);
 
   // instruct the Arduino to move to the specified destination at specified speed.
-  if (comm.move(user_accel_x_cts,
+  if (comm.move(accel_default_cts,
                 user_vel_x_cts,
                 user_rel_dist_x_cts,
                 AXIS_X,
@@ -268,11 +268,11 @@ void start_move(INT hDB, INT hkey, void *info)
     return;
   }
     //echo message back 
-  if (comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_LOG) {
+  if (comm.recv_message(MSG_RECEIVE_TIMEOUT) && comm.received_message().id == MSG_ID_LOG) {
     printf("%s\n", &(comm.received_message().data[1]));
   }
 
-  if (comm.move(user_accel_y_cts,
+  if (comm.move(accel_default_cts,
                 user_vel_y_cts,
                 user_rel_dist_y_cts,
                 AXIS_Y,
@@ -285,13 +285,13 @@ void start_move(INT hDB, INT hkey, void *info)
   }
 
     //echo message back 
-  if (comm.recv_message(TIME_OUT) && comm.received_message().id == MSG_ID_LOG) {
+  if (comm.recv_message(MSG_RECEIVE_TIMEOUT) && comm.received_message().id == MSG_ID_LOG) {
     printf("%s\n", &(comm.received_message().data[1]));
   }
 
   printf("Moving to position P_x=%f, P_y=%f\n",destination[AXIS_X],destination[AXIS_Y]);
   printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[AXIS_X],velocity[AXIS_Y]);
-  printf("Moving with acceleration A_x=%f, A_y=%f\n",acceleration[AXIS_X],acceleration[AXIS_Y]);
+  printf("Moving with default acceleration %f (mm/s^2) = %d (counts)\n",accel_default_mm_s_2,accel_default_cts);
 }
 
 void start_home(INT hDB, INT hkey, void *info)
@@ -328,7 +328,7 @@ INT frontend_init()
   }
 
   device.set_device_file(argv[1]);
-  if (!device.ser_connect(BAUD_RATE)) return 1;
+  if (!device.ser_connect(BAUD_RATE)) return FE_ERR_HW;
 
   // setup connection to ODB (online database)
   int status = cm_get_experiment_database(&hDB, NULL);
@@ -359,7 +359,6 @@ INT frontend_init()
   /* Enable hot-link on StartHome of the equipment */
   if ((status = db_open_record(hDB, handleHome, &gStartHome, size, MODE_READ, start_home, NULL)) != DB_SUCCESS)
     return status;
-
   
   // Setup hot-links (open record, callbacks) to StartMove variable
 

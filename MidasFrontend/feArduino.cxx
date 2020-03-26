@@ -7,18 +7,43 @@ Arduino motor control for mPMT test stand.
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "midas.h"
-#include "mfe.h"
-#include "unistd.h"
-#include "time.h"
-#include "sys/time.h"
 #include <stdint.h>
 
+#include <unistd.h>
+#include <iostream>
+#include <sstream>
 
+#include "midas.h"
+#include "mfe.h"
+#include "time.h"
+#include "sys/time.h"
+
+#include "LinuxSerialDevice.h"
+#include "TestStandCommHost.h"
+#include "motorCalculation.h"
+#include "macros.h"
 
 #define  EQ_NAME   "ARDUINO"
 #define  EQ_EVID   1
 #define  EQ_TRGMSK 0x1111
+#define  MSG_RECEIVE_TIMEOUT  5000
+
+#define  BAUD_RATE 115200
+
+// error checking user inputs
+const float gantry_x_min_mm = 0.0;
+const float gantry_x_max_mm = 1200.0; // max rail is 1219 mm
+const float gantry_y_min_mm = 0.0;
+const float gantry_y_max_mm = 1200.0;
+const float vel_min_mm_s = 0.0; 
+const float vel_max_mm_s = 10.0;
+const float accel_default_mm_s_2 = 5.0; // acceleration cannot be zero, between 0 to 7.0 mm/s^2
+const uint32_t accel_default_cts = mm_to_cts(accel_default_mm_s_2);
+
+using namespace std;
+
+LinuxSerialDevice device;
+TestStandCommHost comm(device);
 
 /* Hardware */
 extern HNDLE hDB;
@@ -47,7 +72,6 @@ INT max_event_size_frag = 5 * 1024 * 1024;
 /* buffer size to hold events */
 INT event_buffer_size = 2 * max_event_size + 10000;
 
-
 /*-- Function declarations -----------------------------------------*/
 INT frontend_init();
 INT frontend_exit();
@@ -58,7 +82,6 @@ INT resume_run(INT run_number, char *error);
 INT frontend_loop();
 extern void interrupt_routine(void);
 INT read_arduino_state(char *pevent, INT off);
-
 
 /*-- Equipment list ------------------------------------------------*/
 #undef USE_INT
@@ -83,8 +106,6 @@ EQUIPMENT equipment[] = {
   },
   {""}
 };
-
-
 
 /********************************************************************\
               Callback routines for system transitions
@@ -116,7 +137,7 @@ EQUIPMENT equipment[] = {
 /*-- Sequencer callback info  --------------------------------------*/
 void seq_callback(INT hDB, INT hseq, void *info)
 {
-  KEY key;
+//   KEY key;
 
   printf("odb ... Settings %x touched\n", hseq);
 }
@@ -126,48 +147,138 @@ BOOL gStartMove;
 HNDLE handleHome;
 HNDLE handleMove;
 
-
-INT start_move(){
-
+void start_move(INT hDB, INT hkey, void *info)
+{
   // TOFIX: add some checks that we aren't already moving
 
-  if(!gStartMove) return 0; // Just return if move not requested...
-
-  std::string path;
-  path += "/Equipment/";
-  path += EQ_NAME;
-  path += "/Settings";
-
-  // Get the destination position
-  std::string destpath = path + "/Destination";
-  float destination[2] = {0,0};
-  int size = sizeof(destination);
-  int status = db_get_value(hDB, 0, destpath.c_str(), &destination, &size, TID_FLOAT, TRUE);
-        
-  printf("Moving to position X=%f, Y=%f\n",destination[0],destination[1]);
-
-  // TOFIX: instruct the Arduino to move to the specified destination at specified speed.
-  
-  for(int i = 0; i < 5; i++){
-    sleep(1);
-    printf(".");
-  }
-  printf("\nFinished move\n");
+  if(!gStartMove) return; // Just return if move not requested...
 
   // Little magic to reset the key to 'n' without retriggering hotlink
   BOOL move = false;
   db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
 
-  return 0;
+  string path;
+  path += "/Equipment/";
+  path += EQ_NAME;
+  path += "/Settings";
 
+  // Get the destination position (absolute distance)
+  string destpath = path + "/Destination";
+  float destination[2] = {0,0};
+  int size_dest = sizeof(destination);
+  if (db_get_value(hDB, 0, destpath.c_str(), &destination, &size_dest, TID_FLOAT, TRUE) != DB_SUCCESS) {
+      // TODO error message
+      return;
+  }
+
+  // Get the velocity
+  string velpath = path + "/Velocity";
+  float velocity[2] = {0,0};
+  int size_vel = sizeof(velocity);
+  if (db_get_value(hDB, 0, velpath.c_str(), &velocity, &size_vel, TID_FLOAT, TRUE) != DB_SUCCESS) {
+    // TODO error message
+    return;
+  }
+  
+  //error check user-input data
+  if (destination[AXIS_X] < gantry_x_min_mm || destination[AXIS_X] > gantry_x_max_mm) {
+    cm_msg(MERROR, "start_move", "Destination on x-axis should be between %f and %f inclusive.\n", gantry_x_min_mm, gantry_x_max_mm);
+    printf("Destination on x-axis should be between %f mm and %f mm inclusive.\n", gantry_x_min_mm, gantry_x_max_mm);
+    return;
+  }
+
+  if (destination[AXIS_Y] < gantry_y_min_mm || destination[AXIS_Y] > gantry_y_max_mm) {
+    cm_msg(MERROR, "start_move", "Destination on y-axis should be between %f and %f inclusive.\n", gantry_y_min_mm, gantry_y_max_mm);
+    printf("Destination on y-axis should be between %f mm and %f mm inclusive.\n", gantry_y_min_mm, gantry_y_max_mm);
+    return;
+  }
+
+  if (velocity[AXIS_X] < vel_min_mm_s || velocity[AXIS_X] > vel_max_mm_s
+   || velocity[AXIS_Y] < vel_min_mm_s || velocity[AXIS_Y] > vel_max_mm_s) {
+    cm_msg(MERROR, "start_move", "Velocity should be between %f and %f inclusive.\n", vel_min_mm_s, vel_max_mm_s);
+    printf("Velocity should be between %f and %f inclusive.\n", vel_min_mm_s, vel_max_mm_s);
+    return;
+  }
+
+  //get motor position from Arduino
+  
+  // if (!comm.get_data(DATA_MOTOR)) {
+  //   printf("Error getting data from the Arduino.");
+  //   return 0;
+  // }
+  //commented out until MSG_ID_DATA is implemented
+  // if (!(comm.recv_message(MSG_RECEIVE_TIMEOUT) && comm.received_message().id == MSG_ID_DATA)) {
+  //   printf("Error: timeout or invalid ID received.");
+  //   return 0;
+  // }
+
+  // uint8_t *gantry_position = comm.received_message().data;
+  // uint16_t gantry_position_x = NTOHL(gantry_position);
+  // uint16_t gantry_position_y = NTOHL(gantry_position+4);
+
+  // placeholder - initialize x and y position as 0
+  uint16_t gantry_position_x = 0;
+  uint16_t gantry_position_y = 0;
+
+  printf("check x gantry pos: %d\n", gantry_position_x);
+  printf("check y gantry pos: %d\n", gantry_position_y);
+  
+  //convert user values in mm to encoder counts to send to Arduino
+  uint32_t user_rel_dist_x_cts = abs_distance_to_rel_cts(gantry_position_x, destination[AXIS_X]);
+  uint32_t user_rel_dist_y_cts = abs_distance_to_rel_cts(gantry_position_y, destination[AXIS_Y]);
+
+  printf("check x cts: %d\n", user_rel_dist_x_cts);
+  printf("check y cts: %d\n", user_rel_dist_y_cts);
+
+  uint32_t user_vel_x_cts = mm_to_cts(velocity[AXIS_X]);
+  uint32_t user_vel_y_cts = mm_to_cts(velocity[AXIS_Y]);
+
+  Direction user_x_dir = get_direction(gantry_position_x,destination[AXIS_X]);
+  Direction user_y_dir = get_direction(gantry_position_x,destination[AXIS_Y]);
+
+  // instruct the Arduino to move to the specified destination at specified speed.
+  if (comm.move(accel_default_cts,
+                user_vel_x_cts,
+                user_rel_dist_x_cts,
+                AXIS_X,
+                user_x_dir)) {
+    printf("Move x-direction OK\n");
+  } else {
+    printf("Error sending move command in x-direction\n");
+    return;
+  }
+    //echo message back 
+  if (comm.recv_message(MSG_RECEIVE_TIMEOUT) && comm.received_message().id == MSG_ID_LOG) {
+    printf("%s\n", &(comm.received_message().data[1]));
+  }
+
+  if (comm.move(accel_default_cts,
+                user_vel_y_cts,
+                user_rel_dist_y_cts,
+                AXIS_Y,
+                user_y_dir)) {
+    printf("Move y-direction OK\n");
+  } else {
+    printf("Error sending move command in y-direction\n");
+    //TODO: should we stop both motors
+    return;
+  }
+
+    //echo message back 
+  if (comm.recv_message(MSG_RECEIVE_TIMEOUT) && comm.received_message().id == MSG_ID_LOG) {
+    printf("%s\n", &(comm.received_message().data[1]));
+  }
+
+  printf("Moving to position P_x=%f, P_y=%f\n",destination[AXIS_X],destination[AXIS_Y]);
+  printf("Moving with velocity V_x=%f, V_y=%f\n",velocity[AXIS_X],velocity[AXIS_Y]);
+  printf("Moving with default acceleration %f (mm/s^2) = %d (counts)\n",accel_default_mm_s_2,accel_default_cts);
 }
 
-INT start_home(){
-
+void start_home(INT hDB, INT hkey, void *info)
+{
   // TOFIX: add some checks that we aren't already moving
 
-  if(!gStartHome) return 0; // Just return if home not requested...
-
+  if(!gStartHome) return; // Just return if home not requested...
 
   printf("Start home...\n");
   sleep(3);
@@ -177,18 +288,27 @@ INT start_home(){
   // Little magic to reset the key to 'n' without retriggering hotlink
   BOOL home = false;
   db_set_data_index1(hDB, handleHome, &home, sizeof(home), 0, TID_BOOL, FALSE);
-
-  return 0;
 }
 
 /*-- Frontend Init -------------------------------------------------*/
 INT frontend_init()
 {
-
   // Setup connection to Arduino
-  // TOFIX!!!
-  // 
+  int argc;
+  char **argv; 
 
+  mfe_get_args(&argc, &argv);
+  for (int i=0 ; i < argc; i++) {
+    puts(argv[i]);
+  }
+
+  if (argc != 2) {
+    printf("\nusage: %s <serial device file>\n\nexample:\n    %s /dev/ttyACM0\n\n", argv[0], argv[0]);
+    return 0;
+  }
+
+  device.set_device_file(argv[1]);
+  if (!device.ser_connect(BAUD_RATE)) return FE_ERR_HW;
 
   // setup connection to ODB (online database)
   int status = cm_get_experiment_database(&hDB, NULL);
@@ -201,7 +321,6 @@ INT frontend_init()
   path += "/Equipment/";
   path += EQ_NAME;
   path += "/Settings";
-
 
   // Setup hot-links (open record, callbacks) to StartHome variable
 
@@ -219,7 +338,6 @@ INT frontend_init()
   /* Enable hot-link on StartHome of the equipment */
   if ((status = db_open_record(hDB, handleHome, &gStartHome, size, MODE_READ, start_home, NULL)) != DB_SUCCESS)
     return status;
-
   
   // Setup hot-links (open record, callbacks) to StartMove variable
 
@@ -234,7 +352,7 @@ INT frontend_init()
   // Setup actual hot-link
   status = db_find_key (hDB, 0, varpath.c_str(), &handleMove);
 
-  /* Enable hot-link on StartHome of the equipment */
+  /* Enable hot-link on StartMove of the equipment */
   if ((status = db_open_record(hDB, handleMove, &gStartMove, size, MODE_READ, start_move, NULL)) != DB_SUCCESS)
     return status;
 
@@ -395,7 +513,3 @@ INT read_arduino_state(char *pevent, INT off)
   return bk_size(pevent);
 
 }
- 
-
-
- 

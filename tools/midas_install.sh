@@ -3,6 +3,12 @@
 # Exit when any command fails
 set -e
 
+# Check for root
+if [[ $EUID -eq 0 ]]; then
+   echo "This script is NOT meant to be run as root" 
+   exit 1
+fi
+
 export MIDASSYS=$HOME/packages/midas
 export MIDAS_EXPTAB=$HOME/online/exptab
 export MIDAS_EXPT_NAME=mpmttest
@@ -23,11 +29,13 @@ if [ "$#" -ne 1 ]; then
     echo "        5 = Initialize ODB"
     echo "        6 = Create SSL certificate"
     echo "        7 = Create password file"
-    echo "        8 = Run MIDAS"
     exit 0
 fi
 
 START=$1
+
+echo "Killing running MIDAS processes..."
+if pgrep mhttpd; then killall mhttpd; fi
 
 if [ "$START" -le "0" ]; then
     echo "0: Installing prerequesites..."
@@ -51,13 +59,16 @@ if [ "$START" -le "2" ]; then
     echo "2: Cloning MIDAS..."
     mkdir $HOME/packages
     cd $HOME/packages
-    git clone https://bitbucket.org/tmidas/midas --recursive
+    git clone https://bitbucket.org/tmidas/midas --branch midas-2020-03-a --depth 1 --recursive
 fi
 
 # Build MIDAS
 if [ "$START" -le "3" ]; then
     echo "3: Building MIDAS..."
     cd $MIDASSYS
+    make clean
+    rm -rf build
+
     mkdir build
     cd build
     cmake ..
@@ -76,6 +87,7 @@ fi
 # Set up Experiment
 if [ "$START" -le "4" ]; then
     echo "4: Setting up Experiment..."
+    rm -rf $HOME/online
     mkdir $HOME/online
     cd $HOME/online
 
@@ -85,7 +97,7 @@ fi
 # Configure MIDAS
 if [ "$START" -le "5" ]; then
     echo "5: Initializing ODB..."
-    echo "exit" | odbedit
+    odbedit -c exit
 fi
 
 if [ "$START" -le "6" ]; then
@@ -101,15 +113,11 @@ if [ "$START" -le "7" ]; then
     MIDAS_USER_NAME=midas
     MIDAS_USER_REALM=$MIDAS_EXPT_NAME
     MIDAS_USER_PW=midas
-    digest="$( printf "%s:%s:%s" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$MIDAS_USER_PW" | 
+    digest="$( printf "%s:%s:%s" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$MIDAS_USER_PW" |
                md5sum | awk '{print $1}' )"
     printf "%s:%s:%s\n" "$MIDAS_USER_NAME" "$MIDAS_USER_REALM" "$digest" > "$HOME/online/htpasswd.txt"
-fi    
-
-if [ "$START" -le "8" ]; then
-    echo "8: Running MIDAS..."
-    mhttpd -D
-    mlogger -D
+    echo "MIDAS Username: $MIDAS_USER_NAME"
+    echo "MIDAS Password: $MIDAS_USER_PW"
 fi
 
 echo "Done"

@@ -28,12 +28,9 @@ endif
 
 OS_DIR = linux-m64
 OSFLAGS = -DOS_LINUX
-CFLAGS = -g -O2 -Wall -fpermissive
+CFLAGS = -std=c++11 -g -O2 -Wall -fpermissive
 LIBS = -lm -lz -lutil -lnsl -lpthread -lrt
 #endif
-
-# CAEN libs
-LIBS +=  -lCAENComm -lCAENDigitizer -lm -lpthread
 
 #-----------------------
 # MacOSX/Darwin is just a funny Linux
@@ -55,20 +52,6 @@ NEED_RPATH=
 
 endif
 
-#-----------------------------------------
-# ROOT flags and libs
-#
-ifdef ROOTSYS
-ROOTCFLAGS := $(shell  $(ROOTSYS)/bin/root-config --cflags)
-ROOTCFLAGS += -DHAVE_ROOT -DUSE_ROOT
-ROOTLIBS   := $(shell  $(ROOTSYS)/bin/root-config --libs) -Wl,-rpath,$(ROOTSYS)/lib
-ROOTLIBS   += -lThread
-else
-missroot:
-	@echo "...";
-	@echo "Missing definition of environment variable 'ROOTSYS' !";
-	@echo "...";
-endif
 #-------------------------------------------------------------------
 # The following lines define directories. Adjust if necessary
 #
@@ -77,9 +60,34 @@ MIDAS_LIB = $(MIDASSYS)/lib
 MIDAS_SRC = $(MIDASSYS)/src
 MIDAS_DRV = $(MIDASSYS)/drivers/vme
 
+BUILD_DIR = build
+
 # Hardware driver can be (camacnul, kcs2926, kcs2927, hyt1331)
 #
-DRIVERS =
+
+ARDUINO_BUILD_DIR = $(BUILD_DIR)/arduino
+ARDUINO_DEFS = -DPLATFORM_MIDAS
+
+ARDUINO_LIB_SHARED = ../shared
+ARDUINO_LIB_SHARED_LINUX = ../shared_linux
+
+ARDUINO_LIB_UTIL = $(ARDUINO_LIB_SHARED)/Util
+ARDUINO_LIB_TSC = $(ARDUINO_LIB_SHARED)/TestStandComm
+ARDUINO_LIB_TSCH = $(ARDUINO_LIB_SHARED_LINUX)/TestStandCommHost
+ARDUINO_LIB_LSD = $(ARDUINO_LIB_SHARED_LINUX)/LinuxSerialDevice
+
+ARDUINO_INCS += -I$(ARDUINO_LIB_TSC) -I$(ARDUINO_LIB_TSCH) -I$(ARDUINO_LIB_LSD) -I$(ARDUINO_LIB_UTIL) -I$(ARDUINO_LIB_SHARED)
+
+ARDUINO_SRCS = $(addprefix $(ARDUINO_LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx) \
+               $(addprefix $(ARDUINO_LIB_TSCH)/, TestStandCommHost.cxx) \
+               $(addprefix $(ARDUINO_LIB_LSD)/, LinuxSerialDevice.cxx) \
+               motorCalculation.cxx
+
+ARDUINO_OBJS = $(patsubst %.cxx, $(ARDUINO_BUILD_DIR)/%.o, $(notdir $(ARDUINO_SRCS)))
+
+VPATH += $(dir $(ARDUINO_SRCS))
+
+DRIVERS = $(ARDUINO_OBJS)
 
 #-------------------------------------------------------------------
 # Frontend code name defaulted to frontend in this example.
@@ -102,16 +110,18 @@ LIBMIDAS = -L$(MIDAS_LIB) -lmidas
 #
 # All includes
 INCS = -I. -I$(MIDAS_INC) -I$(MIDAS_DRV) 
-all: $(UFE).exe  
+all: $(UFE).exe
 
-
-$(UFE).exe: $(LIB) $(MIDAS_LIB)/mfe.o $(DRIVERS) $(UFE).o
-	$(CXX) $(CFLAGS) $(OSFLAGS) $(INCS) -o $(UFE).exe $(UFE).o $(DRIVERS) \
+$(UFE).exe: $(LIB) $(MIDAS_LIB)/mfe.o $(DRIVERS) $(BUILD_DIR)/$(UFE).o
+	$(CXX) $(CFLAGS) $(OSFLAGS) $(INCS) -o $(UFE).exe $(BUILD_DIR)/$(UFE).o $(DRIVERS) \
 	$(MIDAS_LIB)/mfe.o $(LIBMIDAS) $(LIBS)
 
-feArduino.o: feArduino.cxx
-	$(CXX) $(CFLAGS) $(INCS) $(OSFLAGS) -o $@ -c $<
+$(BUILD_DIR)/feArduino.o: feArduino.cxx
+	$(CXX) $(CFLAGS) $(INCS) $(ARDUINO_INCS) $(OSFLAGS) -o $@ -c $<
 
+$(ARDUINO_BUILD_DIR)/%.o : %.cxx
+	@mkdir -p $(@D)
+	$(CXX) $(CFLAGS) $(ARDUINO_INCS) $(ARDUINO_DEFS) -o $@ -c $<
 
 $(MIDAS_LIB)/mfe.o:
 	@cd $(MIDASSYS) && make
@@ -120,6 +130,7 @@ $(MIDAS_LIB)/mfe.o:
 # 	$(CXX) $(USERFLAGS) $(CFLAGS) $(OSFLAGS) $(INCS) -o $@ -c $<
 
 clean::
-	rm -f *.exe *.o *~ \#*
+	@rm -f *.exe *.o *~ \#*
+	@rm -rf $(BUILD_DIR)
 
 #end file

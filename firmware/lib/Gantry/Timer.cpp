@@ -1,5 +1,4 @@
 #include "Timer.h"
-#include "Debug.h"
 
 void start_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity)
 {

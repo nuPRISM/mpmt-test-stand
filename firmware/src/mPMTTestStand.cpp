@@ -37,8 +37,8 @@ void mPMTTestStand::setup()
     this->comm_dev.ser_connect(this->io.serial_comm_baud_rate);
 
     // Setup gantry axis control
-    setup_axis(&axis_x_config, &axis_x);
-    setup_axis(&axis_y_config, &axis_y);
+    setup_axis(&axis_x, this->io.pins_axis_x);
+    setup_axis(&axis_y, this->io.pins_axis_y);
 
     // Wait until we can successfully ping the host
     while (!(this->comm.ping())) {

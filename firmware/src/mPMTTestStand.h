@@ -6,6 +6,7 @@
 #include "ArduinoSerialDevice.h"
 #include "TestStandCommController.h"
 #include "Thermistor10k.h"
+#include "Axis.h"
 
 #include "shared_defs.h"
 
@@ -19,20 +20,9 @@ typedef struct {
     uint8_t pin_therm_mpmt;
     uint8_t pin_therm_motor2;
     uint8_t pin_therm_optical;
-    // Gantry X-Axis Pins
-    uint8_t pin_motor_x_step;
-    uint8_t pin_motor_x_dir;
-    uint8_t pin_motor_x_enc_a;
-    uint8_t pin_motor_x_enc_b;
-    uint8_t pin_motor_x_ls_home;
-    uint8_t pin_motor_x_ls_far;
-    // Gantry Y-Axis Pins
-    uint8_t pin_motor_y_step;
-    uint8_t pin_motor_y_dir;
-    uint8_t pin_motor_y_enc_a;
-    uint8_t pin_motor_y_enc_b;
-    uint8_t pin_motor_y_ls_home;
-    uint8_t pin_motor_y_ls_far;
+    // Gantry Axis Pins
+    AxisPins pins_axis_x;
+    AxisPins pins_axis_y;
 } mPMTTestStandIO;
 
 class mPMTTestStand

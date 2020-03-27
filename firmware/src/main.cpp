@@ -14,19 +14,27 @@ const mPMTTestStandIO io = {
     .pin_therm_motor2       = A3,
     .pin_therm_optical      = A4,
     // Gantry X-Axis Pins
-    .pin_motor_x_step       = 5,
-    .pin_motor_x_dir        = 6,
-    .pin_motor_x_enc_a      = 7,
-    .pin_motor_x_enc_b      = 8,
-    .pin_motor_x_ls_home    = 9,
-    .pin_motor_x_ls_far     = 10,
+    .pins_axis_x = {
+        .pin_step           = 5, // PC25
+        .pin_step_pio_bank  = PIOC,
+        .pin_step_pio_mask  = PIO_ODSR_P25,
+        .pin_dir            = 6, // PC24
+        .pin_enc_a          = 7,
+        .pin_enc_b          = 8,
+        .pin_ls_home        = 9,
+        .pin_ls_far         = 10,
+    },
     // Gantry Y-Axis Pins
-    .pin_motor_y_step       = 22,
-    .pin_motor_y_dir        = 23,
-    .pin_motor_y_enc_a      = 24,
-    .pin_motor_y_enc_b      = 25,
-    .pin_motor_y_ls_home    = 26,
-    .pin_motor_y_ls_far     = 27
+    .pins_axis_y {
+        .pin_step           = 22, // PB26
+        .pin_step_pio_bank  = PIOB,
+        .pin_step_pio_mask  = PIO_ODSR_P26,
+        .pin_dir            = 23, // PA14
+        .pin_enc_a          = 24,
+        .pin_enc_b          = 25,
+        .pin_ls_home        = 26,
+        .pin_ls_far         = 27
+    }
 };
 
 mPMTTestStand test_stand(io);

@@ -3,7 +3,9 @@
 
 #include "Axis.h"
 
-void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t counts_hold, uint32_t counts_decel, Direction dir);
-void home_axis(Axis *axis);
+#define VEL_START 500
+
+bool axis_trapezoidal_move_rel(AxisId axis_id, Direction dir, uint32_t accel, uint32_t counts_accel, uint32_t counts_hold, uint32_t counts_decel);
+// bool home_axis(Axis *axis);
 
 #endif // MOVEMENT_H

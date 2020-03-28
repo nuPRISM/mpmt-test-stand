@@ -2,104 +2,111 @@
 #include "Timer.h"
 #include "Movement.h"
 
-// Arduino Due Timer Interrupt Configurations
-/*
- * ISR/IRQ    TC    Channel    Due pins
- * --------------------------------------
- * TC0        TC0   0          2, 13
- * TC1        TC0   1          60, 61
- * TC2        TC0   2          58
- * TC3        TC1   0          none
- * TC4        TC1   1          none
- * TC5        TC1   2          none
- * TC6        TC2   0          4, 5
- * TC7        TC2   1          3, 10
- * TC8        TC2   2          11, 12
-*/
+/**
+ * \page timers Arduino Due Timer Interrupt Configurations
+ * 
+ * | ISR/IRQ | TC  | Channel | Due Pins |
+ * | ------- | --- | ------- | -------- |
+ * | TC0     | TC0 | 0       | 2, 13    |
+ * | TC1     | TC0 | 1       | 60, 61   |
+ * | TC2     | TC0 | 2       | 58       |
+ * | TC3     | TC1 | 0       | none     |
+ * | TC4     | TC1 | 1       | none     |
+ * | TC5     | TC1 | 2       | none     |
+ * | TC6     | TC2 | 0       | 4, 5     |
+ * | TC7     | TC2 | 1       | 3, 10    |
+ * | TC8     | TC2 | 2       | 11, 12   |
+ */
 
 /*****************************************************************************/
 /*                                  DEFINES                                  */
 /*****************************************************************************/
 
-// Macros to generate function names and constants based on IRQ values
 #define TC_IRQN_I(_x)          TC##_x##_IRQn
+/** Generates the IRQn value corresponding to a TC IRQ number */
 #define TC_IRQN(_x)            TC_IRQN_I(_x)
 
 #define TC_ISR_I(_x)           void TC##_x##_Handler()
+/** Generates the ISR function name corresponding to a TC IRQ number */
 #define TC_ISR(_x)             TC_ISR_I(_x)
 
-// IRQs for each axis
+/** TC IRQ number for x-axis velocity timer */
 #define IRQ_X_AXIS_VELOCITY    3
+/** TC IRQ number for x-axis acceleration timer */
 #define IRQ_X_AXIS_ACCEL       4
 
+/** TC IRQ number for y-axis velocity timer */
 #define IRQ_Y_AXIS_VELOCITY    0
+/** TC IRQ number for y-axis acceleration timer */
 #define IRQ_Y_AXIS_ACCEL       1
+
+/** Maximum allowed velocity for an axis */
+#define VEL_MAX                25000
 
 /*****************************************************************************/
 /*                                 TYPEDEFS                                  */
 /*****************************************************************************/
 
-// AxisInterrupts
-//   - should be configured at declaration time and never modified after
-//     (all fields are const)
-typedef struct {
-    // Timer Interrupts
-    Tc * const timer;
-    const uint32_t channel_velocity;
-    const uint32_t channel_accel;
-    const IRQn_Type irq_velocity;
-    const IRQn_Type irq_accel;
+typedef enum {
+    VEL_SEG_ACCELERATE,
+    VEL_SEG_HOLD,
+    VEL_SEG_DECELERATE
+} VelSeg;
 
-    // External Interrupt ISRs
-    void (*const isr_encoder)(void);
-    void (*const isr_limit_switch)(void);
+/**
+ * @struct AxisInterrupts
+ * 
+ * @brief Specifies all of the interrupts and ISRs used by the axis
+ */
+typedef struct {
+    Tc * const timer;                 //!< Timer counter
+    const uint32_t channel_velocity;  //!< Timer counter channel for the velocity interrupt
+    const uint32_t channel_accel;     //!< Timer counter channel for the acceleration interrupt
+    const IRQn_Type irq_velocity;     //!< IRQ number for the velocity interrupt
+    const IRQn_Type irq_accel;        //!< IRQ number for the acceleration interrupt
+
+    void (*const isr_encoder)(void);  //!< ISR for the encoder interrupt
+    void (*const isr_ls_home)(void);  //!< ISR for the home limit switch interrupt
+    void (*const isr_ls_far)(void);   //!< ISR for the far limit switch interrupt
 } AxisInterrupts;
 
-// AxisMotion
-//   - nothing in this type of struct should change during a movement
-//   - it should only be modified at the start of a movement
+/**
+ * @struct AxisState
+ * 
+ * @brief Specifies the current state of an axis
+ */
 typedef struct {
-    uint32_t accel;
-    uint32_t vel_min;
-    uint32_t vel_max;
-    int32_t counts_accel;
-    int32_t counts_hold;
-    int32_t counts_decel;
-} AxisMotion;
+    volatile bool moving;              //!< true if the axis is currently moving
 
-// AxisState
-//   - this type of struct will be continuously updated during a movement
-typedef struct {
-    // General
-    volatile bool moving;
-    volatile bool homing;
-    volatile bool fault;
-    // Limit Switches
-    volatile LimitSwitchStatus ls_home;
-    volatile LimitSwitchStatus ls_far;
-    // Motion
-    volatile uint32_t velocity;
-    volatile VelocitySegment velocity_segment;
-    volatile uint32_t encoder_current;
-    volatile uint32_t encoder_target;
-    volatile Direction dir;
+    volatile bool ls_home;             //!< true if the home limit switch is currently pressed
+    volatile bool ls_far;              //!< true if the far limit switch is currently pressed
+
+    volatile uint32_t velocity;        //!< current velocity of the axis
+    volatile VelSeg velocity_segment;  //!< current velcoity segment of the axis
+    volatile uint32_t encoder_current; //!< current position of the axis in encoder counts
+    volatile uint32_t encoder_target;  //!< position at which the next segment transition will occur
+    volatile Direction dir;            //!< current direction of motion of the axis
 } AxisState;
 
-// Axis
-//   - top-level wrapper struct
+/**
+ * @struct Axis
+ * 
+ * @brief Top-level struct for encapsulating all elements of an axis
+ */
 struct Axis {
-    AxisPins pins;
-    const AxisInterrupts interrupts;
+    AxisPins pins;                   //!< All the I/O pins used by an axis
+    const AxisInterrupts interrupts; //!<
     AxisMotion motion;
     AxisState state;
 };
 
-// External Interrupt Declarations
+// ISR Declarations
 void isr_encoder_x();
-void isr_limit_switch_x();
+void isr_ls_home_x();
+void isr_ls_far_x();
 void isr_encoder_y();
-void isr_limit_switch_y();
-
+void isr_ls_home_y();
+void isr_ls_far_y();
 
 /*****************************************************************************/
 /*                             AXIS DECLARATIONS                             */
@@ -114,7 +121,8 @@ static Axis axis_x = {
         .irq_velocity     = TC_IRQN(IRQ_X_AXIS_VELOCITY),
         .irq_accel        = TC_IRQN(IRQ_X_AXIS_ACCEL),
         .isr_encoder      = isr_encoder_x,
-        .isr_limit_switch = isr_limit_switch_x
+        .isr_ls_home      = isr_ls_home_x,
+        .isr_ls_far       = isr_ls_far_x
     },
     .motion = {},
     .state = {}
@@ -129,16 +137,22 @@ static Axis axis_y = {
         .irq_velocity     = TC_IRQN(IRQ_Y_AXIS_VELOCITY),
         .irq_accel        = TC_IRQN(IRQ_Y_AXIS_ACCEL),
         .isr_encoder      = isr_encoder_y,
-        .isr_limit_switch = isr_limit_switch_y
+        .isr_ls_home      = isr_ls_home_y,
+        .isr_ls_far       = isr_ls_far_y
     },
     .motion = {},
     .state = {}
 };
 
 /*****************************************************************************/
-/*                              SETUP FUNCTIONS                              */
+/*                             PRIVATE FUNCTIONS                             */
 /*****************************************************************************/
 
+/**
+ * @brief Configure the pin modes for all of the axis pins
+ * 
+ * @param axis Pointer to the Axis to configure
+ */
 static void setup_pins(Axis *axis)
 {
     pinMode(axis->pins.pin_step,    OUTPUT);
@@ -149,61 +163,117 @@ static void setup_pins(Axis *axis)
     pinMode(axis->pins.pin_ls_far,  INPUT_PULLUP);
 }
 
+/**
+ * @brief Attaches interrupts to the encoder and limit switch pins for the axis
+ * 
+ * @param axis Pointer to the Axis to use
+ */
 static void setup_interrupts(Axis *axis)
 {
-    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_enc_a), axis->interrupts.isr_encoder, RISING);
+    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_enc_a),
+                    axis->interrupts.isr_encoder,
+                    RISING);
     delay(1000);
-    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_ls_home), axis->interrupts.isr_limit_switch, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_ls_home),
+                    axis->interrupts.isr_ls_home,
+                    CHANGE);
     delay(1000);
-    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_ls_far), axis->interrupts.isr_limit_switch, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_ls_far),
+                    axis->interrupts.isr_ls_far,
+                    CHANGE);
 }
 
 static void reset_axis(Axis *axis)
 {
-    axis->state = {};
+    axis->state = (AxisState){ 0 };
 }
 
-/*****************************************************************************/
-/*                             PUBLIC FUNCTIONS                              */
-/*****************************************************************************/
-
-void setup_axis(Axis_t *axis, AxisPins pins)
+static void setup_axis(Axis *axis, const AxisPins *pins)
 {
-    axis->pins = pins;
+    axis->pins = (*pins);
 
     setup_pins(axis);
     setup_interrupts(axis);
-    
-    // reseting axis in case encoder has be triggered or a limit switch due to noise on initilization
+
+    // reset in case encoder was accidentally triggered by noise
+    // on initialization
     reset_axis(axis);
 }
 
-void start_axis(Axis_t *axis)
+AxisResult start_axis(Axis *axis, AxisMotion *motion)
 {
+    // Reject if the counts don't match the dir
+    if (motion->dir == DIR_POSITIVE && (motion->counts_accel < 0 || motion->counts_hold < 0 || motion->counts_decel < 0)) return AXIS_ERR_DIR_MISMATCH;
+    if (motion->dir == DIR_NEGATIVE && (motion->counts_accel > 0 || motion->counts_hold > 0 || motion->counts_decel > 0)) return AXIS_ERR_DIR_MISMATCH;
+
+    uint32_t total_counts_abs = abs(motion->counts_accel + motion->counts_hold + motion->counts_decel);
+    // Reject a zero-distance motion
+    if (total_counts_abs == 0) return AXIS_ERR_ZERO_DIST;
+
+    // Reject if we're already moving - must call stop_axis first
+    if (axis->state.moving) return AXIS_ERR_ALREADY_MOVING;
+
+    // Reject if we've hit the far limit switch and are trying to move forward
+    if (motion->dir == DIR_POSITIVE && axis->state.ls_far) return AXIS_ERR_LS_FAR;
+    // Reject if we've hit the home limit switch and are trying to move backward
+    if (motion->dir == DIR_NEGATIVE && axis->state.ls_home) return AXIS_ERR_LS_HOME;
+
+    // Reject if we're trying to move too far backwards
+    if (total_counts_abs > axis->state.encoder_current && motion->dir == DIR_NEGATIVE) return AXIS_ERR_TOO_FAR_BACKWARD;
+    // TODO define far limits and reject if trying to move too far forwards
+
+    // Configure state
     axis->state.moving = true;
+    axis->state.velocity = motion->vel_start;
+    axis->state.velocity_segment = VEL_SEG_ACCELERATE;
+    axis->state.encoder_target = axis->state.encoder_current + motion->counts_accel;
+    axis->state.dir = motion->dir;
+
+    // Save motion spec
+    axis->motion = (*motion);
+
+    // Set direction pin
+    digitalWrite(axis->pins.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
+
+    // Start the timers
     start_timer(
         axis->interrupts.timer,
         axis->interrupts.channel_velocity,
         axis->interrupts.irq_velocity,
         axis->state.velocity);
+
     start_timer_accel(
         axis->interrupts.timer,
         axis->interrupts.channel_accel,
         axis->interrupts.irq_accel,
         axis->motion.accel);
+
+    return AXIS_OK;
 }
 
-void stop_axis(Axis_t *axis)
+static inline void stop_axis(Axis *axis)  __attribute__((always_inline));
+static inline void stop_axis(Axis *axis)
 {
     NVIC_DisableIRQ(axis->interrupts.irq_accel);
     NVIC_DisableIRQ(axis->interrupts.irq_velocity);
+
     axis->state.moving = false;
+    axis->state.velocity = 0;
+    axis->state.encoder_target = axis->state.encoder_current;
+}
+
+static Axis *get_axis(AxisId axis_id)
+{
+    if (axis_id == AXIS_X) return &axis_x;
+    else if (axis_id == AXIS_Y) return &axis_y;
+    return nullptr;
 }
 
 /*****************************************************************************/
 /*                            COMMON ISR HANDLERS                            */
 /*****************************************************************************/
 
+// Encoder
 static inline void handle_isr_encoder(Axis *axis)  __attribute__((always_inline));
 static inline void handle_isr_encoder(Axis *axis)
 {
@@ -211,16 +281,28 @@ static inline void handle_isr_encoder(Axis *axis)
     else if (axis->state.dir == DIR_NEGATIVE) axis->state.encoder_current--;
 }
 
-static inline void handle_isr_limit_switch(Axis *axis)  __attribute__((always_inline));
-static inline void handle_isr_limit_switch(Axis *axis)
+// Limit Switches
+static inline void handle_isr_ls_home(Axis *axis)  __attribute__((always_inline));
+static inline void handle_isr_ls_home(Axis *axis)
 {
-    // TODO
+    stop_axis(axis);
+    axis->state.ls_home = digitalRead(axis->pins.pin_ls_home);
 }
 
+static inline void handle_isr_ls_far(Axis *axis)  __attribute__((always_inline));
+static inline void handle_isr_ls_far(Axis *axis)
+{
+    stop_axis(axis);
+    axis->state.ls_far = digitalRead(axis->pins.pin_ls_far);
+}
+
+// Timers
 static inline void handle_velocity_isr(Axis *axis) __attribute__((always_inline));
 static inline void handle_velocity_isr(Axis *axis)
 {
+    // Toggle the step output pin
     axis->pins.pin_step_pio_bank->PIO_ODSR ^= axis->pins.pin_step_pio_mask;
+    // Restart the timer
     reset_timer(
         axis->interrupts.timer,
         axis->interrupts.channel_velocity,
@@ -234,30 +316,47 @@ static inline void handle_accel_isr(Axis *axis)
     switch (axis->state.velocity_segment) {
         case VEL_SEG_ACCELERATE:
         {
-            if (((axis->state.encoder_current < axis->state.encoder_target) != axis->state.dir) && (axis->state.velocity < axis->motion.vel_max)) {
+            // Increment the velocity until the target number of counts or we reach holding velocity
+            if (((axis->state.encoder_current < axis->state.encoder_target) != axis->state.dir)
+                && (axis->state.velocity < axis->motion.vel_hold)) {
                 axis->state.velocity++;
             }
             else {
+                // If we hit the target encoder count before reaching the holding velocity,
+                // just jump straight to the holding velocity
+                axis->state.velocity = axis->motion.vel_hold;
                 axis->state.velocity_segment = VEL_SEG_HOLD;
-                int delta = axis->state.encoder_target - axis->state.encoder_current;
-                axis->state.encoder_target = axis->state.encoder_current + axis->motion.counts_hold + delta;
+
+                // Set new target encoder count
+                int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
+                axis->state.encoder_target = axis->state.encoder_current
+                                             + axis->motion.counts_hold
+                                             + error_counts;
             }
             break;
         }
 
         case VEL_SEG_HOLD:
         {
+            // Do nothing (i.e. keep the same velocity) until we reach the target encoder count
             if ((axis->state.encoder_current < axis->state.encoder_target) == axis->state.dir) {
+                // Move on to deceleration
                 axis->state.velocity_segment = VEL_SEG_DECELERATE;
-                int delta = axis->state.encoder_target - axis->state.encoder_current;
-                axis->state.encoder_target = axis->state.encoder_current + axis->motion.counts_decel + delta;
+
+                // Set new target encoder count
+                int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
+                axis->state.encoder_target = axis->state.encoder_current
+                                             + axis->motion.counts_decel
+                                             + error_counts;
             }
             break;
         }
 
         case VEL_SEG_DECELERATE:
         {
-            if (((axis->state.encoder_current < axis->state.encoder_target) != axis->state.dir) && (axis->state.velocity > axis->motion.vel_min)) {
+            // Decrement velocity until the target number of counts or we reach the starting velocity again
+            if (((axis->state.encoder_current < axis->state.encoder_target) != axis->state.dir)
+                && (axis->state.velocity > axis->motion.vel_start)) {
                 axis->state.velocity--;
             }
             else {
@@ -277,27 +376,24 @@ void isr_encoder_x()
     handle_isr_encoder(&axis_x);
 }
 
-// isr to handle limit switch
-void isr_limit_switch_x()
+void isr_ls_home_x()
 {
     static uint32_t last_interrupt_time = 0;
     uint32_t interrupt_time = millis();
     // If interrupts come faster than 10ms, assume it's a bounce and ignore
     if (interrupt_time - last_interrupt_time > 100) {
-        stop_axis(&axis_x);
-        LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_X);
-        if (axis_x.homing) {
-            if (status == RELEASED) {
-                axis_x.encoder.current = 0;
-                axis_x.homing = false;
-            }
-            else if (status == PRESSED) {
-                home_axis(&axis_x);
-            }
-        }
-        else {
-            axis_x.fault = true;
-        }
+        handle_isr_ls_home(&axis_x);
+    }
+    last_interrupt_time = interrupt_time;
+}
+
+void isr_ls_far_x()
+{
+    static uint32_t last_interrupt_time = 0;
+    uint32_t interrupt_time = millis();
+    // If interrupts come faster than 10ms, assume it's a bounce and ignore
+    if (interrupt_time - last_interrupt_time > 100) {
+        handle_isr_ls_far(&axis_x);
     }
     last_interrupt_time = interrupt_time;
 }
@@ -306,7 +402,6 @@ TC_ISR(IRQ_X_AXIS_VELOCITY)
 {
     // Acknowledge interrupt
     TC_GetStatus(axis_x.interrupts.timer, axis_x.interrupts.channel_velocity);
-
     handle_velocity_isr(&axis_x);
 }
 
@@ -314,7 +409,6 @@ TC_ISR(IRQ_X_AXIS_ACCEL)
 {
     // Acknowledge interrupt
     TC_GetStatus(axis_x.interrupts.timer, axis_x.interrupts.channel_accel);
-
     handle_accel_isr(&axis_x);
 }
 
@@ -327,27 +421,24 @@ void isr_encoder_y()
     handle_isr_encoder(&axis_y);
 }
 
-void isr_limit_switch_y()
-{   
+void isr_ls_home_y()
+{
     static uint32_t last_interrupt_time = 0;
     uint32_t interrupt_time = millis();
     // If interrupts come faster than 10ms, assume it's a bounce and ignore
-    if (interrupt_time - last_interrupt_time > 50) {
-        stop_axis(&axis_x);
+    if (interrupt_time - last_interrupt_time > 100) {
+        handle_isr_ls_home(&axis_y);
+    }
+    last_interrupt_time = interrupt_time;
+}
 
-        LimitSwitchStatus status = (LimitSwitchStatus)digitalRead(LIMIT_SW_HOME_PIN_Y);
-        if (axis_y.homing) {
-            if (status == RELEASED) {
-                axis_y.encoder.current = 0;
-                axis_y.homing = false;
-            }
-            else if (status == PRESSED) {
-                home_axis(&axis_y);
-            }
-        }
-        else {
-            axis_y.fault = true;
-        }
+void isr_ls_far_y()
+{
+    static uint32_t last_interrupt_time = 0;
+    uint32_t interrupt_time = millis();
+    // If interrupts come faster than 10ms, assume it's a bounce and ignore
+    if (interrupt_time - last_interrupt_time > 100) {
+        handle_isr_ls_far(&axis_y);
     }
     last_interrupt_time = interrupt_time;
 }
@@ -366,4 +457,33 @@ TC_ISR(IRQ_Y_AXIS_ACCEL)
     TC_GetStatus(axis_y.interrupts.timer, axis_y.interrupts.channel_accel);
 
     handle_accel_isr(&axis_y);
+}
+
+/*****************************************************************************/
+/*                             PUBLIC FUNCTIONS                              */
+/*****************************************************************************/
+
+void axis_setup(AxisId axis_id, const AxisPins *pins)
+{
+    setup_axis(get_axis(axis_id), pins);
+}
+
+AxisResult axis_start(AxisId axis_id, AxisMotion *motion)
+{
+    return start_axis(get_axis(axis_id), motion);
+}
+
+void axis_stop(AxisId axis_id)
+{
+    stop_axis(get_axis(axis_id));
+}
+
+uint32_t axis_get_position(AxisId axis_id)
+{
+    return get_axis(axis_id)->state.encoder_current;
+}
+
+bool axis_moving(AxisId axis_id)
+{
+    return get_axis(axis_id)->state.moving;
 }

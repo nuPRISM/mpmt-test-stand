@@ -2,6 +2,7 @@
 
 #include "Axis.h"
 #include "Movement.h"
+#include "Kinematics.h"
 
 #include "Debug.h"
 #include "macros.h"
@@ -37,8 +38,8 @@ void mPMTTestStand::setup()
     this->comm_dev.ser_connect(this->io.serial_comm_baud_rate);
 
     // Setup gantry axis control
-    setup_axis(&axis_x, this->io.pins_axis_x);
-    setup_axis(&axis_y, this->io.pins_axis_y);
+    axis_setup(AXIS_X, &(this->io.pins_axis_x));
+    axis_setup(AXIS_Y, &(this->io.pins_axis_y));
 
     // Wait until we can successfully ping the host
     while (!(this->comm.ping())) {
@@ -55,8 +56,9 @@ void mPMTTestStand::handle_home()
     this->status = STATUS_HOMING;
 
     // These are both non-blocking
-    home_axis(&axis_x);
-    home_axis(&axis_y);
+    // TODO
+    // home_axis(&axis_x);
+    // home_axis(&axis_y);
 
     DEBUG_PRINTLN("HOMING");
 }
@@ -65,22 +67,22 @@ void mPMTTestStand::handle_move()
 {
     // Process command arguments
     uint32_t accel, hold_vel, dist;
-    uint8_t axis, dir;
+    AxisId axis;
+    Direction dir;
 
     uint8_t *data = this->comm.received_message().data;
 
     accel    = NTOHL(data);
     hold_vel = NTOHL(data + 4);
     dist     = NTOHL(data + 8);
-    axis     = data[12];
-    dir      = data[13];
+    axis     = (AxisId)data[12];
+    dir      = (Direction)data[13];
 
     // Generate a velocity profile for the correct axis
-    Axis *axis_ptr = (axis == AXIS_X ? &axis_x : &axis_y);
     VelProfile profile;
-    if (generate_vel_profile(accel, axis_ptr->vel_min, hold_vel, dist, &profile)) {
+    if (generate_vel_profile(accel, VEL_START, hold_vel, dist, &profile)) {
         // Start the movement if the velocity profile is valid
-        axis_trapezoidal_move_rel(axis_ptr, profile.counts_accel, profile.counts_hold, profile.counts_decel, (Direction)dir);
+        axis_trapezoidal_move_rel(axis, dir, accel, profile.counts_accel, profile.counts_hold, profile.counts_decel);
     }
 
     DEBUG_PRINTLN("MOVING");
@@ -95,8 +97,8 @@ void mPMTTestStand::handle_move()
 
 void mPMTTestStand::handle_stop()
 {
-    stop_axis(&axis_x);
-    stop_axis(&axis_y);
+    axis_stop(AXIS_X);
+    axis_stop(AXIS_Y);
 
     DEBUG_PRINTLN("STOPPING");
 }
@@ -112,8 +114,8 @@ void mPMTTestStand::handle_get_data()
     switch (data_id) {
         case DATA_MOTOR:
             uint8_t data[2*4];
-            HTONL(data, axis_x.encoder.current);
-            HTONL(data + 4, axis_y.encoder.current);
+            HTONL(data, axis_get_position(AXIS_X));
+            HTONL(data + 4, axis_get_position(AXIS_Y));
             this->comm.data(data, sizeof(data));
             break;
 
@@ -127,12 +129,15 @@ void mPMTTestStand::execute()
 {
     // Update status
     Status old_status = this->status;
-    if (axis_x.moving || axis_y.moving) {
-        this->status = (axis_x.homing || axis_y.homing) ? STATUS_HOMING : STATUS_MOVING;
+    if (axis_moving(AXIS_X) || axis_moving(AXIS_Y)) {
+        // TODO handle homing
+        this->status = STATUS_MOVING;
+        // this->status = (axis_x.homing || axis_y.homing) ? STATUS_HOMING : STATUS_MOVING;
     }
-    else if (axis_x.fault || axis_y.fault) {
-        this->status = STATUS_FAULT;
-    }
+    // TODO
+    // else if (axis_x.fault || axis_y.fault) {
+    //     this->status = STATUS_FAULT;
+    // }
     else {
         this->status = STATUS_IDLE;
     }

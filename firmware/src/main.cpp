@@ -1,7 +1,9 @@
-#include "Arduino.h"
-
-#include "Debug.h"
+/* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
+#include "Debug.h"
+
+/* **************************** System Includes **************************** */
+#include <Arduino.h>
 
 const mPMTTestStandIO io = {
     // Serial Devices
@@ -25,7 +27,7 @@ const mPMTTestStandIO io = {
         .pin_ls_far         = 10,
     },
     // Gantry Y-Axis Pins
-    .pins_axis_y {
+    .pins_axis_y = {
         .pin_step           = 22, // PB26
         .pin_step_pio_bank  = PIOB,
         .pin_step_pio_mask  = PIO_ODSR_P26,

@@ -2,7 +2,8 @@
 
 #define MOTOR_MICROSTEP        4
 #define MOTOR_STEPS_PER_REV    (200 * MOTOR_MICROSTEP)
-#define ENCODER_COUNTS_PER_REV 300
+// #define ENCODER_COUNTS_PER_REV 300
+#define ENCODER_COUNTS_PER_REV MOTOR_STEPS_PER_REV
 
 uint32_t calc_counts_accel(uint32_t accel, uint32_t v_min, uint32_t v_max)
 {

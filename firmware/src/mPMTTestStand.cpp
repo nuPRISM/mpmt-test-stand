@@ -1,10 +1,10 @@
+/* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
-
-#include "Axis.h"
-#include "Movement.h"
 #include "Kinematics.h"
-
+#include "Movement.h"
 #include "Debug.h"
+
+/* ************************ Shared Project Includes ************************ */
 #include "macros.h"
 
 mPMTTestStand::mPMTTestStand(const mPMTTestStandIO& io) :
@@ -127,6 +127,8 @@ void mPMTTestStand::handle_get_data()
 
 void mPMTTestStand::execute()
 {
+    PERIODIC(dump_axis_state(AXIS_X), 1000);
+
     // Update status
     Status old_status = this->status;
     if (axis_moving(AXIS_X) || axis_moving(AXIS_Y)) {

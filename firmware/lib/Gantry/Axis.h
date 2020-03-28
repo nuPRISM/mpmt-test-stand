@@ -1,6 +1,9 @@
 #ifndef AXIS_H
 #define AXIS_H
 
+#include <Arduino.h>
+#include <stdint.h>
+
 #include "shared_defs.h"
 
 #define VELOCITY_HOMING 10000
@@ -52,5 +55,7 @@ void axis_stop(AxisId axis_id);
 
 uint32_t axis_get_position(AxisId axis_id);
 bool axis_moving(AxisId axis_id);
+
+void dump_axis_state(AxisId axis_id);
 
 #endif // AXIS_H

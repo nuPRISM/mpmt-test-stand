@@ -1,6 +1,11 @@
+/* **************************** Local Includes ***************************** */
 #include "Movement.h"
+#include "Axis.h"
+
+/* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
 
+/* **************************** System Includes **************************** */
 #include <stdint.h>
 
 bool axis_trapezoidal_move_rel(AxisId axis_id, Direction dir, uint32_t accel, uint32_t counts_accel, uint32_t counts_hold, uint32_t counts_decel)
@@ -9,9 +14,9 @@ bool axis_trapezoidal_move_rel(AxisId axis_id, Direction dir, uint32_t accel, ui
         .dir = dir,
         .vel_start = VEL_START,
         .accel = accel,
-        .counts_accel = (dir == DIR_POSITIVE ? counts_accel : -1*counts_accel),
-        .counts_hold = (dir == DIR_POSITIVE ? counts_hold : -1*counts_hold),
-        .counts_decel = (dir == DIR_POSITIVE ? counts_decel : -1*counts_decel),
+        .counts_accel = (dir == DIR_POSITIVE ? (int32_t)counts_accel : -1*(int32_t)counts_accel),
+        .counts_hold  = (dir == DIR_POSITIVE ? (int32_t)counts_hold  : -1*(int32_t)counts_hold),
+        .counts_decel = (dir == DIR_POSITIVE ? (int32_t)counts_decel : -1*(int32_t)counts_decel),
     };
 
     AxisResult result = axis_start(axis_id, &motion);

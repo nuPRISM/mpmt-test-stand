@@ -1,14 +1,18 @@
 #ifndef MPMT_TEST_STAND_H
 #define MPMT_TEST_STAND_H
 
-#include <Arduino.h>
-
+/* **************************** Local Includes ***************************** */
 #include "ArduinoSerialDevice.h"
 #include "TestStandCommController.h"
 #include "Thermistor10k.h"
 #include "Axis.h"
 
+/* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
+
+/* **************************** System Includes **************************** */
+#include <Arduino.h>
+
 
 typedef struct {
     // Serial Devices

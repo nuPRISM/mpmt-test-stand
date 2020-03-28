@@ -1,6 +1,10 @@
+/* **************************** Local Includes ***************************** */
 #include "Axis.h"
-#include "Timer.h"
 #include "Movement.h"
+#include "Timer.h"
+
+/* ************************ Shared Project Includes ************************ */
+#include "Debug.h"
 
 /**
  * \page timers Arduino Due Timer Interrupt Configurations
@@ -235,14 +239,14 @@ AxisResult start_axis(Axis *axis, AxisMotion *motion)
     // Set direction pin
     digitalWrite(axis->pins.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
 
-    // Start the timers
+    // Start velocity timer
     start_timer(
         axis->interrupts.timer,
         axis->interrupts.channel_velocity,
         axis->interrupts.irq_velocity,
-        axis->state.velocity);
-
-    start_timer_accel(
+        axis->state.velocity * 2); // Double the frequency since we need to toggle on and off
+    // Start acceleration timer
+    start_timer(
         axis->interrupts.timer,
         axis->interrupts.channel_accel,
         axis->interrupts.irq_accel,
@@ -307,7 +311,7 @@ static inline void handle_velocity_isr(Axis *axis)
         axis->interrupts.timer,
         axis->interrupts.channel_velocity,
         axis->interrupts.irq_velocity,
-        axis->state.velocity);
+        axis->state.velocity / 2); // Divide by two since we need to toggle on and off
 }
 
 static inline void handle_accel_isr(Axis *axis) __attribute__((always_inline));
@@ -318,13 +322,10 @@ static inline void handle_accel_isr(Axis *axis)
         {
             // Increment the velocity until the target number of counts or we reach holding velocity
             if (((axis->state.encoder_current < axis->state.encoder_target) != axis->state.dir)
-                && (axis->state.velocity < axis->motion.vel_hold)) {
+                && (axis->state.velocity < VEL_MAX)) {
                 axis->state.velocity++;
             }
             else {
-                // If we hit the target encoder count before reaching the holding velocity,
-                // just jump straight to the holding velocity
-                axis->state.velocity = axis->motion.vel_hold;
                 axis->state.velocity_segment = VEL_SEG_HOLD;
 
                 // Set new target encoder count
@@ -486,4 +487,20 @@ uint32_t axis_get_position(AxisId axis_id)
 bool axis_moving(AxisId axis_id)
 {
     return get_axis(axis_id)->state.moving;
+}
+
+void dump_axis_state(AxisId axis_id)
+{
+    Axis *axis = get_axis(axis_id);
+    DEBUG_PRINTLN("----------------------------------------");
+    DEBUG_PRINT_VAL("AXIS            ", (axis_id == AXIS_X ? "X" : "Y"));
+    DEBUG_PRINT_VAL("moving          ", axis->state.moving);
+    DEBUG_PRINT_VAL("ls_home         ", axis->state.ls_home);
+    DEBUG_PRINT_VAL("ls_far          ", axis->state.ls_far);
+    DEBUG_PRINT_VAL("velocity        ", axis->state.velocity);
+    DEBUG_PRINT_VAL("velocity_segment", axis->state.velocity_segment);
+    DEBUG_PRINT_VAL("encoder_current ", axis->state.encoder_current);
+    DEBUG_PRINT_VAL("encoder_target  ", axis->state.encoder_target);
+    DEBUG_PRINT_VAL("dir             ", axis->state.dir);
+    DEBUG_PRINTLN("----------------------------------------");
 }

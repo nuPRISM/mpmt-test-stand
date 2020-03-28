@@ -11,7 +11,4 @@ typedef struct PseudoAxis
     uint32_t motor_position_current;
 } PseudoAxis;
 
-extern PseudoAxis pseudo_axis_x;
-extern PseudoAxis pseudo_axis_y;
-
 #endif // PSEUDO_AXIS_H

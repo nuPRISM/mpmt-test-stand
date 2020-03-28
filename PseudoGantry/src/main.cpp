@@ -5,8 +5,6 @@
 #define MOTOR_AXIS_Y 3 // cannot change on uno, only these two pins support hardware interrupts
 #define ENCODER_X_OUT 4
 #define ENCODER_Y_OUT 5
-#define DIR_PIN_X 6
-#define DIR_PIN_X 7
 
 #define AXIS_LENGTH_X 1000000
 #define AXIS_LENGTH_Y 1000000 
@@ -31,8 +29,8 @@ void setup() {
   set_up_encoder(&pseudo_encoder_x, &isr_encoder_x);
   set_up_encoder(&pseudo_encoder_y, &isr_encoder_y);
 
-  PseudoAxis pseudo_axis_x = {pseudo_encoder_x, AXIS_LENGTH_X, 0};
-  PseudoAxis pseudo_axis_y = {pseudo_encoder_y, AXIS_LENGTH_Y, 0};
+  pseudo_axis_x = {pseudo_encoder_x, AXIS_LENGTH_X, 0};
+  pseudo_axis_y = {pseudo_encoder_y, AXIS_LENGTH_Y, 0};
 }
 
 void loop() {

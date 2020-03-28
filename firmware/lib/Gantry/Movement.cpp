@@ -1,6 +1,7 @@
 /* **************************** Local Includes ***************************** */
 #include "Movement.h"
 #include "Axis.h"
+#include "Debug.h"
 
 /* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
@@ -20,6 +21,7 @@ bool axis_trapezoidal_move_rel(AxisId axis_id, Direction dir, uint32_t accel, ui
     };
 
     AxisResult result = axis_start(axis_id, &motion);
+    DEBUG_PRINT_VAL("AxisResult", result);
     return (result == AXIS_OK);
 }
 

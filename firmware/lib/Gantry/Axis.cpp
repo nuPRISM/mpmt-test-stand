@@ -311,7 +311,7 @@ static inline void handle_velocity_isr(Axis *axis)
         axis->interrupts.timer,
         axis->interrupts.channel_velocity,
         axis->interrupts.irq_velocity,
-        axis->state.velocity / 2); // Divide by two since we need to toggle on and off
+        axis->state.velocity * 2); // Double the frequency since we need to toggle on and off
 }
 
 static inline void handle_accel_isr(Axis *axis) __attribute__((always_inline));

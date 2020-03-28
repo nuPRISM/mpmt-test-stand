@@ -45,13 +45,18 @@ typedef struct Axis
     IRQn_Type irq_velocity;
     IRQn_Type irq_accel;
     Direction dir;
+    bool moving;
     bool homing;
+    bool fault;
 } Axis;
 
 // setup functions
 void setup_axis(AxisConfig *axis_config, Axis *axis);
-
 void reset_axis(AxisConfig *axis_config, Axis *axis);
+
+ // start/stop functions
+void start_axis(Axis *axis);
+void stop_axis(Axis *axis);
 
 // -------------------------------- X AXIS -------------------------------- //
 extern AxisConfig axis_x_config;

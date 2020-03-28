@@ -6,7 +6,7 @@
 #include "shared_defs.h"
 
 void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t counts_hold, uint32_t counts_decel, Direction dir)
-{   
+{
     axis->tragectory_segment = VEL_SEG_ACCELERATE;
     axis->vel = axis->vel_min;
     if (counts_accel == 0 && counts_hold == 0 && counts_decel == 0) return;
@@ -28,13 +28,12 @@ void axis_trapezoidal_move_rel(Axis *axis, uint32_t counts_accel, uint32_t count
 
     DEBUG_PRINT_VAL("Desired count", axis->encoder.desired);
     DEBUG_PRINT_VAL("Current count", axis->encoder.current);
-    start_timer(axis->timer, axis->channel_velocity, axis->irq_velocity, axis->vel);
-    start_timer_accel(axis->timer, axis->channel_accel, axis->irq_accel, axis->accel);
+    start_axis(axis);
 }
 
 void home_axis(Axis *axis)
 {
-    axis->homing = 1;
+    axis->homing = true;
     // math to calculate number of accel counts
     uint32_t counts_accel = calc_counts_accel(axis->accel, axis->vel_min, VELOCITY_HOMING);
     // check if the limit switched is pressed at home
@@ -52,10 +51,4 @@ void home_axis(Axis *axis)
         axis_trapezoidal_move_rel(axis, counts_accel, UINT32_MAX/2, counts_accel, DIR_NEGATIVE);
         return;
     }
-}
-
-void stop_axis(Axis *axis)
-{
-    NVIC_DisableIRQ(axis->irq_accel);
-    NVIC_DisableIRQ(axis->irq_velocity);
 }

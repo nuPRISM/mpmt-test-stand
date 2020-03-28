@@ -12,8 +12,8 @@ typedef enum {
 } AxisId;
 
 typedef enum {
-    DATA_TEMP,
-    DATA_MOTOR
+    DATA_MOTOR,
+    DATA_TEMP
 } DataId;
 
 typedef enum {
@@ -28,8 +28,7 @@ typedef enum {
     STATUS_IDLE,
     STATUS_HOMING,
     STATUS_MOVING,
-    STATUS_MEASURING,
-    STATUS_LIMIT_REACHED
+    STATUS_FAULT
 } Status;
 
 #endif // SHARED_DEFS_H

@@ -8,6 +8,11 @@ TestStandCommController::TestStandCommController(SerialDevice& device) : TestSta
     // Nothing else to do
 }
 
+bool TestStandCommController::ping()
+{
+    return this->send_basic_msg(MSG_ID_PING);
+}
+
 bool TestStandCommController::log(LogLevel log_level, const char *fmt, ...)
 {
     send_buf[0] = (uint8_t)log_level;

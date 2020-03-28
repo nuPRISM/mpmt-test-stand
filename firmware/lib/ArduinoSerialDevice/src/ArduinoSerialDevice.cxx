@@ -11,6 +11,17 @@ bool ArduinoSerialDevice::ser_connect(uint32_t baud_rate)
     return true;
 }
 
+void ArduinoSerialDevice::ser_flush()
+{
+    // Wait for 10 ms for last bits of data
+    delay(10);
+    uint32_t avail = this->device.available();
+    while (avail > 0) {
+        this->device.read();
+        avail--;
+    }
+}
+
 uint32_t ArduinoSerialDevice::ser_available()
 {
     return this->device.available();

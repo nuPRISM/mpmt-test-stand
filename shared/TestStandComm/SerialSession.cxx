@@ -1,6 +1,6 @@
 #include "SerialSession.h"
 
-#define ACK_TIMEOUT_MS 5000
+#define ACK_TIMEOUT_MS 500
 
 SerialSession::SerialSession(SerialTransport& transport, Message& received_msg) : received_msg(received_msg), transport(transport)
 {
@@ -20,8 +20,13 @@ void SerialSession::ack()
 bool SerialSession::check_for_message()
 {
     if (this->transport.check_for_message(this->received_msg)) {
-        this->ack();
-        return true;
+        if (this->received_msg.id != MSG_ID_ACK && this->received_msg.id != MSG_ID_NACK) {
+            // If we received an ACK or a NACK, don't ACK back
+            // Real ACKs should have been consumed in send_message
+            // An ACK at this stage means a message was missed somewhere already
+            this->ack();
+            return true;
+        }
     }
     return false;
 }
@@ -33,8 +38,13 @@ bool SerialSession::recv_message(uint32_t timeout_ms)
 
     // Continually check for messages until a full one is received
     if (this->transport.recv_message(this->received_msg, timeout_ms)) {
-        this->ack();
-        return true;
+        if (this->received_msg.id != MSG_ID_ACK && this->received_msg.id != MSG_ID_NACK) {
+            // If we received an ACK or a NACK, don't ACK back
+            // Real ACKs should have been consumed in send_message
+            // An ACK at this stage means a message was missed somewhere already
+            this->ack();
+            return true;
+        }
     }
     return false;
 }

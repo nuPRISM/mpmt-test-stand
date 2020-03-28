@@ -61,8 +61,9 @@ bool SerialTransport::check_for_message(Message& msg)
                     }
                     break;
                 case MSG_SEG_END:
+                    this->reset();
                     if (byte_in == MSG_DELIM_END) {
-                        this->reset();
+                        // Stop processing serial data as soon as we've read in a full message
                         return true;
                     }
                     break;

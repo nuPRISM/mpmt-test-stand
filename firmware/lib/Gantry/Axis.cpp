@@ -6,22 +6,6 @@
 /* ************************ Shared Project Includes ************************ */
 #include "Debug.h"
 
-/**
- * \page timers Arduino Due Timer Interrupt Configurations
- * 
- * | ISR/IRQ | TC  | Channel | Due Pins |
- * | ------- | --- | ------- | -------- |
- * | TC0     | TC0 | 0       | 2, 13    |
- * | TC1     | TC0 | 1       | 60, 61   |
- * | TC2     | TC0 | 2       | 58       |
- * | TC3     | TC1 | 0       | none     |
- * | TC4     | TC1 | 1       | none     |
- * | TC5     | TC1 | 2       | none     |
- * | TC6     | TC2 | 0       | 4, 5     |
- * | TC7     | TC2 | 1       | 3, 10    |
- * | TC8     | TC2 | 2       | 11, 12   |
- */
-
 /*****************************************************************************/
 /*                                  DEFINES                                  */
 /*****************************************************************************/
@@ -64,9 +48,7 @@ typedef enum {
  */
 typedef struct {
     Tc * const timer;                 //!< Timer counter
-    const uint32_t channel_velocity;  //!< Timer counter channel for the velocity interrupt
     const uint32_t channel_accel;     //!< Timer counter channel for the acceleration interrupt
-    const IRQn_Type irq_velocity;     //!< IRQ number for the velocity interrupt
     const IRQn_Type irq_accel;        //!< IRQ number for the acceleration interrupt
 
     void (*const isr_encoder)(void);  //!< ISR for the encoder interrupt
@@ -98,7 +80,7 @@ typedef struct {
  * @brief Top-level struct for encapsulating all elements of an axis
  */
 struct Axis {
-    AxisPins pins;                   //!< All the I/O pins used by an axis
+    AxisIO io;                   //!< All the I/O pins used by an axis
     const AxisInterrupts interrupts; //!<
     AxisMotion motion;
     AxisState state;
@@ -117,12 +99,10 @@ void isr_ls_far_y();
 /*****************************************************************************/
 
 static Axis axis_x = {
-    .pins = {},
+    .io = {},
     .interrupts = {
         .timer            = TC1,
-        .channel_velocity = 0,
         .channel_accel    = 1,
-        .irq_velocity     = TC_IRQN(IRQ_X_AXIS_VELOCITY),
         .irq_accel        = TC_IRQN(IRQ_X_AXIS_ACCEL),
         .isr_encoder      = isr_encoder_x,
         .isr_ls_home      = isr_ls_home_x,
@@ -133,12 +113,10 @@ static Axis axis_x = {
 };
 
 static Axis axis_y = {
-    .pins = {},
+    .io = {},
     .interrupts = {
         .timer            = TC0,
-        .channel_velocity = 0,
         .channel_accel    = 1,
-        .irq_velocity     = TC_IRQN(IRQ_Y_AXIS_VELOCITY),
         .irq_accel        = TC_IRQN(IRQ_Y_AXIS_ACCEL),
         .isr_encoder      = isr_encoder_y,
         .isr_ls_home      = isr_ls_home_y,
@@ -159,12 +137,19 @@ static Axis axis_y = {
  */
 static void setup_pins(Axis *axis)
 {
-    pinMode(axis->pins.pin_step,    OUTPUT);
-    pinMode(axis->pins.pin_dir,     OUTPUT);
-    pinMode(axis->pins.pin_enc_a,   INPUT);
-    pinMode(axis->pins.pin_enc_b,   INPUT);
-    pinMode(axis->pins.pin_ls_home, INPUT_PULLUP);
-    pinMode(axis->pins.pin_ls_far,  INPUT_PULLUP);
+    configure_pwm_timer(
+        axis->io.tc_step,
+        axis->io.tc_step_channel,
+        axis->io.tc_step_irq,
+        axis->io.pio_step_bank,
+        axis->io.pio_step_periph,
+        axis->io.pio_step_pin_mask);
+
+    pinMode(axis->io.pin_dir,     OUTPUT);
+    pinMode(axis->io.pin_enc_a,   INPUT);
+    pinMode(axis->io.pin_enc_b,   INPUT);
+    pinMode(axis->io.pin_ls_home, INPUT_PULLUP);
+    pinMode(axis->io.pin_ls_far,  INPUT_PULLUP);
 }
 
 /**
@@ -174,15 +159,21 @@ static void setup_pins(Axis *axis)
  */
 static void setup_interrupts(Axis *axis)
 {
-    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_enc_a),
+    configure_timer_interrupt(
+        axis->interrupts.timer,
+        axis->interrupts.channel_accel,
+        axis->interrupts.irq_accel
+    );
+
+    attachInterrupt(digitalPinToInterrupt(axis->io.pin_enc_a),
                     axis->interrupts.isr_encoder,
                     RISING);
     delay(1000);
-    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_ls_home),
+    attachInterrupt(digitalPinToInterrupt(axis->io.pin_ls_home),
                     axis->interrupts.isr_ls_home,
                     CHANGE);
     delay(1000);
-    attachInterrupt(digitalPinToInterrupt(axis->pins.pin_ls_far),
+    attachInterrupt(digitalPinToInterrupt(axis->io.pin_ls_far),
                     axis->interrupts.isr_ls_far,
                     CHANGE);
 }
@@ -192,9 +183,9 @@ static void reset_axis(Axis *axis)
     axis->state = (AxisState){ 0 };
 }
 
-static void setup_axis(Axis *axis, const AxisPins *pins)
+static void setup_axis(Axis *axis, const AxisIO *io)
 {
-    axis->pins = (*pins);
+    axis->io = (*io);
 
     setup_pins(axis);
     setup_interrupts(axis);
@@ -237,16 +228,13 @@ AxisResult start_axis(Axis *axis, AxisMotion *motion)
     axis->motion = (*motion);
 
     // Set direction pin
-    digitalWrite(axis->pins.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
+    digitalWrite(axis->io.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
 
-    // Start velocity timer
-    start_timer(
-        axis->interrupts.timer,
-        axis->interrupts.channel_velocity,
-        axis->interrupts.irq_velocity,
-        axis->state.velocity * 2); // Double the frequency since we need to toggle on and off
-    // Start acceleration timer
-    start_timer(
+    // Start velocity PWM timer
+    reset_pwm_timer(axis->io.tc_step, axis->io.tc_step_channel, axis->state.velocity);
+
+    // Start acceleration timer interrupt
+    reset_timer_interrupt(
         axis->interrupts.timer,
         axis->interrupts.channel_accel,
         axis->interrupts.irq_accel,
@@ -258,8 +246,8 @@ AxisResult start_axis(Axis *axis, AxisMotion *motion)
 static inline void stop_axis(Axis *axis)  __attribute__((always_inline));
 static inline void stop_axis(Axis *axis)
 {
-    NVIC_DisableIRQ(axis->interrupts.irq_accel);
-    NVIC_DisableIRQ(axis->interrupts.irq_velocity);
+    stop_pwm_timer(axis->io.tc_step, axis->io.tc_step_channel);
+    stop_timer_interrupt(axis->interrupts.timer, axis->interrupts.channel_accel, axis->interrupts.irq_accel);
 
     axis->state.moving = false;
     axis->state.velocity = 0;
@@ -290,28 +278,14 @@ static inline void handle_isr_ls_home(Axis *axis)  __attribute__((always_inline)
 static inline void handle_isr_ls_home(Axis *axis)
 {
     stop_axis(axis);
-    axis->state.ls_home = digitalRead(axis->pins.pin_ls_home);
+    axis->state.ls_home = digitalRead(axis->io.pin_ls_home);
 }
 
 static inline void handle_isr_ls_far(Axis *axis)  __attribute__((always_inline));
 static inline void handle_isr_ls_far(Axis *axis)
 {
     stop_axis(axis);
-    axis->state.ls_far = digitalRead(axis->pins.pin_ls_far);
-}
-
-// Timers
-static inline void handle_velocity_isr(Axis *axis) __attribute__((always_inline));
-static inline void handle_velocity_isr(Axis *axis)
-{
-    // Toggle the step output pin
-    axis->pins.pin_step_pio_bank->PIO_ODSR ^= axis->pins.pin_step_pio_mask;
-    // Restart the timer
-    reset_timer(
-        axis->interrupts.timer,
-        axis->interrupts.channel_velocity,
-        axis->interrupts.irq_velocity,
-        axis->state.velocity * 2); // Double the frequency since we need to toggle on and off
+    axis->state.ls_far = digitalRead(axis->io.pin_ls_far);
 }
 
 static inline void handle_accel_isr(Axis *axis) __attribute__((always_inline));
@@ -324,6 +298,7 @@ static inline void handle_accel_isr(Axis *axis)
             if (((axis->state.encoder_current < axis->state.encoder_target) != axis->state.dir)
                 && (axis->state.velocity < VEL_MAX)) {
                 axis->state.velocity++;
+                reset_pwm_timer(axis->io.tc_step, axis->io.tc_step_channel, axis->state.velocity);
             }
             else {
                 axis->state.velocity_segment = VEL_SEG_HOLD;
@@ -359,6 +334,7 @@ static inline void handle_accel_isr(Axis *axis)
             if (((axis->state.encoder_current < axis->state.encoder_target) != axis->state.dir)
                 && (axis->state.velocity > axis->motion.vel_start)) {
                 axis->state.velocity--;
+                reset_pwm_timer(axis->io.tc_step, axis->io.tc_step_channel, axis->state.velocity);
             }
             else {
                 stop_axis(axis);
@@ -399,13 +375,6 @@ void isr_ls_far_x()
     last_interrupt_time = interrupt_time;
 }
 
-TC_ISR(IRQ_X_AXIS_VELOCITY)
-{
-    // Acknowledge interrupt
-    TC_GetStatus(axis_x.interrupts.timer, axis_x.interrupts.channel_velocity);
-    handle_velocity_isr(&axis_x);
-}
-
 TC_ISR(IRQ_X_AXIS_ACCEL)
 {
     // Acknowledge interrupt
@@ -444,14 +413,6 @@ void isr_ls_far_y()
     last_interrupt_time = interrupt_time;
 }
 
-TC_ISR(IRQ_Y_AXIS_VELOCITY)
-{
-    // Acknowledge interrupt
-    TC_GetStatus(axis_y.interrupts.timer, axis_y.interrupts.channel_velocity);
-
-    handle_velocity_isr(&axis_y);
-}
-
 TC_ISR(IRQ_Y_AXIS_ACCEL)
 {
     // Acknowledge interrupt
@@ -464,9 +425,9 @@ TC_ISR(IRQ_Y_AXIS_ACCEL)
 /*                             PUBLIC FUNCTIONS                              */
 /*****************************************************************************/
 
-void axis_setup(AxisId axis_id, const AxisPins *pins)
+void axis_setup(AxisId axis_id, const AxisIO *io)
 {
-    setup_axis(get_axis(axis_id), pins);
+    setup_axis(get_axis(axis_id), io);
 }
 
 AxisResult axis_start(AxisId axis_id, AxisMotion *motion)
@@ -489,7 +450,7 @@ bool axis_moving(AxisId axis_id)
     return get_axis(axis_id)->state.moving;
 }
 
-void dump_axis_state(AxisId axis_id)
+void axis_dump_state(AxisId axis_id)
 {
     Axis *axis = get_axis(axis_id);
     DEBUG_PRINTLN("----------------------------------------");

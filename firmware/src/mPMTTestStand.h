@@ -25,8 +25,8 @@ typedef struct {
     uint8_t pin_therm_motor2;
     uint8_t pin_therm_optical;
     // Gantry Axis Pins
-    AxisPins pins_axis_x;
-    AxisPins pins_axis_y;
+    AxisIO io_axis_x;
+    AxisIO io_axis_y;
 } mPMTTestStandIO;
 
 class mPMTTestStand

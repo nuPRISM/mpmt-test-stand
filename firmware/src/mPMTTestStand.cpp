@@ -133,6 +133,8 @@ void mPMTTestStand::handle_get_data()
 
 void mPMTTestStand::execute()
 {
+    PERIODIC(axis_dump_state(AXIS_X), 1000);
+
     // Update status
     Status old_status = this->status;
     if (axis_moving(AXIS_X) || axis_moving(AXIS_Y)) {

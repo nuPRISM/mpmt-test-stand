@@ -1,9 +1,23 @@
 #include "Kinematics.h"
 
+#include <math.h>
+
 #define MOTOR_MICROSTEP        4
 #define MOTOR_STEPS_PER_REV    (200 * MOTOR_MICROSTEP)
-// #define ENCODER_COUNTS_PER_REV 300
-#define ENCODER_COUNTS_PER_REV MOTOR_STEPS_PER_REV
+#define ENCODER_COUNTS_PER_REV 800
+
+/**
+ * @brief Calculate the square of the expected velocity after accelerating for a specified distance
+ * 
+ * @param accel          The acceleration rate [motor steps / s^2]
+ * @param v_min          The starting velocity [motor steps / s]
+ * @param elapsed_counts The elapsed number of encoder counts
+ */
+uint32_t calc_expected_velocity(uint32_t accel, uint32_t v_min, uint32_t elapsed_counts)
+{
+    uint32_t elapsed_steps = elapsed_counts * MOTOR_STEPS_PER_REV / ENCODER_COUNTS_PER_REV;
+    return (uint32_t)sqrt((2 * accel * elapsed_steps) + (v_min * v_min));
+}
 
 /**
  * @brief Calculate the number encoder counts you must travel while accelerating from v_min to reach v_max

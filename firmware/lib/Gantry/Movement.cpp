@@ -10,7 +10,7 @@
 /* **************************** System Includes **************************** */
 #include <stdint.h>
 
-#define VEL_START 500
+#define VEL_START 1
 
 #define ACCEL_HOMING 8000
 #define VEL_HOMING   10000
@@ -20,6 +20,9 @@ bool move_axis_rel(AxisId axis_id, Direction dir, uint32_t accel, uint32_t hold_
     // Generate a velocity profile for the correct axis
     VelProfile profile;
     if (!generate_vel_profile(accel, VEL_START, hold_vel, dist, &profile)) return false;
+
+    DEBUG_PRINT_VAL("cts_a", profile.counts_accel);
+    DEBUG_PRINT_VAL("cts_h", profile.counts_hold);
 
     AxisMotion motion = {
         .dir = dir,

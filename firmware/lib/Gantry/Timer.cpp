@@ -30,11 +30,13 @@
  * | TIMER_CLOCK5 | SLCK       |
  */
 
-#define TIMER_CLOCK_SOURCE  TC_CMR_TCCLKS_TIMER_CLOCK4
-#define TIMER_CLOCK_DIVISOR 128
+#define TIMER_CLOCK_SOURCE  TC_CMR_TCCLKS_TIMER_CLOCK3
+#define TIMER_CLOCK_DIVISOR 32
 
 /**
  * @brief Configures a timer channel to drive a PWM-type signal on its TIOA output
+ * 
+ * An interrupt is also enabled which will fire at the PWM frequency
  * 
  * @param tc       Pointer to the timer counter peripheral
  * @param channel  Channel number within the TC
@@ -62,24 +64,31 @@ void configure_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, Pio *pio, EPio
     );
 
     PIO_Configure(pio, periph, pin_mask, PIO_DEFAULT);
+
+    // Enable RC compare interrupt
+    tc->TC_CHANNEL[channel].TC_IER=TC_IER_CPCS;
+    // Disable all other interrupts
+    tc->TC_CHANNEL[channel].TC_IDR=~TC_IER_CPCS;
 }
 
 /**
- * @brief Starts / restarts a timer outputting a 50% duty-cycle PWM-type signal
+ * @brief Starts / restarts a timer outputting a 25% HIGH / 75% LOW duty-cycle PWM-type signal
  * 
  * @param tc        Pointer to the timer counter peripheral
  * @param channel   Channel number within the TC
+ * @param irq       IRQ number corresponding to the TC channel
  * @param frequency Frequency for the PWM signal
  */
-void reset_pwm_timer(Tc *tc, uint32_t channel, uint32_t frequency)
+void reset_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t frequency)
 {
-    stop_pwm_timer(tc, channel);
+    stop_pwm_timer(tc, channel, irq);
 
     uint32_t rc = VARIANT_MCK / TIMER_CLOCK_DIVISOR / frequency;
-    uint32_t ra = rc / 2; // 50% duty cycle
+    uint32_t ra = rc * 3 / 4; // 25/75 duty cycle
     TC_SetRA(tc, channel, ra);
     TC_SetRC(tc, channel, rc);
 
+    NVIC_EnableIRQ(irq);
     TC_Start(tc, channel);
 }
 
@@ -88,9 +97,11 @@ void reset_pwm_timer(Tc *tc, uint32_t channel, uint32_t frequency)
  * 
  * @param tc      Pointer to the timer counter peripheral
  * @param channel Channel number within the TC
+ * @param irq     IRQ number corresponding to the TC channel
  */
-void stop_pwm_timer(Tc *tc, uint32_t channel)
+void stop_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq)
 {
+    NVIC_DisableIRQ(irq);
     TC_Stop(tc, channel);
 }
 

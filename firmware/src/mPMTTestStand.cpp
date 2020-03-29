@@ -116,6 +116,7 @@ void mPMTTestStand::handle_get_data()
 void mPMTTestStand::execute()
 {
     PERIODIC(axis_dump_state(AXIS_X), 1000);
+    // PERIODIC(axis_dump_state(AXIS_Y), 1000);
 
     Status old_status = this->status;
 

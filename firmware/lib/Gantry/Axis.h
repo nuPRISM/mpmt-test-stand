@@ -56,16 +56,16 @@ typedef enum {
  * @brief Specifies the current state of an axis
  */
 typedef struct {
-    volatile bool moving;              //!< true if the axis is currently moving
+    volatile bool moving;               //!< true if the axis is currently moving
 
-    volatile bool ls_home_pressed;     //!< true if the home limit switch is currently pressed
-    volatile bool ls_far_pressed;      //!< true if the far limit switch is currently pressed
+    volatile bool ls_home_pressed;      //!< true if the home limit switch is currently pressed
+    volatile bool ls_far_pressed;       //!< true if the far limit switch is currently pressed
 
-    volatile uint32_t velocity;        //!< Current velocity of the axis
-    volatile VelSeg velocity_segment;  //!< Current velcoity segment of the axis
-    volatile int32_t encoder_current;  //!< Current position of the axis in encoder counts
-    volatile int32_t encoder_target;   //!< Position at which the next segment transition will occur
-    volatile Direction dir;            //!< Current direction of motion of the axis
+    volatile uint32_t velocity;         //!< Current velocity of the axis
+    volatile VelSeg velocity_segment;   //!< Current velcoity segment of the axis
+    volatile int32_t encoder_current;   //!< Current position of the axis in encoder counts
+    volatile int32_t encoder_target;    //!< Position at which the next segment transition will occur
+    volatile Direction dir;             //!< Current direction of motion of the axis
 } AxisState;
 
 /**

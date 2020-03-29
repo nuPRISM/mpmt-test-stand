@@ -19,6 +19,7 @@ const mPMTTestStandIO io = {
     .io_axis_x = {
         // Step output will use TC2 Channel 0 which is mapped to IRQ TC6
         // TIOA output for this timer channel is on PC25 = Due pin 5
+        // NOTE: This must match the build flag AXIS_X_STEP_TC_IRQ
         .tc_step            = TC2,
         .tc_step_channel    = 0,
         .tc_step_irq        = TC6_IRQn,
@@ -35,6 +36,7 @@ const mPMTTestStandIO io = {
     .io_axis_y = {
         // Step output will use TC2 Channel 1 which is mapped to IRQ TC7
         // TIOA output for this timer channel is on PC28 = Due pin 3
+        // NOTE: This must match the build flag AXIS_Y_STEP_TC_IRQ
         .tc_step            = TC2,
         .tc_step_channel    = 1,
         .tc_step_irq        = TC7_IRQn,

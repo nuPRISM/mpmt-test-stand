@@ -10,14 +10,6 @@
 /*                                  DEFINES                                  */
 /*****************************************************************************/
 
-#define TC_IRQN_I(_x)          TC##_x##_IRQn
-/** Generates the IRQn value corresponding to a TC IRQ number */
-#define TC_IRQN(_x)            TC_IRQN_I(_x)
-
-#define TC_ISR_I(_x)           void TC##_x##_Handler()
-/** Generates the ISR function name corresponding to a TC IRQ number */
-#define TC_ISR(_x)             TC_ISR_I(_x)
-
 /** TC IRQ number for x-axis velocity timer */
 #define IRQ_X_AXIS_VELOCITY    3
 /** TC IRQ number for x-axis acceleration timer */
@@ -47,7 +39,9 @@
 /*****************************************************************************/
 
 /**
- * @enum Enumeration of the segments of a trapezoidal velocity profile
+ * @enum VelSeg
+ * 
+ * @brief Enumeration of the segments of a trapezoidal velocity profile
  */
 typedef enum {
     VEL_SEG_ACCELERATE,               //!< Accelerating up to the holding velocity
@@ -81,11 +75,11 @@ typedef struct {
     volatile bool ls_home_pressed;     //!< true if the home limit switch is currently pressed
     volatile bool ls_far_pressed;      //!< true if the far limit switch is currently pressed
 
-    volatile uint32_t velocity;        //!< current velocity of the axis
-    volatile VelSeg velocity_segment;  //!< current velcoity segment of the axis
-    volatile uint32_t encoder_current; //!< current position of the axis in encoder counts
-    volatile uint32_t encoder_target;  //!< position at which the next segment transition will occur
-    volatile Direction dir;            //!< current direction of motion of the axis
+    volatile uint32_t velocity;        //!< Current velocity of the axis
+    volatile VelSeg velocity_segment;  //!< Current velcoity segment of the axis
+    volatile uint32_t encoder_current; //!< Current position of the axis in encoder counts
+    volatile uint32_t encoder_target;  //!< Position at which the next segment transition will occur
+    volatile Direction dir;            //!< Current direction of motion of the axis
 } AxisState;
 
 /**
@@ -159,7 +153,7 @@ static void setup_pins(Axis *axis)
         axis->io.tc_step,
         axis->io.tc_step_channel,
         axis->io.tc_step_irq,
-        axis->io.pio_step_bank,
+        axis->io.pio_step,
         axis->io.pio_step_periph,
         axis->io.pio_step_pin_mask);
 
@@ -173,8 +167,8 @@ static void setup_pins(Axis *axis)
 /**
  * @brief Enables the hardware debouncing filter on the specified pin
  * 
- * @param pin        The pin to be deboucned
- * @param filter_ms  The minimum pulse duration to pass debouncing
+ * @param pin       The pin to be deboucned
+ * @param filter_ms The minimum pulse duration to pass debouncing
  */
 static void setup_debouncing(uint32_t pin, uint32_t filter_ms)
 {
@@ -230,6 +224,15 @@ static void reset_axis(Axis *axis)
     axis->state = (AxisState){ 0 };
 }
 
+/**
+ * @brief Initializes all components of an axis
+ * 
+ * Sets pin modes, configures and enables interrupts and resets to a default state.
+ * 
+ * @param axis Pointer to the Axis to initialize
+ * @param io   Pointer to an AxisIO struct with the I/O specifications
+ *             for this axis
+ */
 static void setup_axis(Axis *axis, const AxisIO *io)
 {
     axis->io = (*io);
@@ -237,12 +240,23 @@ static void setup_axis(Axis *axis, const AxisIO *io)
     setup_pins(axis);
     setup_interrupts(axis);
 
-    // reset in case encoder was accidentally triggered by noise
-    // on initialization
+    // reset in case encoder was accidentally triggered by noise on initialization
     reset_axis(axis);
 }
 
-AxisResult start_axis(Axis *axis, AxisMotion *motion)
+/**
+ * @brief Request an axis to start executing the provided motion
+ * 
+ * The combination of the current axis state and the provided motion must all be valid
+ * for the axis to start moving. If anything is invalid an error code will be returned.
+ * 
+ * @param axis   Pointer to the axis to start moving
+ * @param motion Pointer to an AxisMotion struct specifying the motion to execute
+ * 
+ * @return The result of the request to start moving (either AXIS_OK or an appropriate
+ *         error code)
+ */
+static AxisResult start_axis(Axis *axis, AxisMotion *motion)
 {
     // Reject if the counts don't match the dir
     if (motion->dir == DIR_POSITIVE &&
@@ -285,7 +299,7 @@ AxisResult start_axis(Axis *axis, AxisMotion *motion)
     // Save motion spec
     axis->motion = (*motion);
 
-    // Set direction pin
+    // Drive direction pin
     digitalWrite(axis->io.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
 
     // Start velocity PWM timer
@@ -301,6 +315,13 @@ AxisResult start_axis(Axis *axis, AxisMotion *motion)
     return AXIS_OK;
 }
 
+/**
+ * @brief Immediately stops all motion of an axis
+ * 
+ * This function will always be inlined so it can be called from ISRs.
+ * 
+ * @param axis Pointer to the axis to stop
+ */
 static __attribute__((always_inline)) inline void stop_axis(Axis *axis)
 {
     stop_pwm_timer(axis->io.tc_step, axis->io.tc_step_channel);
@@ -313,6 +334,13 @@ static __attribute__((always_inline)) inline void stop_axis(Axis *axis)
     axis->state.velocity = 0;
 }
 
+/**
+ * @brief Get a pointer to the Axis struct corresponding to an AxisId
+ * 
+ * @param axis_id The AxisId identifying the axis
+ * 
+ * @return A pointer to the requested Axis struct
+ */
 static Axis *get_axis(AxisId axis_id)
 {
     if (axis_id == AXIS_X) return &axis_x;
@@ -330,7 +358,11 @@ static Axis *get_axis(AxisId axis_id)
  *       call overhead
  */
 
-// Encoder
+/**
+ * @brief Common encoder ISR handler
+ * 
+ * @param axis Pointer to the Axis whose encoder triggered the interrupt
+ */
 static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
 {
     if (axis->state.dir == DIR_POSITIVE) axis->state.encoder_current++;
@@ -389,7 +421,11 @@ static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
     }
 }
 
-// Limit Switches
+/**
+ * @brief Common HOME limit switch ISR handler
+ * 
+ * @param axis Pointer to the Axis whose limit switch triggered the interrupt
+ */
 static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 {
     // Limit switch reads LOW when pressed
@@ -397,6 +433,11 @@ static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
     if (axis->state.moving && axis->state.ls_home_pressed) stop_axis(axis);
 }
 
+/**
+ * @brief Common FAR limit switch ISR handler
+ * 
+ * @param axis Pointer to the Axis whose limit switch triggered the interrupt
+ */
 static __attribute__((always_inline)) inline void handle_isr_ls_far(Axis *axis)
 {
     // Limit switch reads LOW when pressed
@@ -404,6 +445,11 @@ static __attribute__((always_inline)) inline void handle_isr_ls_far(Axis *axis)
     if (axis->state.moving && axis->state.ls_far_pressed) stop_axis(axis);
 }
 
+/**
+ * @brief Common acceleration timer ISR handler
+ * 
+ * @param axis Pointer to the Axis whose acceleration timer triggered the interrupt
+ */
 static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
 {
     if (!axis->state.moving) return;
@@ -497,16 +543,25 @@ TC_ISR(IRQ_Y_AXIS_ACCEL)
 /*                             PUBLIC FUNCTIONS                              */
 /*****************************************************************************/
 
+/**
+ * @see setup_axis(Axis *axis, const AxisIO *io)
+ */
 void axis_setup(AxisId axis_id, const AxisIO *io)
 {
     setup_axis(get_axis(axis_id), io);
 }
 
+/**
+ * @see start_axis(Axis *axis, AxisMotion *motion)
+ */
 AxisResult axis_start(AxisId axis_id, AxisMotion *motion)
 {
     return start_axis(get_axis(axis_id), motion);
 }
 
+/**
+ * @see stop_axis(Axis *axis)
+ */
 void axis_stop(AxisId axis_id)
 {
     stop_axis(get_axis(axis_id));

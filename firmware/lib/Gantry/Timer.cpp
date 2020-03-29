@@ -1,6 +1,22 @@
 #include "Timer.h"
 
-// Reference: https://forum.arduino.cc/index.php?topic=130423.15
+// Helpful Resource: https://forum.arduino.cc/index.php?topic=130423.15
+
+/**
+ * \page timers Arduino Due Timer Interrupt Configurations
+ * 
+ * | ISR/IRQ | TC  | Channel | Due Pins |
+ * | ------- | --- | ------- | -------- |
+ * | TC0     | TC0 | 0       | 2, 13    |
+ * | TC1     | TC0 | 1       | 60, 61   |
+ * | TC2     | TC0 | 2       | 58       |
+ * | TC3     | TC1 | 0       | none     |
+ * | TC4     | TC1 | 1       | none     |
+ * | TC5     | TC1 | 2       | none     |
+ * | TC6     | TC2 | 0       | 4, 5     |
+ * | TC7     | TC2 | 1       | 3, 10    |
+ * | TC8     | TC2 | 2       | 11, 12   |
+ */
 
 /**
  * \page clocks Arduino Due Timer Clock Sources
@@ -17,7 +33,17 @@
 #define TIMER_CLOCK_SOURCE  TC_CMR_TCCLKS_TIMER_CLOCK4
 #define TIMER_CLOCK_DIVISOR 128
 
-void configure_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, Pio *pio_bank, EPioType periph, uint32_t pin_mask)
+/**
+ * @brief Configures a timer channel to drive a PWM-type signal on its TIOA output
+ * 
+ * @param tc       Pointer to the timer counter peripheral
+ * @param channel  Channel number within the TC
+ * @param irq      IRQ number corresponding to the TC channel
+ * @param pio      Pointer to the PIO instance for the TIOA pin
+ * @param periph   Peripheral mode for the TIOA pin
+ * @param pin_mask Bitmask for the TIOA pin within the PIO instance
+ */
+void configure_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, Pio *pio, EPioType periph, uint32_t pin_mask)
 {
     pmc_set_writeprotect(false);
     pmc_enable_periph_clk((uint32_t)irq);
@@ -35,9 +61,16 @@ void configure_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, Pio *pio_bank,
         TC_CMR_ACPC_CLEAR
     );
 
-    PIO_Configure(pio_bank, periph, pin_mask, PIO_DEFAULT);
+    PIO_Configure(pio, periph, pin_mask, PIO_DEFAULT);
 }
 
+/**
+ * @brief Starts / restarts a timer outputting a 50% duty-cycle PWM-type signal
+ * 
+ * @param tc        Pointer to the timer counter peripheral
+ * @param channel   Channel number within the TC
+ * @param frequency Frequency for the PWM signal
+ */
 void reset_pwm_timer(Tc *tc, uint32_t channel, uint32_t frequency)
 {
     stop_pwm_timer(tc, channel);
@@ -50,11 +83,24 @@ void reset_pwm_timer(Tc *tc, uint32_t channel, uint32_t frequency)
     TC_Start(tc, channel);
 }
 
+/**
+ * @brief Stops a timer
+ * 
+ * @param tc      Pointer to the timer counter peripheral
+ * @param channel Channel number within the TC
+ */
 void stop_pwm_timer(Tc *tc, uint32_t channel)
 {
     TC_Stop(tc, channel);
 }
 
+/**
+ * @brief Configures a timer channel to generate periodic interrupts
+ * 
+ * @param tc      Pointer to the timer counter peripheral
+ * @param channel Channel number within the TC
+ * @param irq     IRQ number corresponding to the TC channel
+ */
 void configure_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq)
 {
     pmc_set_writeprotect(false);
@@ -71,6 +117,15 @@ void configure_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq)
     tc->TC_CHANNEL[channel].TC_IDR=~TC_IER_CPCS;
 }
 
+/**
+ * @brief Starts / restarts a timer generating periodic interrupts and enables
+ *        the corresponding interrupt
+ * 
+ * @param tc        Pointer to the timer counter peripheral
+ * @param channel   Channel number within the TC
+ * @param irq       IRQ number corresponding to the TC channel
+ * @param frequency Frequency for the interrupts
+ */
 void reset_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t frequency)
 {
     stop_timer_interrupt(tc, channel, irq);
@@ -82,6 +137,13 @@ void reset_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t fre
     TC_Start(tc, channel);
 }
 
+/**
+ * @brief Stops a timer and disables the corresponding interrupt
+ * 
+ * @param tc      Pointer to the timer counter peripheral
+ * @param channel Channel number within the TC
+ * @param irq     IRQ number corresponding to the TC channel
+ */
 void stop_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq)
 {
     NVIC_DisableIRQ(irq);

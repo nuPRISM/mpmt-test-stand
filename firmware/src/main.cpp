@@ -5,22 +5,6 @@
 /* **************************** System Includes **************************** */
 #include <Arduino.h>
 
-/**
- * \page timers Arduino Due Timer Interrupt Configurations
- * 
- * | ISR/IRQ | TC  | Channel | Due Pins |
- * | ------- | --- | ------- | -------- |
- * | TC0     | TC0 | 0       | 2, 13    |
- * | TC1     | TC0 | 1       | 60, 61   |
- * | TC2     | TC0 | 2       | 58       |
- * | TC3     | TC1 | 0       | none     |
- * | TC4     | TC1 | 1       | none     |
- * | TC5     | TC1 | 2       | none     |
- * | TC6     | TC2 | 0       | 4, 5     |
- * | TC7     | TC2 | 1       | 3, 10    |
- * | TC8     | TC2 | 2       | 11, 12   |
- */
-
 const mPMTTestStandIO io = {
     // Serial Devices
     .serial_comm            = Serial,
@@ -38,7 +22,7 @@ const mPMTTestStandIO io = {
         .tc_step            = TC2,
         .tc_step_channel    = 0,
         .tc_step_irq        = TC6_IRQn,
-        .pio_step_bank      = PIOC,
+        .pio_step           = PIOC,
         .pio_step_periph    = PIO_PERIPH_B,
         .pio_step_pin_mask  = PIO_PC25B_TIOA6,
         .pin_dir            = 6, // PC24
@@ -54,7 +38,7 @@ const mPMTTestStandIO io = {
         .tc_step            = TC2,
         .tc_step_channel    = 1,
         .tc_step_irq        = TC7_IRQn,
-        .pio_step_bank      = PIOC,
+        .pio_step           = PIOC,
         .pio_step_periph    = PIO_PERIPH_B,
         .pio_step_pin_mask  = PIO_PC28B_TIOA7,
         .pin_dir            = 23, // PA14

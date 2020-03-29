@@ -53,14 +53,9 @@ void mPMTTestStand::setup()
 
 void mPMTTestStand::handle_home()
 {
+    move_axis_home(AXIS_X);
+    move_axis_home(AXIS_Y);
     this->status = STATUS_HOMING;
-
-    // These are both non-blocking
-    // TODO
-    // home_axis(&axis_x);
-    // home_axis(&axis_y);
-
-    DEBUG_PRINTLN("HOMING");
 }
 
 void mPMTTestStand::handle_move()
@@ -78,29 +73,16 @@ void mPMTTestStand::handle_move()
     axis     = (AxisId)data[12];
     dir      = (Direction)data[13];
 
-    // Generate a velocity profile for the correct axis
-    VelProfile profile;
-    if (generate_vel_profile(accel, VEL_START, hold_vel, dist, &profile)) {
-        // Start the movement if the velocity profile is valid
-        axis_trapezoidal_move_rel(axis, dir, accel, profile.counts_accel, profile.counts_hold, profile.counts_decel);
+    if (move_axis_rel(axis, dir, accel, hold_vel, dist)) {
+        this->status = STATUS_MOVING;
     }
-
-    DEBUG_PRINTLN("MOVING");
-    DEBUG_PRINT_VAL("    accel", accel);
-    DEBUG_PRINT_VAL("    hold_vel", hold_vel);
-    DEBUG_PRINT_VAL("    dist", dist);
-    DEBUG_PRINT_VAL("    axis", axis);
-    DEBUG_PRINT_VAL("    dir", dir);
-    DEBUG_PRINT_VAL("    cts_a", profile.counts_accel);
-    DEBUG_PRINT_VAL("    cts_h", profile.counts_hold);
 }
 
 void mPMTTestStand::handle_stop()
 {
     axis_stop(AXIS_X);
     axis_stop(AXIS_Y);
-
-    DEBUG_PRINTLN("STOPPING");
+    this->status = STATUS_IDLE;
 }
 
 void mPMTTestStand::handle_get_status()
@@ -135,19 +117,24 @@ void mPMTTestStand::execute()
 {
     PERIODIC(axis_dump_state(AXIS_X), 1000);
 
-    // Update status
     Status old_status = this->status;
-    if (axis_moving(AXIS_X) || axis_moving(AXIS_Y)) {
-        // TODO handle homing
-        this->status = STATUS_MOVING;
-        // this->status = (axis_x.homing || axis_y.homing) ? STATUS_HOMING : STATUS_MOVING;
-    }
-    // TODO
-    // else if (axis_x.fault || axis_y.fault) {
-    //     this->status = STATUS_FAULT;
-    // }
-    else {
-        this->status = STATUS_IDLE;
+
+    // Update status
+    switch (this->status) {
+        case STATUS_IDLE:
+            break;
+        case STATUS_MOVING:
+            if (axis_get_state(AXIS_X)->moving || axis_get_state(AXIS_Y)->moving) this->status = STATUS_MOVING;
+            else this->status = STATUS_IDLE;
+            break;
+        case STATUS_HOMING:
+            if (axis_get_state(AXIS_X)->moving || axis_get_state(AXIS_Y)->moving) this->status = STATUS_HOMING;
+            else {
+                axis_reset(AXIS_X);
+                axis_reset(AXIS_Y);
+                this->status = STATUS_IDLE;
+            }
+            break;
     }
 
     if (this->status != old_status) {

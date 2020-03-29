@@ -39,17 +39,6 @@
 /*****************************************************************************/
 
 /**
- * @enum VelSeg
- * 
- * @brief Enumeration of the segments of a trapezoidal velocity profile
- */
-typedef enum {
-    VEL_SEG_ACCELERATE,               //!< Accelerating up to the holding velocity
-    VEL_SEG_HOLD,                     //!< Staying constant at the holding velocity
-    VEL_SEG_DECELERATE                //!< Decelerating down to a minimum velocity
-} VelSeg;
-
-/**
  * @struct AxisInterrupts
  * 
  * @brief Specifies all of the interrupts and ISRs used by the axis
@@ -63,24 +52,6 @@ typedef struct {
     void (*const isr_ls_home)(void);  //!< ISR for the home limit switch interrupt
     void (*const isr_ls_far)(void);   //!< ISR for the far limit switch interrupt
 } AxisInterrupts;
-
-/**
- * @struct AxisState
- * 
- * @brief Specifies the current state of an axis
- */
-typedef struct {
-    volatile bool moving;              //!< true if the axis is currently moving
-
-    volatile bool ls_home_pressed;     //!< true if the home limit switch is currently pressed
-    volatile bool ls_far_pressed;      //!< true if the far limit switch is currently pressed
-
-    volatile uint32_t velocity;        //!< Current velocity of the axis
-    volatile VelSeg velocity_segment;  //!< Current velcoity segment of the axis
-    volatile uint32_t encoder_current; //!< Current position of the axis in encoder counts
-    volatile uint32_t encoder_target;  //!< Position at which the next segment transition will occur
-    volatile Direction dir;            //!< Current direction of motion of the axis
-} AxisState;
 
 /**
  * @struct Axis
@@ -141,6 +112,9 @@ static Axis axis_y = {
 /*****************************************************************************/
 /*                             PRIVATE FUNCTIONS                             */
 /*****************************************************************************/
+
+// Forward Declarations
+static void reset_axis(Axis *axis);
 
 /**
  * @brief Configure the pin modes for all of the axis pins
@@ -215,16 +189,6 @@ static void setup_interrupts(Axis *axis)
 }
 
 /**
- * @brief Resets an axis's state to default values
- * 
- * @param axis Pointer to the Axis to reset
- */
-static void reset_axis(Axis *axis)
-{
-    axis->state = (AxisState){ 0 };
-}
-
-/**
  * @brief Initializes all components of an axis
  * 
  * Sets pin modes, configures and enables interrupts and resets to a default state.
@@ -282,12 +246,6 @@ static AxisResult start_axis(Axis *axis, AxisMotion *motion)
     // Reject if we've hit the home limit switch and are trying to move backward
     if (motion->dir == DIR_NEGATIVE && axis->state.ls_home_pressed) return AXIS_ERR_LS_HOME;
 
-    // Reject if we're trying to move too far backwards
-    if (total_counts_abs > axis->state.encoder_current && motion->dir == DIR_NEGATIVE) {
-        return AXIS_ERR_TOO_FAR_BACKWARD;
-    }
-    // TODO define far limits and reject if trying to move too far forwards
-
     // Configure state
     axis->state.moving = true;
     axis->state.velocity = motion->vel_start;
@@ -332,6 +290,24 @@ static __attribute__((always_inline)) inline void stop_axis(Axis *axis)
 
     axis->state.moving = false;
     axis->state.velocity = 0;
+}
+
+/**
+ * @brief Resets an axis's state to default values
+ * 
+ * This will also stop any current motion and reset the encoder counter to 0.
+ * 
+ * @param axis Pointer to the Axis to reset
+ */
+static void reset_axis(Axis *axis)
+{
+    stop_axis(axis);
+
+    axis->state.moving = false;
+    axis->state.velocity = 0;
+    axis->state.encoder_current = 0;
+    axis->state.encoder_target = 0;
+    axis->state.dir = DIR_POSITIVE;
 }
 
 /**
@@ -567,14 +543,23 @@ void axis_stop(AxisId axis_id)
     stop_axis(get_axis(axis_id));
 }
 
+/**
+ * @see reset_axis(Axis *axis)
+ */
+void axis_reset(AxisId axis_id)
+{
+    reset_axis(get_axis(axis_id));
+}
+
+
 uint32_t axis_get_position(AxisId axis_id)
 {
     return get_axis(axis_id)->state.encoder_current;
 }
 
-bool axis_moving(AxisId axis_id)
+const AxisState *axis_get_state(AxisId axis_id)
 {
-    return get_axis(axis_id)->state.moving;
+    return &get_axis(axis_id)->state;
 }
 
 void axis_dump_state(AxisId axis_id)

@@ -6,8 +6,6 @@
 
 #include "shared_defs.h"
 
-#define VELOCITY_HOMING 10000
-
 /**
  * @struct AxisPins
  * 
@@ -42,6 +40,35 @@ typedef struct {
 } AxisMotion;
 
 /**
+ * @enum VelSeg
+ * 
+ * @brief Enumeration of the segments of a trapezoidal velocity profile
+ */
+typedef enum {
+    VEL_SEG_ACCELERATE,               //!< Accelerating up to the holding velocity
+    VEL_SEG_HOLD,                     //!< Staying constant at the holding velocity
+    VEL_SEG_DECELERATE                //!< Decelerating down to a minimum velocity
+} VelSeg;
+
+/**
+ * @struct AxisState
+ * 
+ * @brief Specifies the current state of an axis
+ */
+typedef struct {
+    volatile bool moving;              //!< true if the axis is currently moving
+
+    volatile bool ls_home_pressed;     //!< true if the home limit switch is currently pressed
+    volatile bool ls_far_pressed;      //!< true if the far limit switch is currently pressed
+
+    volatile uint32_t velocity;        //!< Current velocity of the axis
+    volatile VelSeg velocity_segment;  //!< Current velcoity segment of the axis
+    volatile int32_t encoder_current;  //!< Current position of the axis in encoder counts
+    volatile int32_t encoder_target;   //!< Position at which the next segment transition will occur
+    volatile Direction dir;            //!< Current direction of motion of the axis
+} AxisState;
+
+/**
  * @enum AxisResult
  * 
  * @brief Possible return values for a call to axis_start
@@ -53,16 +80,15 @@ typedef enum {
     AXIS_ERR_ALREADY_MOVING,    //!< Axis is already moving
     AXIS_ERR_LS_HOME,           //!< Trying to move backward while HOME limit switch is pressed
     AXIS_ERR_LS_FAR,            //<! Trying to move forward while FAR limit switch is pressed
-    AXIS_ERR_TOO_FAR_FORWARD,   //!< Trying to move beyond far end of axis
-    AXIS_ERR_TOO_FAR_BACKWARD   //!< Trying to move beyond home end of axis
 } AxisResult;
 
 void axis_setup(AxisId axis_id, const AxisIO *io);
 AxisResult axis_start(AxisId axis_id, AxisMotion *motion);
 void axis_stop(AxisId axis_id);
+void axis_reset(AxisId axis_id);
 
 uint32_t axis_get_position(AxisId axis_id);
-bool axis_moving(AxisId axis_id);
+const AxisState *axis_get_state(AxisId axis_id);
 
 void axis_dump_state(AxisId axis_id);
 

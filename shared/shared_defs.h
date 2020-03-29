@@ -27,8 +27,7 @@ typedef enum {
 typedef enum {
     STATUS_IDLE,
     STATUS_HOMING,
-    STATUS_MOVING,
-    STATUS_FAULT
+    STATUS_MOVING
 } Status;
 
 #endif // SHARED_DEFS_H

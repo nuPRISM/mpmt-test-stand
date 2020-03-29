@@ -99,7 +99,6 @@ void get_status(istringstream& iss)
                 case STATUS_IDLE:   puts("Status: IDLE"); break;
                 case STATUS_MOVING: puts("Status: MOVING"); break;
                 case STATUS_HOMING: puts("Status: HOMING"); break;
-                case STATUS_FAULT:  puts("Status: FAULT"); break;
                 default:            puts("ERR: Invalid status"); break;
             }
         }

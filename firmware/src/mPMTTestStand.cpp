@@ -113,22 +113,26 @@ void mPMTTestStand::handle_get_data()
     DataId data_id = (DataId)((this->comm.received_message().data)[0]);
     switch (data_id) {
         case DATA_MOTOR:
+        {
+            uint32_t axis_x_pos = axis_get_position(AXIS_X);
+            uint32_t axis_y_pos = axis_get_position(AXIS_Y);
+
             uint8_t data[2*4];
-            HTONL(data, axis_get_position(AXIS_X));
-            HTONL(data + 4, axis_get_position(AXIS_Y));
+            HTONL(data, axis_x_pos);
+            HTONL(data + 4, axis_y_pos);
             this->comm.data(data, sizeof(data));
             break;
-
+        }
         case DATA_TEMP:
+        {
             // TODO
             break;
+        }
     }
 }
 
 void mPMTTestStand::execute()
 {
-    PERIODIC(axis_dump_state(AXIS_X), 1000);
-
     // Update status
     Status old_status = this->status;
     if (axis_moving(AXIS_X) || axis_moving(AXIS_Y)) {

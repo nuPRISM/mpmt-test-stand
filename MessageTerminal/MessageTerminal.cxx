@@ -138,7 +138,7 @@ void get_data(istringstream& iss)
                 {
                     uint8_t *data = comm.received_message().data;
                     uint32_t motor_x = NTOHL(data);
-                    uint32_t motor_y = NTOHL(data);
+                    uint32_t motor_y = NTOHL(data + 4);
                     printf("Motor Position: (%u, %u)\n", motor_x, motor_y);
                     break;
                 }

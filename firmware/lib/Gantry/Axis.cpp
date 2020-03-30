@@ -35,6 +35,9 @@
 /** Maximum allowed velocity for an axis */
 #define VEL_MAX                25000
 
+/** Percentage of time the velocity PWM signal is ON */
+#define VEL_DUTY_CYCLE         25
+
 #ifndef AXIS_X_STEP_TC_IRQ
 #error "AXIS_X_STEP_TC_IRQ must be defined"
 #endif //AXIS_X_VEL_TC_IRQ
@@ -258,6 +261,7 @@ static AxisResult start_axis(Axis *axis, AxisMotion *motion)
     // Configure state
     axis->state.moving = true;
     axis->state.velocity = motion->vel_start;
+    axis->state.next_velocity = axis->state.velocity;
     axis->state.velocity_segment = (motion->counts_accel == 0 ? VEL_SEG_HOLD : VEL_SEG_ACCELERATE);
     axis->state.encoder_target = axis->state.encoder_current + motion->counts_accel
                                  + (motion->counts_accel == 0 ? motion->counts_hold : 0);
@@ -270,7 +274,12 @@ static AxisResult start_axis(Axis *axis, AxisMotion *motion)
     digitalWrite(axis->io.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
 
     // Start velocity PWM timer
-    reset_pwm_timer(axis->io.tc_step, axis->io.tc_step_channel, axis->io.tc_step_irq, axis->state.velocity);
+    reset_pwm_timer(
+        axis->io.tc_step,
+        axis->io.tc_step_channel,
+        axis->io.tc_step_irq,
+        axis->state.velocity,
+        VEL_DUTY_CYCLE);
 
     // Start acceleration timer interrupt
     reset_timer_interrupt(
@@ -291,11 +300,8 @@ static AxisResult start_axis(Axis *axis, AxisMotion *motion)
  */
 static __attribute__((always_inline)) inline void stop_axis(Axis *axis)
 {
-    stop_pwm_timer(axis->io.tc_step, axis->io.tc_step_channel, axis->io.tc_step_irq);
-    stop_timer_interrupt(
-        axis->interrupts.timer,
-        axis->interrupts.channel_accel,
-        axis->interrupts.irq_accel);
+    stop_timer(axis->io.tc_step, axis->io.tc_step_channel, axis->io.tc_step_irq);
+    stop_timer(axis->interrupts.timer, axis->interrupts.channel_accel, axis->interrupts.irq_accel);
 
     axis->state.moving = false;
     axis->state.velocity = 0;
@@ -352,59 +358,6 @@ static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
 {
     if (axis->state.dir == DIR_POSITIVE) axis->state.encoder_current++;
     else if (axis->state.dir == DIR_NEGATIVE) axis->state.encoder_current--;
- 
-    // if (!axis->state.moving) return;
-
-    // if (REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)) {
-    //     switch (axis->state.velocity_segment) {
-    //         case VEL_SEG_ACCELERATE:
-    //         {
-    //             // ACCELERATE -> HOLD
-    //             axis->state.velocity_segment = VEL_SEG_HOLD;
-    //             DEBUG_PRINT_VAL("ACCEL -> HOLD", axis->state.velocity);
-
-    //             // Set new target encoder count
-    //             int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
-    //             axis->state.encoder_target = axis->state.encoder_current
-    //                                          + axis->motion.counts_hold
-    //                                          + error_counts;
-
-    //             if (!REACHED_TARGET(
-    //                     axis->state.dir,
-    //                     axis->state.encoder_current,
-    //                     axis->state.encoder_target)) {
-    //                 // Only break if we haven't already reached the next target
-    //                 // Otherwise fall through to next case
-    //                 break;
-    //             }
-    //         }
-    //         case VEL_SEG_HOLD:
-    //         {
-    //             // HOLD -> DECELERATE
-    //             axis->state.velocity_segment = VEL_SEG_DECELERATE;
-
-    //             // Set new target encoder count
-    //             int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
-    //             axis->state.encoder_target = axis->state.encoder_current
-    //                                          + axis->motion.counts_decel
-    //                                          + error_counts;
-
-    //             if (!REACHED_TARGET(
-    //                     axis->state.dir,
-    //                     axis->state.encoder_current,
-    //                     axis->state.encoder_target)) {
-    //                 // Only break if we haven't already reached the next target
-    //                 // Otherwise fall through to next case
-    //                 break;
-    //             }
-    //         }
-    //         case VEL_SEG_DECELERATE:
-    //         {
-    //             stop_axis(axis);
-    //             break;
-    //         }
-    //     }
-    // }
 }
 
 /**
@@ -433,11 +386,16 @@ static __attribute__((always_inline)) inline void handle_isr_ls_far(Axis *axis)
 
 static __attribute__((always_inline)) inline void handle_isr_step(Axis *axis)
 {
-    reset_pwm_timer(
-        axis->io.tc_step,
-        axis->io.tc_step_channel,
-        axis->io.tc_step_irq,
-        axis->state.velocity);
+    // Reset the timer with a new velocity if it has changed
+    if (axis->state.next_velocity != axis->state.velocity) {
+        axis->state.velocity = axis->state.next_velocity;
+        reset_pwm_timer(
+            axis->io.tc_step,
+            axis->io.tc_step_channel,
+            axis->io.tc_step_irq,
+            axis->state.velocity,
+            VEL_DUTY_CYCLE);
+    }
 }
 
 /**
@@ -449,22 +407,16 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
 {
     if (!axis->state.moving) return;
 
-    // DEBUG_PRINT_VAL("segment", axis->state.velocity_segment);
-    // DEBUG_PRINT_VAL("current", axis->state.encoder_current);
-    // DEBUG_PRINT_VAL("target", axis->state.encoder_target);
-
     switch (axis->state.velocity_segment) {
         case VEL_SEG_ACCELERATE:
         {
-            // Increment the velocity (no further than VEL_MAX)
             if (!REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)
-                && (axis->state.velocity < VEL_MAX)) {
-                axis->state.velocity++;
+                && (axis->state.next_velocity < VEL_MAX)) {
+                axis->state.next_velocity++;
             }
             else {
                 axis->state.velocity_segment = VEL_SEG_HOLD;
 
-                // Set new target encoder count
                 int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
                 axis->state.encoder_target = axis->state.encoder_current
                                              + axis->motion.counts_hold
@@ -477,7 +429,6 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
             if (REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)) {
                 axis->state.velocity_segment = VEL_SEG_DECELERATE;
 
-                // Set new target encoder count
                 int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
                 axis->state.encoder_target = axis->state.encoder_current
                                              + axis->motion.counts_decel
@@ -487,10 +438,9 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
         }
         case VEL_SEG_DECELERATE:
         {
-            // Decrement velocity (no further than vel_start)
             if (!REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)
-                && (axis->state.velocity > axis->motion.vel_start)) {
-                axis->state.velocity--;
+                && (axis->state.next_velocity > axis->motion.vel_start)) {
+                axis->state.next_velocity--;
             }
             else {
                 stop_axis(axis);
@@ -619,6 +569,7 @@ void axis_dump_state(AxisId axis_id)
     DEBUG_PRINT_VAL("ls_home_pressed ", axis->state.ls_home_pressed);
     DEBUG_PRINT_VAL("ls_far_pressed  ", axis->state.ls_far_pressed);
     DEBUG_PRINT_VAL("velocity        ", axis->state.velocity);
+    DEBUG_PRINT_VAL("next_velocity   ", axis->state.next_velocity);
     DEBUG_PRINT_VAL("velocity_segment", axis->state.velocity_segment);
     DEBUG_PRINT_VAL("encoder_current ", axis->state.encoder_current);
     DEBUG_PRINT_VAL("encoder_target  ", axis->state.encoder_target);

@@ -62,6 +62,7 @@ typedef struct {
     volatile bool ls_far_pressed;       //!< true if the far limit switch is currently pressed
 
     volatile uint32_t velocity;         //!< Current velocity of the axis
+    volatile uint32_t next_velocity;    //!< Pending velocity to set for the axis
     volatile VelSeg velocity_segment;   //!< Current velcoity segment of the axis
     volatile int32_t encoder_current;   //!< Current position of the axis in encoder counts
     volatile int32_t encoder_target;    //!< Position at which the next segment transition will occur

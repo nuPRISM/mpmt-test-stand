@@ -13,12 +13,12 @@
 
 // PWM Timers
 void configure_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, Pio *pio_bank, EPioType periph, uint32_t pin_mask);
-void reset_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t frequency);
-void stop_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq);
+void reset_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t frequency, uint8_t duty_cycle_on_percent);
 
 // Timer Interrupts
 void configure_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq);
 void reset_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t frequency);
-void stop_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq);
+
+void stop_timer(Tc *tc, uint32_t channel, IRQn_Type irq);
 
 #endif // TIMER_H

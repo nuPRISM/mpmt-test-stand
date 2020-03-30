@@ -10,7 +10,7 @@
 /* **************************** System Includes **************************** */
 #include <stdint.h>
 
-#define VEL_START 1
+#define VEL_START 500
 
 #define ACCEL_HOMING 8000
 #define VEL_HOMING   10000

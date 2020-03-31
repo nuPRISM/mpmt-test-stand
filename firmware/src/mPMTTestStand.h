@@ -42,6 +42,10 @@ class mPMTTestStand
         Thermistor10k thermistor_optical;
 
         Status status;
+        bool home_a_done;
+
+        const AxisState *x_state;
+        const AxisState *y_state;
 
         void handle_home();
         void handle_move();

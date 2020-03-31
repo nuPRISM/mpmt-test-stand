@@ -12,8 +12,10 @@
 
 #define VEL_START 500
 
-#define ACCEL_HOMING 8000
-#define VEL_HOMING   10000
+#define ACCEL_HOMING_A 8000
+#define VEL_HOMING_A   10000
+#define ACCEL_HOMING_B 1000
+#define VEL_HOMING_B   1000
 
 bool move_axis_rel(AxisId axis_id, Direction dir, uint32_t accel, uint32_t hold_vel, uint32_t dist)
 {
@@ -38,9 +40,14 @@ bool move_axis_rel(AxisId axis_id, Direction dir, uint32_t accel, uint32_t hold_
     return (result == AXIS_OK);
 }
 
-bool move_axis_home(AxisId axis_id)
+bool move_axis_home_a(AxisId axis_id)
 {
-    return move_axis_rel(axis_id, DIR_NEGATIVE, ACCEL_HOMING, VEL_HOMING, INT32_MAX);
+    return move_axis_rel(axis_id, DIR_NEGATIVE, ACCEL_HOMING_A, VEL_HOMING_A, INT32_MAX);
+}
+
+bool move_axis_home_b(AxisId axis_id)
+{
+    return move_axis_rel(axis_id, DIR_POSITIVE, ACCEL_HOMING_B, VEL_HOMING_B, INT32_MAX);
 }
 
 // void home_axis(Axis *axis)

@@ -305,6 +305,7 @@ static __attribute__((always_inline)) inline void stop_axis(Axis *axis)
 
     axis->state.moving = false;
     axis->state.velocity = 0;
+    axis->state.next_velocity = 0;
 }
 
 /**
@@ -368,8 +369,9 @@ static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
 static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 {
     // Limit switch reads LOW when pressed
+    stop_axis(axis);
     axis->state.ls_home_pressed = digitalRead(axis->io.pin_ls_home) == LOW;
-    if (axis->state.moving && axis->state.ls_home_pressed) stop_axis(axis);
+    // if (axis->state.moving && axis->state.ls_home_pressed) stop_axis(axis);
 }
 
 /**
@@ -380,8 +382,9 @@ static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 static __attribute__((always_inline)) inline void handle_isr_ls_far(Axis *axis)
 {
     // Limit switch reads LOW when pressed
+    stop_axis(axis);
     axis->state.ls_far_pressed = digitalRead(axis->io.pin_ls_far) == LOW;
-    if (axis->state.moving && axis->state.ls_far_pressed) stop_axis(axis);
+    // if (axis->state.moving && axis->state.ls_far_pressed) stop_axis(axis);
 }
 
 static __attribute__((always_inline)) inline void handle_isr_step(Axis *axis)

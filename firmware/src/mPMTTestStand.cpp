@@ -17,7 +17,8 @@ mPMTTestStand::mPMTTestStand(const mPMTTestStandIO& io) :
     thermistor_motor2(io.pin_therm_motor2),
     thermistor_optical(io.pin_therm_optical)
 {
-    // Nothing else to do
+    this->x_state = axis_get_state(AXIS_X);
+    this->y_state = axis_get_state(AXIS_Y);
 }
 
 void mPMTTestStand::setup()
@@ -53,8 +54,9 @@ void mPMTTestStand::setup()
 
 void mPMTTestStand::handle_home()
 {
-    move_axis_home(AXIS_X);
-    move_axis_home(AXIS_Y);
+    move_axis_home_a(AXIS_X);
+    move_axis_home_a(AXIS_Y);
+    this->home_a_done = false;
     this->status = STATUS_HOMING;
 }
 
@@ -125,16 +127,44 @@ void mPMTTestStand::execute()
         case STATUS_IDLE:
             break;
         case STATUS_MOVING:
-            if (axis_get_state(AXIS_X)->moving || axis_get_state(AXIS_Y)->moving) this->status = STATUS_MOVING;
-            else this->status = STATUS_IDLE;
-            break;
-        case STATUS_HOMING:
-            if (axis_get_state(AXIS_X)->moving || axis_get_state(AXIS_Y)->moving) this->status = STATUS_HOMING;
+            if (this->x_state->moving || this->y_state->moving) {
+                this->status = STATUS_MOVING;
+            }
             else {
-                axis_reset(AXIS_X);
-                axis_reset(AXIS_Y);
                 this->status = STATUS_IDLE;
             }
+            break;
+        case STATUS_HOMING:
+            if (!this->home_a_done) {
+                // HOME A
+                if (this->x_state->moving || this->y_state->moving) {
+                    this->status = STATUS_HOMING;
+                }
+                else if (this->x_state->ls_home_pressed && this->y_state->ls_home_pressed) {
+                    this->status = STATUS_HOMING;
+                    move_axis_home_b(AXIS_X);
+                    move_axis_home_b(AXIS_Y);
+                    this->home_a_done = true;
+                }
+                else {
+                    // If both axis stopped moving but one of the home limit switches isn't pressed
+                    // something has gone wrong so enter FAULT state
+                    this->status = STATUS_FAULT;
+                }
+            }
+            else {
+                // HOME B
+                if (this->x_state->moving || this->y_state->moving) {
+                    this->status = STATUS_HOMING;
+                }
+                else {
+                    axis_reset(AXIS_X);
+                    axis_reset(AXIS_Y);
+                    this->status = STATUS_IDLE;
+                    this->home_a_done = false;
+                }
+            }
+
             break;
     }
 

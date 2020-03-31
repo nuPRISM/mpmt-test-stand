@@ -3,7 +3,7 @@
 // Helpful Resource: https://forum.arduino.cc/index.php?topic=130423.15
 
 /**
- * \page timers Arduino Due Timer Interrupt Configurations
+ * @page timers Arduino Due Timer Interrupt Configurations
  * 
  * | ISR/IRQ | TC  | Channel | Due Pins |
  * | ------- | --- | ------- | -------- |
@@ -19,7 +19,7 @@
  */
 
 /**
- * \page clocks Arduino Due Timer Clock Sources
+ * @page clocks Arduino Due Timer Clock Sources
  * 
  * | Name         | Definition |
  * | ------------ | ---------- |

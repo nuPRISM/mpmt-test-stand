@@ -115,12 +115,33 @@ void mPMTTestStand::handle_get_data()
     }
 }
 
+void mPMTTestStand::debug_dump_axis(AxisId axis_id)
+{
+    const AxisState *state = (axis_id == AXIS_X ? this->x_state : this->y_state);
+    DEBUG_PRINTLN("----------------------------------------");
+    DEBUG_PRINT_VAL("AXIS", axis_id == AXIS_X ? "X" : "Y");
+    DEBUG_PRINT_VAL("moving          ", state->moving);
+    DEBUG_PRINT_VAL("ls_home_pressed ", state->ls_home_pressed);
+    DEBUG_PRINT_VAL("ls_far_pressed  ", state->ls_far_pressed);
+    DEBUG_PRINT_VAL("velocity        ", state->velocity);
+    DEBUG_PRINT_VAL("next_velocity   ", state->next_velocity);
+    DEBUG_PRINT_VAL("velocity_segment", state->velocity_segment);
+    DEBUG_PRINT_VAL("encoder_current ", state->encoder_current);
+    DEBUG_PRINT_VAL("encoder_target  ", state->encoder_target);
+    DEBUG_PRINT_VAL("dir             ", state->dir);
+    DEBUG_PRINTLN("----------------------------------------");
+}
+
+void mPMTTestStand::debug_dump()
+{
+    DEBUG_PRINT_VAL("STATUS", this->status);
+    this->debug_dump_axis(AXIS_X);
+    this->debug_dump_axis(AXIS_Y);
+}
+
 void mPMTTestStand::execute()
 {
-    PERIODIC(axis_dump_state(AXIS_X), 1000);
-    PERIODIC(axis_dump_state(AXIS_Y), 1000);
-
-    Status old_status = this->status;
+    PERIODIC(this->debug_dump(), 1000);
 
     // Update status
     switch (this->status) {
@@ -164,12 +185,10 @@ void mPMTTestStand::execute()
                     this->home_a_done = false;
                 }
             }
-
             break;
-    }
-
-    if (this->status != old_status) {
-        DEBUG_PRINT_VAL("Status updated to", this->status);
+        case STATUS_FAULT:
+            // Do nothing
+            break;
     }
 
     // Check for any messages

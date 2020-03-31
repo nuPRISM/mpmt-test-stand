@@ -20,10 +20,9 @@ const mPMTTestStandIO io = {
     .io_axis_x = {
         // Step output will use TC2 Channel 0 which is mapped to IRQ TC6
         // TIOA output for this timer channel is on PC25 = Due pin 5
-        // NOTE: AXIS_X_STEP_TC_IRQ is defined in platformio.ini
         .tc_step            = TC2,
         .tc_step_channel    = 0,
-        .tc_step_irq        = TC_IRQN(AXIS_X_STEP_TC_IRQ),
+        .tc_step_irq        = TC_IRQN(AXIS_X_STEP_TC_IRQ), // NOTE: AXIS_X_STEP_TC_IRQ is defined in platformio.ini
         .pio_step           = PIOC,
         .pio_step_periph    = PIO_PERIPH_B,
         .pio_step_pin_mask  = PIO_PC25B_TIOA6,
@@ -37,10 +36,9 @@ const mPMTTestStandIO io = {
     .io_axis_y = {
         // Step output will use TC2 Channel 1 which is mapped to IRQ TC7
         // TIOA output for this timer channel is on PC28 = Due pin 3
-        // NOTE: AXIS_Y_STEP_TC_IRQ is defined in platformio.ini
         .tc_step            = TC2,
         .tc_step_channel    = 1,
-        .tc_step_irq        = TC_IRQN(AXIS_Y_STEP_TC_IRQ),
+        .tc_step_irq        = TC_IRQN(AXIS_Y_STEP_TC_IRQ), // NOTE: AXIS_Y_STEP_TC_IRQ is defined in platformio.ini
         .pio_step           = PIOC,
         .pio_step_periph    = PIO_PERIPH_B,
         .pio_step_pin_mask  = PIO_PC28B_TIOA7,

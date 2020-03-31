@@ -53,6 +53,9 @@ class mPMTTestStand
         void handle_get_status();
         void handle_get_data();
 
+        void debug_dump_axis(AxisId axis_id);
+        void debug_dump();
+
     public:
         mPMTTestStand(const mPMTTestStandIO& io);
         void setup();

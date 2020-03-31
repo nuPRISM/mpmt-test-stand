@@ -4,9 +4,6 @@
 #include "Kinematics.h"
 #include "Timer.h"
 
-/* ************************ Shared Project Includes ************************ */
-#include "Debug.h"
-
 /*****************************************************************************/
 /*                                  DEFINES                                  */
 /*****************************************************************************/
@@ -561,21 +558,4 @@ uint32_t axis_get_position(AxisId axis_id)
 const AxisState *axis_get_state(AxisId axis_id)
 {
     return &get_axis(axis_id)->state;
-}
-
-void axis_dump_state(AxisId axis_id)
-{
-    Axis *axis = get_axis(axis_id);
-    DEBUG_PRINTLN("----------------------------------------");
-    DEBUG_PRINT_VAL("AXIS            ", (axis_id == AXIS_X ? "X" : "Y"));
-    DEBUG_PRINT_VAL("moving          ", axis->state.moving);
-    DEBUG_PRINT_VAL("ls_home_pressed ", axis->state.ls_home_pressed);
-    DEBUG_PRINT_VAL("ls_far_pressed  ", axis->state.ls_far_pressed);
-    DEBUG_PRINT_VAL("velocity        ", axis->state.velocity);
-    DEBUG_PRINT_VAL("next_velocity   ", axis->state.next_velocity);
-    DEBUG_PRINT_VAL("velocity_segment", axis->state.velocity_segment);
-    DEBUG_PRINT_VAL("encoder_current ", axis->state.encoder_current);
-    DEBUG_PRINT_VAL("encoder_target  ", axis->state.encoder_target);
-    DEBUG_PRINT_VAL("dir             ", axis->state.dir);
-    DEBUG_PRINTLN("----------------------------------------");
 }

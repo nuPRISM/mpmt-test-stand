@@ -7,7 +7,7 @@
 /* ************************ Shared Project Includes ************************ */
 #include "macros.h"
 
-mPMTTestStand::mPMTTestStand(const mPMTTestStandIO& io) :
+mPMTTestStand::mPMTTestStand(const mPMTTestStandIO& io, const mPMTTestStandMotionConfig& motion_config) :
     io(io),
     comm_dev(io.serial_comm),
     comm(this->comm_dev),
@@ -15,10 +15,13 @@ mPMTTestStand::mPMTTestStand(const mPMTTestStandIO& io) :
     thermistor_motor1(io.pin_therm_motor1),
     thermistor_mpmt(io.pin_therm_mpmt),
     thermistor_motor2(io.pin_therm_motor2),
-    thermistor_optical(io.pin_therm_optical)
+    thermistor_optical(io.pin_therm_optical),
+    motion_config(motion_config)
 {
     this->x_state = axis_get_state(AXIS_X);
     this->y_state = axis_get_state(AXIS_Y);
+    
+    this->status = STATUS_IDLE;
 }
 
 void mPMTTestStand::setup()
@@ -54,8 +57,14 @@ void mPMTTestStand::setup()
 
 void mPMTTestStand::handle_home()
 {
-    move_axis_home_a(AXIS_X);
-    move_axis_home_a(AXIS_Y);
+    MotionShape shape = {
+        .accel = this->motion_config.accel_home_a,
+        .vel_start = this->motion_config.vel_start,
+        .vel_hold = this->motion_config.vel_home_a
+    };
+
+    move_axis_home_a(AXIS_X, shape, this->motion_config.units);
+    move_axis_home_a(AXIS_Y, shape, this->motion_config.units);
     this->home_a_done = false;
     this->status = STATUS_HOMING;
 }
@@ -63,19 +72,25 @@ void mPMTTestStand::handle_home()
 void mPMTTestStand::handle_move()
 {
     // Process command arguments
-    uint32_t accel, hold_vel, dist;
-    AxisId axis;
+    uint32_t accel, vel_hold, dist;
+    AxisId axis_id;
     Direction dir;
 
     uint8_t *data = this->comm.received_message().data;
 
     accel    = NTOHL(data);
-    hold_vel = NTOHL(data + 4);
+    vel_hold = NTOHL(data + 4);
     dist     = NTOHL(data + 8);
-    axis     = (AxisId)data[12];
+    axis_id  = (AxisId)data[12];
     dir      = (Direction)data[13];
 
-    if (move_axis_rel(axis, dir, accel, hold_vel, dist)) {
+    MotionShape shape = {
+        .accel = accel,
+        .vel_start = this->motion_config.vel_start,
+        .vel_hold = vel_hold
+    };
+
+    if (move_axis_rel(axis_id, dir, dist, shape, this->motion_config.units)) {
         this->status = STATUS_MOVING;
     }
 }
@@ -98,8 +113,8 @@ void mPMTTestStand::handle_get_data()
     switch (data_id) {
         case DATA_MOTOR:
         {
-            uint32_t axis_x_pos = axis_get_position(AXIS_X);
-            uint32_t axis_y_pos = axis_get_position(AXIS_Y);
+            uint32_t axis_x_pos = this->x_state->encoder_current;
+            uint32_t axis_y_pos = this->y_state->encoder_current;
 
             uint8_t data[2*4];
             HTONL(data, axis_x_pos);
@@ -151,6 +166,10 @@ void mPMTTestStand::execute()
             if (this->x_state->moving || this->y_state->moving) {
                 this->status = STATUS_MOVING;
             }
+            else if (this->x_state->ls_home_pressed || this->x_state->ls_far_pressed ||
+                     this->y_state->ls_home_pressed || this->x_state->ls_far_pressed) {
+                this->status = STATUS_FAULT;
+            }
             else {
                 this->status = STATUS_IDLE;
             }
@@ -163,8 +182,14 @@ void mPMTTestStand::execute()
                 }
                 else if (this->x_state->ls_home_pressed && this->y_state->ls_home_pressed) {
                     this->status = STATUS_HOMING;
-                    move_axis_home_b(AXIS_X);
-                    move_axis_home_b(AXIS_Y);
+                    
+                    MotionShape shape = {
+                        .accel = this->motion_config.accel_home_b,
+                        .vel_start = this->motion_config.vel_start,
+                        .vel_hold = this->motion_config.vel_home_b
+                    };
+                    move_axis_home_b(AXIS_X, shape, this->motion_config.units);
+                    move_axis_home_b(AXIS_Y, shape, this->motion_config.units);
                     this->home_a_done = true;
                 }
                 else {

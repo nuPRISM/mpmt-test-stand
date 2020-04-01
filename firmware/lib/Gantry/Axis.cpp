@@ -1,7 +1,6 @@
 /* **************************** Local Includes ***************************** */
 #include "Axis.h"
 #include "Movement.h"
-#include "Kinematics.h"
 #include "Timer.h"
 
 /*****************************************************************************/
@@ -35,6 +34,11 @@
 /** Percentage of time the velocity PWM signal is ON */
 #define VEL_DUTY_CYCLE         25
 
+/**
+ * The IRQ numbers for the step timers for each axis must be defined at compile time
+ * so the correct TC?_Handler functions can be defined
+ */
+
 #ifndef AXIS_X_STEP_TC_IRQ
 #error "AXIS_X_STEP_TC_IRQ must be defined"
 #endif //AXIS_X_VEL_TC_IRQ
@@ -50,7 +54,7 @@
 /**
  * @struct AxisInterrupts
  * 
- * @brief Specifies all of the interrupts and ISRs used by the axis
+ * @brief Specifies all of the internal interrupts and ISRs used by the axis
  */
 typedef struct {
     Tc * const timer;                 //!< Timer counter
@@ -67,12 +71,12 @@ typedef struct {
  * 
  * @brief Top-level struct for encapsulating all elements of an axis
  */
-struct Axis {
+typedef struct {
     AxisIO io;                         //!< I/O pins and peripherals
     const AxisInterrupts interrupts;   //!< Interrupt configurations
     AxisMotion motion;                 //!< Profile for the current motion
     AxisState state;                   //!< Current state of the axis
-};
+} Axis;
 
 /*****************************************************************************/
 /*                             AXIS DECLARATIONS                             */
@@ -365,10 +369,9 @@ static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
  */
 static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 {
-    // Limit switch reads LOW when pressed
     stop_axis(axis);
-    axis->state.ls_home_pressed = digitalRead(axis->io.pin_ls_home) == LOW;
-    // if (axis->state.moving && axis->state.ls_home_pressed) stop_axis(axis);
+    // Limit switch reads LOW when pressed
+    axis->state.ls_home_pressed = (digitalRead(axis->io.pin_ls_home) == LOW);
 }
 
 /**
@@ -378,10 +381,9 @@ static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
  */
 static __attribute__((always_inline)) inline void handle_isr_ls_far(Axis *axis)
 {
-    // Limit switch reads LOW when pressed
     stop_axis(axis);
-    axis->state.ls_far_pressed = digitalRead(axis->io.pin_ls_far) == LOW;
-    // if (axis->state.moving && axis->state.ls_far_pressed) stop_axis(axis);
+    // Limit switch reads LOW when pressed
+    axis->state.ls_far_pressed = (digitalRead(axis->io.pin_ls_far) == LOW);
 }
 
 static __attribute__((always_inline)) inline void handle_isr_step(Axis *axis)
@@ -410,8 +412,8 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
     switch (axis->state.velocity_segment) {
         case VEL_SEG_ACCELERATE:
         {
-            if (!REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)
-                && (axis->state.next_velocity < VEL_MAX)) {
+            // Accelerate until we reach the holding velocity (however many counts that takes)
+            if (axis->state.next_velocity < axis->motion.vel_hold) {
                 axis->state.next_velocity++;
             }
             else {
@@ -426,6 +428,7 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
         }
         case VEL_SEG_HOLD:
         {
+            // Don't do anything (i.e. keep velocity constant) until we reach the target encoder count
             if (REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)) {
                 axis->state.velocity_segment = VEL_SEG_DECELERATE;
 
@@ -438,11 +441,14 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
         }
         case VEL_SEG_DECELERATE:
         {
-            if (!REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)
-                && (axis->state.next_velocity > axis->motion.vel_start)) {
-                axis->state.next_velocity--;
+            if (!REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)) {
+                // Only decrement velocity if we're still above the starting velocity
+                if (axis->state.next_velocity > axis->motion.vel_start) {
+                    axis->state.next_velocity--;
+                }
             }
             else {
+                // Stop moving once we reach the final target encoder count
                 stop_axis(axis);
             }
             break;
@@ -550,11 +556,13 @@ void axis_reset(AxisId axis_id)
     reset_axis(get_axis(axis_id));
 }
 
-uint32_t axis_get_position(AxisId axis_id)
-{
-    return get_axis(axis_id)->state.encoder_current;
-}
-
+/**
+ * @brief Returns a read-only (i.e. const) pointer to the state information for the given axis
+ * 
+ * @param axis_id The AxisId identifying the axis
+ * 
+ * @return A const pointer to the axis's state
+ */
 const AxisState *axis_get_state(AxisId axis_id)
 {
     return &get_axis(axis_id)->state;

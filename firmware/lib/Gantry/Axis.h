@@ -6,15 +6,19 @@
 
 #include "shared_defs.h"
 
+/*****************************************************************************/
+/*                                 TYPEDEFS                                  */
+/*****************************************************************************/
+
 /**
  * @struct AxisPins
  * 
  * @brief Specifies all of the I/O pins used by an axis
  */
 typedef struct {
-    Tc *tc_step;                       //<! TC for step output (e.g. TC2)
-    uint32_t tc_step_channel;          //<! TC channel number for step output (0 to 3)
-    IRQn_Type tc_step_irq;             //<! TC IRQ number for step output (e.g. TC6)
+    Tc *tc_step;                       //!< TC for step output (e.g. TC2)
+    uint32_t tc_step_channel;          //!< TC channel number for step output (0 to 3)
+    IRQn_Type tc_step_irq;             //!< TC IRQ number for step output (e.g. TC6)
     Pio *pio_step;                     //!< PIO bank for step output (e.g. PIOA, PIOB, PIOC etc.)
     EPioType pio_step_periph;          //!< PIO peripheral for step output (e.g. PIO_PERIPH_B)
     uint32_t pio_step_pin_mask;        //!< PIO pin mask for step output (e.g. PIO_PC25B_TIOA6)
@@ -29,10 +33,16 @@ typedef struct {
  * @struct AxisMotion
  * 
  * @brief Fully specifies a motion for an axis to execute
+ * 
+ * NOTE: This over-specifies a motion. vel_hold is not necessary but is included
+ *       so imperfections in the mechanical translation of motor steps into encoder
+ *       counts can be handled. counts_accel must be consistent with vel_start, vel_hold
+ *       and accel.
  */
 typedef struct {
     Direction dir;                     //!< Movement direction
     uint32_t vel_start;                //!< Starting velocity [motor steps / s]
+    uint32_t vel_hold;                 //!< Holding velocity [motor steps / s]
     uint32_t accel;                    //!< Acceleration [motor steps / s^2]
     int32_t counts_accel;              //!< Number of encoder counts while accelerating
     int32_t counts_hold;               //!< Number of encoder counts while moving at constant velocity
@@ -54,6 +64,8 @@ typedef enum {
  * @struct AxisState
  * 
  * @brief Specifies the current state of an axis
+ * 
+ * All fields are declared volatile since they may be modified from ISRs
  */
 typedef struct {
     volatile bool moving;              //!< true if the axis is currently moving
@@ -80,15 +92,17 @@ typedef enum {
     AXIS_ERR_ZERO_DIST,                //!< Total specified distance was zero
     AXIS_ERR_ALREADY_MOVING,           //!< Axis is already moving
     AXIS_ERR_LS_HOME,                  //!< Trying to move backward while HOME limit switch is pressed
-    AXIS_ERR_LS_FAR,                   //<! Trying to move forward while FAR limit switch is pressed
+    AXIS_ERR_LS_FAR,                   //!< Trying to move forward while FAR limit switch is pressed
 } AxisResult;
+
+/*****************************************************************************/
+/*                             PUBLIC FUNCTIONS                              */
+/*****************************************************************************/
 
 void axis_setup(AxisId axis_id, const AxisIO *io);
 AxisResult axis_start(AxisId axis_id, AxisMotion *motion);
 void axis_stop(AxisId axis_id);
 void axis_reset(AxisId axis_id);
-
-uint32_t axis_get_position(AxisId axis_id);
 const AxisState *axis_get_state(AxisId axis_id);
 
 #endif // AXIS_H

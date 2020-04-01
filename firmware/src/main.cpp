@@ -50,7 +50,19 @@ const mPMTTestStandIO io = {
     }
 };
 
-mPMTTestStand test_stand(io);
+mPMTTestStandMotionConfig motion_config = {
+    .vel_start           = 500,    // starting velocity for all motion [steps / s]
+    .vel_home_a          = 10000,  // holding velocity for homing A [steps / s]
+    .vel_home_b          = 10000,  // holding velocity for homing B [steps / s]
+    .accel_home_a        = 5000,   // acceleration for homing A [steps / s^2]
+    .accel_home_b        = 5000,   // acceleration for homing B [steps / s^2]
+    .units = {
+        .counts_per_rev  = 800,    // For Igus gantry encoders
+        .steps_per_rev   = (200*4) // 200 * microstep = 200 * 4
+    }
+};
+
+mPMTTestStand test_stand(io, motion_config);
 
 uint32_t blink_start;
 bool blink_state;

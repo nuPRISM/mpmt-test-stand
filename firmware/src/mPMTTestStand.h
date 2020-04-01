@@ -6,13 +6,13 @@
 #include "TestStandCommController.h"
 #include "Thermistor10k.h"
 #include "Axis.h"
+#include "Movement.h"
 
 /* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
 
 /* **************************** System Includes **************************** */
 #include <Arduino.h>
-
 
 typedef struct {
     // Serial Devices
@@ -29,10 +29,20 @@ typedef struct {
     AxisIO io_axis_y;
 } mPMTTestStandIO;
 
+typedef struct {
+    uint32_t vel_start;
+    uint32_t vel_home_a;
+    uint32_t vel_home_b;
+    uint32_t accel_home_a;
+    uint32_t accel_home_b;
+    MotionUnits units;
+} mPMTTestStandMotionConfig;
+
 class mPMTTestStand
 {
     private:
         const mPMTTestStandIO& io;
+
         ArduinoSerialDevice comm_dev;
         TestStandCommController comm;
         Thermistor10k thermistor_ambient;
@@ -40,6 +50,8 @@ class mPMTTestStand
         Thermistor10k thermistor_mpmt;
         Thermistor10k thermistor_motor2;
         Thermistor10k thermistor_optical;
+
+        mPMTTestStandMotionConfig motion_config;
 
         Status status;
         bool home_a_done;
@@ -57,7 +69,7 @@ class mPMTTestStand
         void debug_dump();
 
     public:
-        mPMTTestStand(const mPMTTestStandIO& io);
+        mPMTTestStand(const mPMTTestStandIO& io, const mPMTTestStandMotionConfig& motion_config);
         void setup();
         void execute();
 };

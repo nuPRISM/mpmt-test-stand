@@ -57,7 +57,7 @@ mPMTTestStandMotionConfig motion_config = {
     .accel_home_a        = 5000,   // acceleration for homing A [steps / s^2]
     .accel_home_b        = 5000,   // acceleration for homing B [steps / s^2]
     .units = {
-        .counts_per_rev  = 800,    // For Igus gantry encoders
+        .counts_per_rev  = 500,    // For Igus gantry encoders
         .steps_per_rev   = (200*4) // 200 * microstep = 200 * 4
     }
 };

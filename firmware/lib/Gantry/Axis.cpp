@@ -1,6 +1,6 @@
 /* **************************** Local Includes ***************************** */
 #include "Axis.h"
-#include "Movement.h"
+#include "Kinematics.h"
 #include "Timer.h"
 
 /*****************************************************************************/
@@ -66,6 +66,11 @@ typedef struct {
     void (*const isr_ls_far)(void);   //!< ISR for the far limit switch interrupt
 } AxisInterrupts;
 
+typedef struct {
+    AxisMotionSpec spec;              //!< Specification for the current motion
+    VelProfile profile;               //!< Profile for the current motion [encoder counts]
+} AxisMotion;
+
 /**
  * @struct Axis
  * 
@@ -73,8 +78,9 @@ typedef struct {
  */
 typedef struct {
     AxisIO io;                         //!< I/O pins and peripherals
+    AxisMech mech;                     //!< Mechanical parameters
     const AxisInterrupts interrupts;   //!< Interrupt configurations
-    AxisMotion motion;                 //!< Profile for the current motion
+    AxisMotion motion;                 //!< Information about the current motion
     AxisState state;                   //!< Current state of the axis
 } Axis;
 
@@ -90,6 +96,7 @@ void isr_ls_far_x();
 
 static Axis axis_x = {
     .io = {},
+    .mech = {},
     .interrupts = {
         .timer            = TC1,
         .channel_accel    = 1,
@@ -110,6 +117,7 @@ void isr_ls_far_y();
 
 static Axis axis_y = {
     .io = {},
+    .mech = {},
     .interrupts = {
         .timer            = TC0,
         .channel_accel    = 1,
@@ -210,15 +218,29 @@ static void setup_interrupts(Axis *axis)
  * @param io   Pointer to an AxisIO struct with the I/O specifications
  *             for this axis
  */
-static void setup_axis(Axis *axis, const AxisIO *io)
+static void setup_axis(Axis *axis, const AxisIO *io, const AxisMech *mech)
 {
     axis->io = (*io);
+    axis->mech = (*mech);
 
     setup_pins(axis);
     setup_interrupts(axis);
 
     // reset in case encoder was accidentally triggered by noise on initialization
     reset_axis(axis);
+}
+
+static AxisResult validate_motion(Axis *axis, AxisMotionSpec *motion)
+{
+    // Reject if we're already moving - must call stop_axis first
+    if (axis->state.moving) return AXIS_ERR_ALREADY_MOVING;
+
+    // Reject if we've hit the far limit switch and are trying to move forward
+    if (motion->dir == DIR_POSITIVE && axis->state.ls_far_pressed) return AXIS_ERR_LS_FAR;
+    // Reject if we've hit the home limit switch and are trying to move backward
+    if (motion->dir == DIR_NEGATIVE && axis->state.ls_home_pressed) return AXIS_ERR_LS_HOME;
+
+    return AXIS_OK;
 }
 
 /**
@@ -228,42 +250,40 @@ static void setup_axis(Axis *axis, const AxisIO *io)
  * for the axis to start moving. If anything is invalid an error code will be returned.
  * 
  * @param axis   Pointer to the axis to start moving
- * @param motion Pointer to an AxisMotion struct specifying the motion to execute
+ * @param motion Pointer to an AxisMotionSpec struct specifying the motion to execute
  * 
  * @return The result of the request to start moving (either AXIS_OK or an appropriate
  *         error code)
  */
-static AxisResult start_axis(Axis *axis, AxisMotion *motion)
+static AxisResult start_axis(Axis *axis, AxisMotionSpec *motion)
 {
-    // Reject if the counts don't match the dir
-    if (motion->dir == DIR_POSITIVE &&
-        (motion->counts_accel < 0 || motion->counts_hold < 0 || motion->counts_decel < 0)) {
-           return AXIS_ERR_DIR_MISMATCH;
-    }
-    if (motion->dir == DIR_NEGATIVE &&
-        (motion->counts_accel > 0 || motion->counts_hold > 0 || motion->counts_decel > 0)) {
-           return AXIS_ERR_DIR_MISMATCH;
-    }
+    // Validate the motion
+    AxisResult validation = validate_motion(axis, motion);
+    if (validation != AXIS_OK) return validation;
 
-    // Reject if we're already moving - must call stop_axis first
-    if (axis->state.moving) return AXIS_ERR_ALREADY_MOVING;
+    // Convert from steps to counts
+    uint32_t accel = motion->accel * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
+    uint32_t vel_start = motion->vel_start * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
+    uint32_t vel_hold = motion->vel_hold * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
 
-    // Reject if we've hit the far limit switch and are trying to move forward
-    if (motion->dir == DIR_POSITIVE && axis->state.ls_far_pressed) return AXIS_ERR_LS_FAR;
-    // Reject if we've hit the home limit switch and are trying to move backward
-    if (motion->dir == DIR_NEGATIVE && axis->state.ls_home_pressed) return AXIS_ERR_LS_HOME;
+    // Generate velocity profile
+    bool valid_profile = generate_vel_profile(
+        (motion->dir == DIR_NEGATIVE),
+        accel, vel_start, vel_hold,
+        motion->total_counts,
+        &(axis->motion.profile));
+    if (!valid_profile) return AXIS_ERR_INVALID;
+
+    // Save motion spec
+    axis->motion.spec = (*motion);
 
     // Configure state
     axis->state.moving = true;
-    axis->state.velocity = motion->vel_start;
+    axis->state.velocity = axis->motion.spec.vel_start;
     axis->state.next_velocity = axis->state.velocity;
-    axis->state.velocity_segment = (motion->counts_accel == 0 ? VEL_SEG_HOLD : VEL_SEG_ACCELERATE);
-    axis->state.encoder_target = axis->state.encoder_current + motion->counts_accel
-                                 + (motion->counts_accel == 0 ? motion->counts_hold : 0);
-    axis->state.dir = motion->dir;
-
-    // Save motion spec
-    axis->motion = (*motion);
+    axis->state.velocity_segment = VEL_SEG_ACCELERATE;
+    axis->state.encoder_target = axis->state.encoder_current + axis->motion.profile.dist_accel;
+    axis->state.dir = axis->motion.spec.dir;
 
     // Drive direction pin
     digitalWrite(axis->io.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
@@ -281,7 +301,7 @@ static AxisResult start_axis(Axis *axis, AxisMotion *motion)
         axis->interrupts.timer,
         axis->interrupts.channel_accel,
         axis->interrupts.irq_accel,
-        axis->motion.accel);
+        axis->motion.spec.accel);
 
     return AXIS_OK;
 }
@@ -407,7 +427,7 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
         case VEL_SEG_ACCELERATE:
         {
             // Accelerate until we reach the holding velocity (however many counts that takes)
-            if (axis->state.next_velocity < axis->motion.vel_hold) {
+            if (axis->state.next_velocity < axis->motion.spec.vel_hold) {
                 axis->state.next_velocity++;
             }
             else {
@@ -415,7 +435,7 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
 
                 int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
                 axis->state.encoder_target = axis->state.encoder_current
-                                             + axis->motion.counts_hold
+                                             + axis->motion.profile.dist_hold
                                              + error_counts;
             }
             break;
@@ -428,7 +448,7 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
 
                 int32_t error_counts = axis->state.encoder_target - axis->state.encoder_current;
                 axis->state.encoder_target = axis->state.encoder_current
-                                             + axis->motion.counts_decel
+                                             + axis->motion.profile.dist_decel
                                              + error_counts;
             }
             break;
@@ -437,7 +457,7 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
         {
             if (!REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)) {
                 // Only decrement velocity if we're still above the starting velocity
-                if (axis->state.next_velocity > axis->motion.vel_start) {
+                if (axis->state.next_velocity > axis->motion.spec.vel_start) {
                     axis->state.next_velocity--;
                 }
             }
@@ -521,15 +541,15 @@ TC_ISR(IRQ_Y_AXIS_ACCEL)
 /**
  * @see setup_axis(Axis *axis, const AxisIO *io)
  */
-void axis_setup(AxisId axis_id, const AxisIO *io)
+void axis_setup(AxisId axis_id, const AxisIO *io, const AxisMech *mech)
 {
-    setup_axis(get_axis(axis_id), io);
+    setup_axis(get_axis(axis_id), io, mech);
 }
 
 /**
  * @see start_axis(Axis *axis, AxisMotion *motion)
  */
-AxisResult axis_start(AxisId axis_id, AxisMotion *motion)
+AxisResult axis_start(AxisId axis_id, AxisMotionSpec *motion)
 {
     return start_axis(get_axis(axis_id), motion);
 }

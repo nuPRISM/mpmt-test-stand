@@ -1,22 +1,19 @@
 /* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
-#include "Kinematics.h"
-#include "Movement.h"
 #include "Debug.h"
 
 /* ************************ Shared Project Includes ************************ */
 #include "macros.h"
 
-mPMTTestStand::mPMTTestStand(const mPMTTestStandIO& io, const mPMTTestStandMotionConfig& motion_config) :
-    io(io),
-    comm_dev(io.serial_comm),
+mPMTTestStand::mPMTTestStand(const mPMTTestStandConfig& conf) :
+    conf(conf),
+    comm_dev(conf.io.serial_comm),
     comm(this->comm_dev),
-    thermistor_ambient(io.pin_therm_amb),
-    thermistor_motor1(io.pin_therm_motor1),
-    thermistor_mpmt(io.pin_therm_mpmt),
-    thermistor_motor2(io.pin_therm_motor2),
-    thermistor_optical(io.pin_therm_optical),
-    motion_config(motion_config)
+    thermistor_ambient(conf.io.pin_therm_amb),
+    thermistor_motor1(conf.io.pin_therm_motor1),
+    thermistor_mpmt(conf.io.pin_therm_mpmt),
+    thermistor_motor2(conf.io.pin_therm_motor2),
+    thermistor_optical(conf.io.pin_therm_optical)
 {
     this->x_state = axis_get_state(AXIS_X);
     this->y_state = axis_get_state(AXIS_Y);
@@ -32,18 +29,18 @@ void mPMTTestStand::setup()
 
     // Thermistor pin configuration
     analogReadResolution(12); // enable 12 bit resolution mode in Arduino Due. Default is 10 bit.
-    pinMode(this->io.pin_therm_amb,     INPUT);
-    pinMode(this->io.pin_therm_motor1,  INPUT);
-    pinMode(this->io.pin_therm_mpmt,    INPUT);
-    pinMode(this->io.pin_therm_motor2,  INPUT);
-    pinMode(this->io.pin_therm_optical, INPUT);
+    pinMode(this->conf.io.pin_therm_amb,     INPUT);
+    pinMode(this->conf.io.pin_therm_motor1,  INPUT);
+    pinMode(this->conf.io.pin_therm_mpmt,    INPUT);
+    pinMode(this->conf.io.pin_therm_motor2,  INPUT);
+    pinMode(this->conf.io.pin_therm_optical, INPUT);
 
     // Connect serial communications
-    this->comm_dev.ser_connect(this->io.serial_comm_baud_rate);
+    this->comm_dev.ser_connect(this->conf.io.serial_comm_baud_rate);
 
     // Setup gantry axis control
-    axis_setup(AXIS_X, &(this->io.io_axis_x));
-    axis_setup(AXIS_Y, &(this->io.io_axis_y));
+    axis_setup(AXIS_X, &(this->conf.io.io_axis_x), &(this->conf.gantry.axis_mech));
+    axis_setup(AXIS_Y, &(this->conf.io.io_axis_y), &(this->conf.gantry.axis_mech));
 
     // Wait until we can successfully ping the host
     while (!(this->comm.ping())) {
@@ -55,17 +52,34 @@ void mPMTTestStand::setup()
     this->status = STATUS_IDLE;
 }
 
-void mPMTTestStand::handle_home()
+void mPMTTestStand::handle_home_a()
 {
-    MotionShape shape = {
-        .accel = this->motion_config.accel_home_a,
-        .vel_start = this->motion_config.vel_start,
-        .vel_hold = this->motion_config.vel_home_a
+    AxisMotionSpec motion = {
+        .dir          = DIR_NEGATIVE,
+        .total_counts = INT32_MAX,
+        .accel        = this->conf.gantry.accel_home_a,
+        .vel_start    = this->conf.gantry.vel_start,
+        .vel_hold     = this->conf.gantry.vel_home_a
     };
 
-    move_axis_home_a(AXIS_X, shape, this->motion_config.units);
-    move_axis_home_a(AXIS_Y, shape, this->motion_config.units);
+    axis_start(AXIS_X, &motion);
+    axis_start(AXIS_Y, &motion);
     this->home_a_done = false;
+    this->status = STATUS_HOMING;
+}
+
+void mPMTTestStand::handle_home_b()
+{
+    AxisMotionSpec motion = {
+        .dir          = DIR_POSITIVE,
+        .total_counts = INT32_MAX,
+        .accel        = this->conf.gantry.accel_home_b,
+        .vel_start    = this->conf.gantry.vel_start,
+        .vel_hold     = this->conf.gantry.vel_home_b
+    };
+    axis_start(AXIS_X, &motion);
+    axis_start(AXIS_Y, &motion);
+    this->home_a_done = true;
     this->status = STATUS_HOMING;
 }
 
@@ -84,13 +98,15 @@ void mPMTTestStand::handle_move()
     axis_id  = (AxisId)data[12];
     dir      = (Direction)data[13];
 
-    MotionShape shape = {
-        .accel = accel,
-        .vel_start = this->motion_config.vel_start,
-        .vel_hold = vel_hold
+    AxisMotionSpec motion = {
+        .dir          = dir,
+        .total_counts = dist,
+        .accel        = accel,
+        .vel_start    = this->conf.gantry.vel_start,
+        .vel_hold     = vel_hold
     };
 
-    if (move_axis_rel(axis_id, dir, dist, shape, this->motion_config.units)) {
+    if (axis_start(axis_id, &motion) == AXIS_OK) {
         this->status = STATUS_MOVING;
     }
 }
@@ -181,19 +197,10 @@ void mPMTTestStand::execute()
                     this->status = STATUS_HOMING;
                 }
                 else if (this->x_state->ls_home_pressed && this->y_state->ls_home_pressed) {
-                    this->status = STATUS_HOMING;
-                    
-                    MotionShape shape = {
-                        .accel = this->motion_config.accel_home_b,
-                        .vel_start = this->motion_config.vel_start,
-                        .vel_hold = this->motion_config.vel_home_b
-                    };
-                    move_axis_home_b(AXIS_X, shape, this->motion_config.units);
-                    move_axis_home_b(AXIS_Y, shape, this->motion_config.units);
-                    this->home_a_done = true;
+                    handle_home_b();
                 }
                 else {
-                    // If both axis stopped moving but one of the home limit switches isn't pressed
+                    // If both axes stopped moving but one of the home limit switches isn't pressed
                     // something has gone wrong so enter FAULT state
                     this->status = STATUS_FAULT;
                 }
@@ -222,7 +229,7 @@ void mPMTTestStand::execute()
         DEBUG_PRINT_VAL("Received Message w/ ID", id);
         switch (id) {
             case MSG_ID_HOME:
-                this->handle_home();
+                this->handle_home_a();
                 break;
             case MSG_ID_MOVE:
                 this->handle_move();

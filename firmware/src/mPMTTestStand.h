@@ -6,7 +6,6 @@
 #include "TestStandCommController.h"
 #include "Thermistor10k.h"
 #include "Axis.h"
-#include "Movement.h"
 
 /* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
@@ -27,21 +26,26 @@ typedef struct {
     // Gantry Axis Pins
     AxisIO io_axis_x;
     AxisIO io_axis_y;
-} mPMTTestStandIO;
+} mPMTTestStandIOConfig;
 
 typedef struct {
+    AxisMech axis_mech;
     uint32_t vel_start;
     uint32_t vel_home_a;
     uint32_t vel_home_b;
     uint32_t accel_home_a;
     uint32_t accel_home_b;
-    MotionUnits units;
-} mPMTTestStandMotionConfig;
+} mPMTTestStandGantryConfig;
+
+typedef struct {
+    mPMTTestStandIOConfig io;
+    mPMTTestStandGantryConfig gantry;
+} mPMTTestStandConfig;
 
 class mPMTTestStand
 {
     private:
-        const mPMTTestStandIO& io;
+        const mPMTTestStandConfig& conf;
 
         ArduinoSerialDevice comm_dev;
         TestStandCommController comm;
@@ -51,15 +55,14 @@ class mPMTTestStand
         Thermistor10k thermistor_motor2;
         Thermistor10k thermistor_optical;
 
-        mPMTTestStandMotionConfig motion_config;
-
         Status status;
         bool home_a_done;
 
         const AxisState *x_state;
         const AxisState *y_state;
 
-        void handle_home();
+        void handle_home_a();
+        void handle_home_b();
         void handle_move();
         void handle_stop();
         void handle_get_status();
@@ -69,7 +72,7 @@ class mPMTTestStand
         void debug_dump();
 
     public:
-        mPMTTestStand(const mPMTTestStandIO& io, const mPMTTestStandMotionConfig& motion_config);
+        mPMTTestStand(const mPMTTestStandConfig& conf);
         void setup();
         void execute();
 };

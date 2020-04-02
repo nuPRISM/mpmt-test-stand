@@ -6,63 +6,64 @@
 /* **************************** System Includes **************************** */
 #include <Arduino.h>
 
-const mPMTTestStandIO io = {
-    // Serial Devices
-    .serial_comm            = Serial,
-    .serial_comm_baud_rate  = 115200,
-    // Thermistor Pins
-    .pin_therm_amb          = A0,
-    .pin_therm_motor1       = A1,
-    .pin_therm_mpmt         = A2,
-    .pin_therm_motor2       = A3,
-    .pin_therm_optical      = A4,
-    // Gantry X-Axis Pins
-    .io_axis_x = {
-        // Step output will use TC2 Channel 0 which is mapped to IRQ TC6
-        // TIOA output for this timer channel is on PC25 = Due pin 5
-        .tc_step            = TC2,
-        .tc_step_channel    = 0,
-        .tc_step_irq        = TC_IRQN(AXIS_X_STEP_TC_IRQ), // NOTE: AXIS_X_STEP_TC_IRQ is defined in platformio.ini
-        .pio_step           = PIOC,
-        .pio_step_periph    = PIO_PERIPH_B,
-        .pio_step_pin_mask  = PIO_PC25B_TIOA6,
-        .pin_dir            = 6, // PC24
-        .pin_enc_a          = 7,
-        .pin_enc_b          = 8,
-        .pin_ls_home        = 9,
-        .pin_ls_far         = 10,
+const mPMTTestStandConfig conf = {
+    .io = {
+        // Serial Devices
+        .serial_comm            = Serial,
+        .serial_comm_baud_rate  = 115200,
+        // Thermistor Pins
+        .pin_therm_amb          = A0,
+        .pin_therm_motor1       = A1,
+        .pin_therm_mpmt         = A2,
+        .pin_therm_motor2       = A3,
+        .pin_therm_optical      = A4,
+        // Gantry X-Axis Pins
+        .io_axis_x = {
+            // Step output will use TC2 Channel 0 which is mapped to IRQ TC6
+            // TIOA output for this timer channel is on PC25 = Due pin 5
+            .tc_step            = TC2,
+            .tc_step_channel    = 0,
+            .tc_step_irq        = TC_IRQN(AXIS_X_STEP_TC_IRQ), // NOTE: AXIS_X_STEP_TC_IRQ is defined in platformio.ini
+            .pio_step           = PIOC,
+            .pio_step_periph    = PIO_PERIPH_B,
+            .pio_step_pin_mask  = PIO_PC25B_TIOA6,
+            .pin_dir            = 6, // PC24
+            .pin_enc_a          = 7,
+            .pin_enc_b          = 8,
+            .pin_ls_home        = 9,
+            .pin_ls_far         = 10,
+        },
+        // Gantry Y-Axis Pins
+        .io_axis_y = {
+            // Step output will use TC2 Channel 1 which is mapped to IRQ TC7
+            // TIOA output for this timer channel is on PC28 = Due pin 3
+            .tc_step            = TC2,
+            .tc_step_channel    = 1,
+            .tc_step_irq        = TC_IRQN(AXIS_Y_STEP_TC_IRQ), // NOTE: AXIS_Y_STEP_TC_IRQ is defined in platformio.ini
+            .pio_step           = PIOC,
+            .pio_step_periph    = PIO_PERIPH_B,
+            .pio_step_pin_mask  = PIO_PC28B_TIOA7,
+            .pin_dir            = 23, // PA14
+            .pin_enc_a          = 24,
+            .pin_enc_b          = 25,
+            .pin_ls_home        = 26,
+            .pin_ls_far         = 27
+        }
     },
-    // Gantry Y-Axis Pins
-    .io_axis_y = {
-        // Step output will use TC2 Channel 1 which is mapped to IRQ TC7
-        // TIOA output for this timer channel is on PC28 = Due pin 3
-        .tc_step            = TC2,
-        .tc_step_channel    = 1,
-        .tc_step_irq        = TC_IRQN(AXIS_Y_STEP_TC_IRQ), // NOTE: AXIS_Y_STEP_TC_IRQ is defined in platformio.ini
-        .pio_step           = PIOC,
-        .pio_step_periph    = PIO_PERIPH_B,
-        .pio_step_pin_mask  = PIO_PC28B_TIOA7,
-        .pin_dir            = 23, // PA14
-        .pin_enc_a          = 24,
-        .pin_enc_b          = 25,
-        .pin_ls_home        = 26,
-        .pin_ls_far         = 27
+    .gantry = {
+        .axis_mech = {
+            .counts_per_rev     = 800,    // For Igus gantry encoders
+            .steps_per_rev      = (200*4) // 200 * microstep = 200 * 4
+        },
+        .vel_start              = 500,    // starting velocity for all motion [steps / s]
+        .vel_home_a             = 10000,  // holding velocity for homing A [steps / s]
+        .vel_home_b             = 10000,  // holding velocity for homing B [steps / s]
+        .accel_home_a           = 5000,   // acceleration for homing A [steps / s^2]
+        .accel_home_b           = 5000    // acceleration for homing B [steps / s^2]
     }
 };
 
-mPMTTestStandMotionConfig motion_config = {
-    .vel_start           = 500,    // starting velocity for all motion [steps / s]
-    .vel_home_a          = 10000,  // holding velocity for homing A [steps / s]
-    .vel_home_b          = 10000,  // holding velocity for homing B [steps / s]
-    .accel_home_a        = 5000,   // acceleration for homing A [steps / s^2]
-    .accel_home_b        = 5000,   // acceleration for homing B [steps / s^2]
-    .units = {
-        .counts_per_rev  = 500,    // For Igus gantry encoders
-        .steps_per_rev   = (200*4) // 200 * microstep = 200 * 4
-    }
-};
-
-mPMTTestStand test_stand(io, motion_config);
+mPMTTestStand test_stand(conf);
 
 uint32_t blink_start;
 bool blink_state;

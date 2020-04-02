@@ -5,13 +5,13 @@
 
 typedef enum {
     PRESSED = LOW,
-    UPRESSED = HIGH
+    UNRESSED = HIGH
 } LimitSwitchStatus;
 
 typedef struct PseudoLimitSwitch
 {
-    uint32_t current_position;
-    uint32_t max_allowed_position;
+    uint32_t output_pin;
+    uint32_t status;
 } PseudoLimitSwitch;
 
 

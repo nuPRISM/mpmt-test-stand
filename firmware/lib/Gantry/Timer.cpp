@@ -53,8 +53,8 @@ void configure_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, Pio *pio, EPio
     // TC_CMR_WAVE         : Use Waveform Mode i.e. generate PWM signal
     // TC_CMR_WAVSEL_UP_RC : Counter increments from 0 up to RC then resets
     // TIMER_CLOCK_SOURCE  : Set clock source for timer (see table above)
-    // TC_CMR_ACPA_SET     : When counter = RA, TIOA -> 1
-    // TC_CMR_ACPC_CLEAR   : When counter = RC, TIOA -> 0
+    // TC_CMR_ACPA_SET     : When counter == RA, TIOA -> 1
+    // TC_CMR_ACPC_CLEAR   : When counter == RC, TIOA -> 0
     TC_Configure(tc, channel,
         TC_CMR_WAVE         |
         TC_CMR_WAVSEL_UP_RC |

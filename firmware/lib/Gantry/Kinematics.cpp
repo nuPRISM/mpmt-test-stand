@@ -2,19 +2,6 @@
 
 #include <math.h>
 
-// /**
-//  * @brief Calculate the square of the expected velocity after accelerating for a specified distance
-//  * 
-//  * @param accel          The acceleration rate [motor steps / s^2]
-//  * @param v_min          The starting velocity [motor steps / s]
-//  * @param elapsed_counts The elapsed number of encoder counts
-//  */
-// uint32_t calc_expected_velocity(uint32_t accel, uint32_t v_min, uint32_t elapsed_counts)
-// {
-//     uint32_t elapsed_steps = elapsed_counts * MOTOR_STEPS_PER_REV / ENCODER_COUNTS_PER_REV;
-//     return (uint32_t)sqrt((2 * accel * elapsed_steps) + (v_min * v_min));
-// }
-
 /**
  * @brief Calculate the distance you must travel while accelerating at rate a from v_0 to reach v_f
  * 

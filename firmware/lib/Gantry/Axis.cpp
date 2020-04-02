@@ -28,7 +28,7 @@
     (((_dir) == DIR_POSITIVE && (_cur) >= (_tar)) || \
     ((_dir) == DIR_NEGATIVE && (_cur) <= (_tar)))
 
-/** Maximum allowed velocity for an axis */
+/** Maximum allowed velocity for an axis [motor steps / second] */
 #define VEL_MAX                25000
 
 /** Percentage of time the velocity PWM signal is ON */
@@ -244,12 +244,6 @@ static AxisResult start_axis(Axis *axis, AxisMotion *motion)
         (motion->counts_accel > 0 || motion->counts_hold > 0 || motion->counts_decel > 0)) {
            return AXIS_ERR_DIR_MISMATCH;
     }
-
-    uint32_t total_counts_abs = abs(motion->counts_accel
-                                    + motion->counts_hold
-                                    + motion->counts_decel);
-    // Reject a zero-distance motion
-    if (total_counts_abs == 0) return AXIS_ERR_ZERO_DIST;
 
     // Reject if we're already moving - must call stop_axis first
     if (axis->state.moving) return AXIS_ERR_ALREADY_MOVING;

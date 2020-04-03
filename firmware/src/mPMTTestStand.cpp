@@ -224,7 +224,7 @@ void mPMTTestStand::execute()
     }
 
     // Check for any messages
-    if (this->comm.check_for_message()) {
+    if (this->comm.check_for_message() == SERIAL_OK) {
         uint8_t id = this->comm.received_message().id;
         DEBUG_PRINT_VAL("Received Message w/ ID", id);
         switch (id) {

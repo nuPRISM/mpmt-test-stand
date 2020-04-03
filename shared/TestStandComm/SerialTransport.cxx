@@ -1,10 +1,20 @@
 #include "SerialTransport.h"
 
+/**
+ * @brief Constructs a new SerialTransport
+ * 
+ * @param device The underlying SerialDevice that will be used for transmitting / receiving data
+ */
 SerialTransport::SerialTransport(SerialDevice& device) : device(device)
 {
     this->reset();
 }
 
+/**
+ * @brief Resets the state of the receiver state machine
+ * 
+ * Any in progress message data is discarded.
+ */
 void SerialTransport::reset()
 {
     this->pending_message.current_segment = MSG_SEG_START;
@@ -15,6 +25,25 @@ void SerialTransport::reset()
     this->msg_in_progress = false;
 }
 
+/**
+ * @brief Checks if a full message has been received
+ * 
+ * This method is non-blocking. It will read the currently available serial data and
+ * process it into a partial or fully complete Message.
+ * Sequential calls to this method will continue to build off a previous partial message
+ * until it is complete.
+ * 
+ * As soon as a message is complete, this method will return (even if there is more serial data
+ * available), so a subsequent call will be required to process the leftover data.
+ * 
+ * This method is intended to be called in a loop so the serial buffer is regularly cleared
+ * and full Messages are identified as they arrive.
+ * 
+ * @param msg As serial data comes in, the processed fields will be placed into
+ *            this Message reference
+ * 
+ * @return true if a full message has been received (msg will be complete), otherwise false
+ */
 bool SerialTransport::check_for_message(Message& msg)
 {
     uint32_t avail;
@@ -76,6 +105,17 @@ bool SerialTransport::check_for_message(Message& msg)
     return false;
 }
 
+/**
+ * @brief Waits until a full message has been received
+ * 
+ * This is blocking version of check_for_message that will repeatedly call
+ * check_for_message until a full message has been received or the timeout has elapsed.
+ * 
+ * @param msg        The received Message will be placed here
+ * @param timeout_ms The timeout in milliseconds
+ * 
+ * @return true if a full message was received before the timeout, otherwise false
+ */
 bool SerialTransport::recv_message(Message& msg, uint32_t timeout_ms)
 {
     uint32_t time_start = this->device.platform_millis();
@@ -92,6 +132,14 @@ bool SerialTransport::recv_message(Message& msg, uint32_t timeout_ms)
     return true;
 }
 
+/**
+ * @brief Sends a message
+ * 
+ * @param msg The message to send
+ * 
+ * @return true if the entirety of the message was successfully sent
+ *         false if any part of the message failed to send
+ */
 bool SerialTransport::send_message(Message& msg)
 {
     uint8_t byte_out;

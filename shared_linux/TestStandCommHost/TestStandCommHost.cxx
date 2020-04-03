@@ -7,22 +7,22 @@ TestStandCommHost::TestStandCommHost(SerialDevice& device) : TestStandComm(devic
     // Nothing else to do
 }
 
-bool TestStandCommHost::ping()
+SerialResult TestStandCommHost::ping()
 {
     return this->send_basic_msg(MSG_ID_PING);
 }
 
-bool TestStandCommHost::get_status()
+SerialResult TestStandCommHost::get_status()
 {
     return this->send_basic_msg(MSG_ID_GET_STATUS);
 }
 
-bool TestStandCommHost::home()
+SerialResult TestStandCommHost::home()
 {
     return this->send_basic_msg(MSG_ID_HOME);
 }
 
-bool TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, Direction dir)
+SerialResult TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, Direction dir)
 {
     // Transmit in big endian order
     uint8_t data[14];
@@ -40,12 +40,12 @@ bool TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, A
     return this->session.send_message(msg);
 }
 
-bool TestStandCommHost::stop()
+SerialResult TestStandCommHost::stop()
 {
     return this->send_basic_msg(MSG_ID_STOP);
 }
 
-bool TestStandCommHost::get_data(DataId data_id)
+SerialResult TestStandCommHost::get_data(DataId data_id)
 {
     Message msg = {
         .id = MSG_ID_GET_DATA,

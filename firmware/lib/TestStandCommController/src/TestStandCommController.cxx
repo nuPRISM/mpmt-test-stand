@@ -8,12 +8,12 @@ TestStandCommController::TestStandCommController(SerialDevice& device) : TestSta
     // Nothing else to do
 }
 
-bool TestStandCommController::ping()
+SerialResult TestStandCommController::ping()
 {
     return this->send_basic_msg(MSG_ID_PING);
 }
 
-bool TestStandCommController::log(LogLevel log_level, const char *fmt, ...)
+SerialResult TestStandCommController::log(LogLevel log_level, const char *fmt, ...)
 {
     send_buf[0] = (uint8_t)log_level;
 
@@ -30,7 +30,7 @@ bool TestStandCommController::log(LogLevel log_level, const char *fmt, ...)
     return this->session.send_message(msg);
 }
 
-bool TestStandCommController::status(Status status)
+SerialResult TestStandCommController::status(Status status)
 {
     uint8_t status8 = (uint8_t)status;
     Message msg = {
@@ -41,7 +41,7 @@ bool TestStandCommController::status(Status status)
     return this->session.send_message(msg);
 }
 
-bool TestStandCommController::data(uint8_t *data, uint8_t length)
+SerialResult TestStandCommController::data(uint8_t *data, uint8_t length)
 {
     Message msg = {
         .id = MSG_ID_DATA,

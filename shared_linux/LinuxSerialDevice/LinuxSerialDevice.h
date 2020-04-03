@@ -5,6 +5,11 @@
 
 #include <string>
 
+/**
+ * @class LinuxSerialDevice
+ * 
+ * @brief Implementation of SerialDevice for Linux
+ */
 class LinuxSerialDevice: public SerialDevice
 {
     private:

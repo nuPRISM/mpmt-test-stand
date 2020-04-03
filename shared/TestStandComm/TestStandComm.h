@@ -5,6 +5,17 @@
 #include "SerialTransport.h"
 #include "SerialSession.h"
 
+/**
+ * @class TestStandComm
+ * 
+ * @brief Application layer of the serial communication protocol
+ * 
+ * This layer is responsible for single and multi-message exchanges between devices
+ * and interpreting / constructing data payloads for the messages.
+ * 
+ * This class is meant to be extended on each device with implementations for that device's
+ * portion of the application layer.
+ */
 class TestStandComm
 {
     private:
@@ -15,14 +26,14 @@ class TestStandComm
         SerialTransport transport;
 
     protected:
-        bool send_basic_msg(uint8_t id);
+        SerialResult send_basic_msg(uint8_t id);
         SerialSession session;
 
     public:
         TestStandComm(SerialDevice& device);
 
-        bool check_for_message();
-        bool recv_message(uint32_t timeout_ms);
+        SerialResult check_for_message();
+        SerialResult recv_message(uint32_t timeout_ms);
         Message& received_message();
 
 };

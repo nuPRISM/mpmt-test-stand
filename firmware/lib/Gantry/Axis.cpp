@@ -197,16 +197,18 @@ static void setup_interrupts(Axis *axis)
                     RISING);
 
     // Debounce and attach interrupt to HOME limit switch
+    // HOME limit switch should trigger on both edges since it is used for initial position calibration
     setup_debouncing(axis->io.pin_ls_home, DEBOUNCE_FILTER_MS);
     attachInterrupt(digitalPinToInterrupt(axis->io.pin_ls_home),
                     axis->interrupts.isr_ls_home,
                     CHANGE);
 
     // Debounce and attach interrupt to FAR limit switch
+    // FAR limit switch should only trigger when pressed
     setup_debouncing(axis->io.pin_ls_far, DEBOUNCE_FILTER_MS);
     attachInterrupt(digitalPinToInterrupt(axis->io.pin_ls_far),
                     axis->interrupts.isr_ls_far,
-                    CHANGE);
+                    (axis->io.ls_pressed_state == LOW ? FALLING : RISING));
 }
 
 /**
@@ -384,8 +386,7 @@ static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
 static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 {
     stop_axis(axis);
-    // Limit switch reads LOW when pressed
-    axis->state.ls_home_pressed = (digitalRead(axis->io.pin_ls_home) == LOW);
+    axis->state.ls_home_pressed = (digitalRead(axis->io.pin_ls_home) == axis->io.ls_pressed_state);
 }
 
 /**
@@ -396,8 +397,7 @@ static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 static __attribute__((always_inline)) inline void handle_isr_ls_far(Axis *axis)
 {
     stop_axis(axis);
-    // Limit switch reads LOW when pressed
-    axis->state.ls_far_pressed = (digitalRead(axis->io.pin_ls_far) == LOW);
+    axis->state.ls_far_pressed = (digitalRead(axis->io.pin_ls_far) == axis->io.ls_pressed_state);
 }
 
 static __attribute__((always_inline)) inline void handle_isr_step(Axis *axis)

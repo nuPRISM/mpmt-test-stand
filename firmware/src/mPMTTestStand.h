@@ -19,9 +19,9 @@ typedef struct {
     uint32_t serial_comm_baud_rate;
     // Thermistor Pins
     uint8_t pin_therm_amb;
-    uint8_t pin_therm_motor1;
+    uint8_t pin_therm_motor_x;
     uint8_t pin_therm_mpmt;
-    uint8_t pin_therm_motor2;
+    uint8_t pin_therm_motor_y;
     uint8_t pin_therm_optical;
     // Gantry Axis Pins
     AxisIO io_axis_x;

@@ -10,9 +10,9 @@ mPMTTestStand::mPMTTestStand(const mPMTTestStandConfig& conf) :
     comm_dev(conf.io.serial_comm),
     comm(this->comm_dev),
     thermistor_ambient(conf.io.pin_therm_amb),
-    thermistor_motor1(conf.io.pin_therm_motor1),
+    thermistor_motor1(conf.io.pin_therm_motor_x),
     thermistor_mpmt(conf.io.pin_therm_mpmt),
-    thermistor_motor2(conf.io.pin_therm_motor2),
+    thermistor_motor2(conf.io.pin_therm_motor_y),
     thermistor_optical(conf.io.pin_therm_optical)
 {
     this->x_state = axis_get_state(AXIS_X);
@@ -30,9 +30,9 @@ void mPMTTestStand::setup()
     // Thermistor pin configuration
     analogReadResolution(12); // enable 12 bit resolution mode in Arduino Due. Default is 10 bit.
     pinMode(this->conf.io.pin_therm_amb,     INPUT);
-    pinMode(this->conf.io.pin_therm_motor1,  INPUT);
+    pinMode(this->conf.io.pin_therm_motor_x, INPUT);
     pinMode(this->conf.io.pin_therm_mpmt,    INPUT);
-    pinMode(this->conf.io.pin_therm_motor2,  INPUT);
+    pinMode(this->conf.io.pin_therm_motor_y, INPUT);
     pinMode(this->conf.io.pin_therm_optical, INPUT);
 
     // Connect serial communications

@@ -13,9 +13,9 @@ const mPMTTestStandConfig conf = {
         .serial_comm_baud_rate  = 115200,
         // Thermistor Pins
         .pin_therm_amb          = A0,
-        .pin_therm_motor1       = A1,
+        .pin_therm_motor_x      = A1,
         .pin_therm_mpmt         = A2,
-        .pin_therm_motor2       = A3,
+        .pin_therm_motor_y      = A3,
         .pin_therm_optical      = A4,
         // Gantry X-Axis Pins
         .io_axis_x = {
@@ -26,12 +26,13 @@ const mPMTTestStandConfig conf = {
             .tc_step_irq        = TC_IRQN(AXIS_X_STEP_TC_IRQ), // NOTE: AXIS_X_STEP_TC_IRQ is defined in platformio.ini
             .pio_step           = PIOC,
             .pio_step_periph    = PIO_PERIPH_B,
-            .pio_step_pin_mask  = PIO_PC25B_TIOA6,
-            .pin_dir            = 6, // PC24
+            .pio_step_pin_mask  = PIO_PC25B_TIOA6, // Due pin 5
+            .pin_dir            = 6,
             .pin_enc_a          = 7,
             .pin_enc_b          = 8,
             .pin_ls_home        = 9,
             .pin_ls_far         = 10,
+            .ls_pressed_state   = LOW
         },
         // Gantry Y-Axis Pins
         .io_axis_y = {
@@ -42,17 +43,18 @@ const mPMTTestStandConfig conf = {
             .tc_step_irq        = TC_IRQN(AXIS_Y_STEP_TC_IRQ), // NOTE: AXIS_Y_STEP_TC_IRQ is defined in platformio.ini
             .pio_step           = PIOC,
             .pio_step_periph    = PIO_PERIPH_B,
-            .pio_step_pin_mask  = PIO_PC28B_TIOA7,
+            .pio_step_pin_mask  = PIO_PC28B_TIOA7, // Due pin 3
             .pin_dir            = 23, // PA14
             .pin_enc_a          = 24,
             .pin_enc_b          = 25,
             .pin_ls_home        = 26,
-            .pin_ls_far         = 27
+            .pin_ls_far         = 27,
+            .ls_pressed_state   = LOW
         }
     },
     .gantry = {
         .axis_mech = {
-            .counts_per_rev     = 800,    // For Igus gantry encoders
+            .counts_per_rev     = 500,    // For Igus gantry encoders
             .steps_per_rev      = (200*4) // 200 * microstep = 200 * 4
         },
         .vel_start              = 500,    // starting velocity for all motion [steps / s]

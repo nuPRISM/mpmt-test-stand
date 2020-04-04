@@ -52,6 +52,12 @@ void mPMTTestStand::setup()
     this->status = STATUS_IDLE;
 }
 
+/**
+ * @brief Handles the first part of the homing routine (part A)
+ * 
+ * Drives both axes in the negative direction until the home limit
+ * switch is pressed.
+ */
 void mPMTTestStand::handle_home_a()
 {
     AxisMotionSpec motion = {
@@ -68,6 +74,12 @@ void mPMTTestStand::handle_home_a()
     this->status = STATUS_HOMING;
 }
 
+/**
+ * @brief Handles the second part of the homing routine (part B)
+ * 
+ * Drives both axes in the positive direction until the home limit
+ * switch is released.
+ */
 void mPMTTestStand::handle_home_b()
 {
     AxisMotionSpec motion = {

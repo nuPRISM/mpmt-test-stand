@@ -16,12 +16,12 @@ class SerialTransport
 {
     private:
         typedef enum {
-            MSG_SEG_START    = 0,
-            MSG_SEG_ID       = 1,
-            MSG_SEG_LENGTH   = 2,
-            MSG_SEG_DATA     = 3,
-            MSG_SEG_CRC      = 4,
-            MSG_SEG_END      = 5
+            MSG_SEG_START,
+            MSG_SEG_ID,
+            MSG_SEG_LENGTH,
+            MSG_SEG_DATA,
+            MSG_SEG_CRC,
+            MSG_SEG_END
         } MessageSegment;
 
         typedef struct {

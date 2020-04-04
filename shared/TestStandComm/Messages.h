@@ -35,6 +35,14 @@
 #define MSG_ID_AXIS_STATE       0x83
 #define MSG_ID_TEMP             0x84
 
+typedef enum {
+    LL_DEBUG,
+    LL_INFO,
+    LL_WARNING,
+    LL_ERROR,
+    LL_CRITICAL
+} LogLevel;
+
 typedef struct {
     uint8_t id;
     uint8_t length;

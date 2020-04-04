@@ -51,7 +51,7 @@ bool SerialTransport::check_for_message(Message& msg)
         uint8_t byte_in;
         while (avail > 0) {
             // Read next byte in
-            byte_in = this->device.ser_read();
+            if (!this->device.ser_read(&byte_in)) break;
             avail--;
 
             switch (this->pending_message.current_segment) {

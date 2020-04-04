@@ -2,6 +2,7 @@
 #define TEST_STAND_COMM_HOST_H
 
 #include "TestStandComm.h"
+#include "Gantry.h"
 
 #include "shared_defs.h"
 
@@ -23,7 +24,7 @@ class TestStandCommHost : public TestStandComm
         SerialResult ping();
         SerialResult get_status(Status *status_out, uint32_t timeout_ms);
         SerialResult home();
-        SerialResult move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, Direction dir);
+        SerialResult move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, AxisDirection dir);
         SerialResult stop();
         SerialResult get_position(Position *position_out, uint32_t timeout_ms);
 };

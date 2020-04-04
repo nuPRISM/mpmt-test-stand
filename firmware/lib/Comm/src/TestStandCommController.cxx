@@ -20,12 +20,12 @@ SerialResult TestStandCommController::log(LogLevel log_level, const char *fmt, .
 
     va_list args;
     va_start(args, fmt);
-    uint8_t length = vsnprintf((char *)(send_buf + 1), (MSG_DATA_LENGTH_MAX - 1), fmt, args);
+    uint8_t length = (uint8_t)vsnprintf((char *)(send_buf + 1), (MSG_DATA_LENGTH_MAX - 1), fmt, args);
     va_end(args);
 
     Message msg = {
         .id = MSG_ID_LOG,
-        .length = (1 + length + 1), // 1 byte for log level + string length
+        .length = (uint8_t)(1 + length + 1), // 1 byte for log level + string length
         .data = send_buf
     };
     return this->session.send_message(msg);

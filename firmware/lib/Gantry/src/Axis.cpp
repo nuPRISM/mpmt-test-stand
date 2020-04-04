@@ -24,9 +24,9 @@
 #define DEBOUNCE_FILTER_MS     50
 
 /** Macro to determine if we've reached a target encoder count based on direction */
-#define REACHED_TARGET(_dir, _cur, _tar)             \
-    (((_dir) == DIR_POSITIVE && (_cur) >= (_tar)) || \
-    ((_dir) == DIR_NEGATIVE && (_cur) <= (_tar)))
+#define REACHED_TARGET(_dir, _cur, _tar)                  \
+    (((_dir) == AXIS_DIR_POSITIVE && (_cur) >= (_tar)) || \
+    ((_dir) == AXIS_DIR_NEGATIVE && (_cur) <= (_tar)))
 
 /** Maximum allowed velocity for an axis [motor steps / second] */
 #define VEL_MAX                25000
@@ -238,9 +238,9 @@ static AxisResult validate_motion(Axis *axis, AxisMotionSpec *motion)
     if (axis->state.moving) return AXIS_ERR_ALREADY_MOVING;
 
     // Reject if we've hit the far limit switch and are trying to move forward
-    if (motion->dir == DIR_POSITIVE && axis->state.ls_far_pressed) return AXIS_ERR_LS_FAR;
+    if (motion->dir == AXIS_DIR_POSITIVE && axis->state.ls_far_pressed) return AXIS_ERR_LS_FAR;
     // Reject if we've hit the home limit switch and are trying to move backward
-    if (motion->dir == DIR_NEGATIVE && axis->state.ls_home_pressed) return AXIS_ERR_LS_HOME;
+    if (motion->dir == AXIS_DIR_NEGATIVE && axis->state.ls_home_pressed) return AXIS_ERR_LS_HOME;
 
     return AXIS_OK;
 }
@@ -270,7 +270,7 @@ static AxisResult start_axis(Axis *axis, AxisMotionSpec *motion)
 
     // Generate velocity profile
     bool valid_profile = generate_vel_profile(
-        (motion->dir == DIR_NEGATIVE),
+        (motion->dir == AXIS_DIR_NEGATIVE),
         accel, vel_start, vel_hold,
         motion->total_counts,
         &(axis->motion.profile));
@@ -288,7 +288,7 @@ static AxisResult start_axis(Axis *axis, AxisMotionSpec *motion)
     axis->state.dir = axis->motion.spec.dir;
 
     // Drive direction pin
-    digitalWrite(axis->io.pin_dir, (axis->state.dir == DIR_POSITIVE ? LOW : HIGH));
+    digitalWrite(axis->io.pin_dir, (axis->state.dir == AXIS_DIR_POSITIVE ? LOW : HIGH));
 
     // Start velocity PWM timer
     reset_pwm_timer(
@@ -340,7 +340,7 @@ static void reset_axis(Axis *axis)
     axis->state.velocity = 0;
     axis->state.encoder_current = 0;
     axis->state.encoder_target = 0;
-    axis->state.dir = DIR_POSITIVE;
+    axis->state.dir = AXIS_DIR_POSITIVE;
 }
 
 /**
@@ -374,8 +374,8 @@ static Axis *get_axis(AxisId axis_id)
  */
 static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
 {
-    if (axis->state.dir == DIR_POSITIVE) axis->state.encoder_current++;
-    else if (axis->state.dir == DIR_NEGATIVE) axis->state.encoder_current--;
+    if (axis->state.dir == AXIS_DIR_POSITIVE) axis->state.encoder_current++;
+    else if (axis->state.dir == AXIS_DIR_NEGATIVE) axis->state.encoder_current--;
 }
 
 /**

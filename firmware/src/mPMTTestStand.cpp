@@ -61,7 +61,7 @@ void mPMTTestStand::setup()
 void mPMTTestStand::handle_home_a()
 {
     AxisMotionSpec motion = {
-        .dir          = DIR_NEGATIVE,
+        .dir          = AXIS_DIR_NEGATIVE,
         .total_counts = INT32_MAX,
         .accel        = this->conf.gantry.accel_home_a,
         .vel_start    = this->conf.gantry.vel_start,
@@ -83,7 +83,7 @@ void mPMTTestStand::handle_home_a()
 void mPMTTestStand::handle_home_b()
 {
     AxisMotionSpec motion = {
-        .dir          = DIR_POSITIVE,
+        .dir          = AXIS_DIR_POSITIVE,
         .total_counts = INT32_MAX,
         .accel        = this->conf.gantry.accel_home_b,
         .vel_start    = this->conf.gantry.vel_start,
@@ -100,7 +100,7 @@ void mPMTTestStand::handle_move()
     // Process command arguments
     uint32_t accel, vel_hold, dist;
     AxisId axis_id;
-    Direction dir;
+    AxisDirection dir;
 
     uint8_t *data = this->comm.received_message().data;
 
@@ -108,7 +108,7 @@ void mPMTTestStand::handle_move()
     vel_hold = NTOHL(data + 4);
     dist     = NTOHL(data + 8);
     axis_id  = (AxisId)data[12];
-    dir      = (Direction)data[13];
+    dir      = (AxisDirection)data[13];
 
     AxisMotionSpec motion = {
         .dir          = dir,

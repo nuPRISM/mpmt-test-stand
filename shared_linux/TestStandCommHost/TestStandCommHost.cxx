@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include "TestStandCommHost.h"
+#include "Gantry.h"
 #include "macros.h"
 
 TestStandCommHost::TestStandCommHost(SerialDevice& device) : TestStandComm(device)
@@ -31,7 +31,7 @@ SerialResult TestStandCommHost::home()
     return this->send_basic_msg(MSG_ID_HOME);
 }
 
-SerialResult TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, Direction dir)
+SerialResult TestStandCommHost::move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, AxisDirection dir)
 {
     // Transmit in big endian order
     uint8_t data[14];

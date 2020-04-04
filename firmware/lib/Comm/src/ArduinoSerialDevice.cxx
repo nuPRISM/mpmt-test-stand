@@ -27,9 +27,10 @@ uint32_t ArduinoSerialDevice::ser_available()
     return this->device.available();
 }
 
-uint8_t ArduinoSerialDevice::ser_read()
+bool ArduinoSerialDevice::ser_read(uint8_t *out)
 {
-    return this->device.read();
+    *out = this->device.read();
+    return true;
 }
 
 bool ArduinoSerialDevice::ser_write(uint8_t *data, uint32_t length)

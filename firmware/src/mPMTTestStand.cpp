@@ -43,7 +43,7 @@ void mPMTTestStand::setup()
     axis_setup(AXIS_Y, &(this->conf.io.io_axis_y), &(this->conf.gantry.axis_mech));
 
     // Wait until we can successfully ping the host
-    while (!(this->comm.ping())) {
+    while (this->comm.ping() != SERIAL_OK) {
         delay(100);
         DEBUG_PRINTLN("Waiting for host...");
     }

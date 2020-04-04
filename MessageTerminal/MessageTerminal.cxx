@@ -86,28 +86,15 @@ void move(istringstream& iss)
 
 void get_status(istringstream& iss)
 {
-    SerialResult res = comm.get_status();
+    Status status;
+    SerialResult res = comm.get_status(&status, RECV_MSG_TIMEOUT);
     if (res == SERIAL_OK) {
-        cout << "OK" << endl;
-    }
-    else {
-        printf("ERROR: %d\n", res);
-        return;
-    }
-
-    res = comm.recv_message(RECV_MSG_TIMEOUT);
-    if (res == SERIAL_OK) {
-        if (comm.received_message().id == MSG_ID_STATUS) {
-            Status status = (Status)((comm.received_message().data)[0]);
-            switch (status) {
-                case STATUS_IDLE:   puts("Status: IDLE"); break;
-                case STATUS_MOVING: puts("Status: MOVING"); break;
-                case STATUS_HOMING: puts("Status: HOMING"); break;
-                default:            puts("ERR: Invalid status"); break;
-            }
-        }
-        else {
-            printf("ERROR: Wrong ID: %d\n", comm.received_message().id);
+        switch (status) {
+            case STATUS_IDLE:   puts("Status: IDLE"); break;
+            case STATUS_MOVING: puts("Status: MOVING"); break;
+            case STATUS_HOMING: puts("Status: HOMING"); break;
+            case STATUS_FAULT:  puts("Status: FAULT"); break;
+            default:            puts("ERR: Invalid status"); break;
         }
     }
     else {
@@ -115,66 +102,26 @@ void get_status(istringstream& iss)
     }
 }
 
-void get_data(istringstream& iss)
+void get_position(istringstream& iss)
 {
-    string data_word;
-    DataId data_id;
-
-    do {
-        if (!iss.good()) break;
-        iss >> data_word;
-        if (data_word == "MOTOR") data_id = DATA_MOTOR;
-        else if (data_word == "TEMP") data_id = DATA_TEMP;
-        else break;
-
-        SerialResult res = comm.get_data(data_id);
-        if (res == SERIAL_OK) {
-            cout << "OK" << endl;
-        }
-        else {
-            printf("ERROR: %d\n", res);
-            return;
-        }
-
-        res = comm.recv_message(RECV_MSG_TIMEOUT);
-        if (res == SERIAL_OK) {
-            if (comm.received_message().id == MSG_ID_DATA) {
-                switch (data_id) {
-                    case DATA_MOTOR:
-                    {
-                        uint8_t *data = comm.received_message().data;
-                        uint32_t motor_x = NTOHL(data);
-                        uint32_t motor_y = NTOHL(data + 4);
-                        printf("Motor Position: (%u, %u)\n", motor_x, motor_y);
-                        break;
-                    }
-                    case DATA_TEMP:
-                        // TODO
-                        break;
-                }
-            }
-            else {
-                printf("ERROR: Wrong ID: %d\n", comm.received_message().id);
-            }
-        }
-        else {
-            printf("ERROR: %d\n", res);
-        }
-
-        return;
-    } while (0);
-
-    cout << "usage: data <MOTOR|TEMP>" << endl;
+    Position position;
+    SerialResult res = comm.get_position(&position, RECV_MSG_TIMEOUT);
+    if (res == SERIAL_OK) {
+        printf("Position: (%d, %d)\n", position.x, position.y);
+    }
+    else {
+        printf("ERROR: %d\n", res);
+    }
 }
 
 cmd_handler get_cmd_handler(const string& cmd_name)
 {
-    if (cmd_name == "ping")       return ping;
-    if (cmd_name == "get_status") return get_status;
-    if (cmd_name == "home")       return home;
-    if (cmd_name == "move")       return move;
-    if (cmd_name == "stop")       return stop;
-    if (cmd_name == "get_data")   return get_data;
+    if (cmd_name == "ping")           return ping;
+    if (cmd_name == "get_status")     return get_status;
+    if (cmd_name == "home")           return home;
+    if (cmd_name == "move")           return move;
+    if (cmd_name == "stop")           return stop;
+    if (cmd_name == "get_position")   return get_position;
 
     return nullptr;
 }
@@ -185,7 +132,7 @@ bool connect_to_arduino()
     device.ser_flush();
 
     cout << "Waiting for Arduino..." << flush;
-    while (!(comm.check_for_message() && comm.received_message().id == MSG_ID_PING)) {
+    while ((comm.check_for_message() != SERIAL_OK) || (comm.received_message().id != MSG_ID_PING)) {
         // Wait for ping
     }
     // There might be more ping messages sitting in the buffer, so flush them all out

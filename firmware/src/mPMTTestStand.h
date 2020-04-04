@@ -66,7 +66,9 @@ class mPMTTestStand
         void handle_move();
         void handle_stop();
         void handle_get_status();
-        void handle_get_data();
+        void handle_get_position();
+        void handle_get_axis_state();
+        void handle_get_temp();
 
         void debug_dump_axis(AxisId axis_id);
         void debug_dump();

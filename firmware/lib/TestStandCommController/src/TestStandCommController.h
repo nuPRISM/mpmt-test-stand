@@ -18,7 +18,9 @@ class TestStandCommController : public TestStandComm
         SerialResult ping();
         SerialResult log(LogLevel log_level, const char *fmt, ...);
         SerialResult status(Status status);
-        SerialResult data(uint8_t *data, uint8_t length);
+        SerialResult position(int32_t x, int32_t y);
+        SerialResult axis_state(/*TODO*/);
+        SerialResult temp(/*TODO*/);
 };
 
 #endif // TEST_STAND_COMM_CONTROLLER_H

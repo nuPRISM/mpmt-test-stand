@@ -3,8 +3,8 @@
 void set_up_encoder(PseudoEncoder *encoder, void (*isr_motor_pulse)(void))
 {
     pinMode(encoder->motor_pulse_pin, INPUT_PULLUP);
-    pinMode(encoder->channel_a_out, OUTPUT);
-    digitalWrite(encoder->channel_a_out, LOW);
+    pinMode(encoder->channel_a_pin, OUTPUT);
+    digitalWrite(encoder->channel_a_pin, LOW);
     attachInterrupt(digitalPinToInterrupt(encoder->motor_pulse_pin), isr_motor_pulse, CHANGE);
 }
 
@@ -18,11 +18,10 @@ bool toggle_encoder_output(PseudoAxis *pseudo_axis)
     {   
         bool motor_pin_status = digitalRead(pseudo_axis->encoder.motor_pulse_pin);
         // Serial.print("motor pin:    "); Serial.println(motor_pin_status);
-        digitalWrite((pseudo_axis->encoder).channel_a_out, motor_pin_status ^ HIGH);
+        digitalWrite((pseudo_axis->encoder).channel_a_pin, motor_pin_status);
         // check if encoder count needs to be incremented
         // if HIGH it means triggered on rising
-        if (motor_pin_status) return true;
-        else return false;
+        return (motor_pin_status == HIGH);
     }
     else
     {
@@ -48,12 +47,12 @@ void isr_motor_pulse(PseudoAxis *pseudo_axis)
             pseudo_axis->motor_position_current++;
             // check if limit switch was pressed before this move
             // checks whether the homing routine is being run
-            if (!pseudo_axis->ls_home.status)
-            { // if !PRESSED where PRESSED = 0
+            if (pseudo_axis->ls_home.status == PRESSED)
+            {
                 // sets limit switch to unpressed
-                pseudo_axis->ls_home.status = UNRESSED;
-                // using digital write so it can work on Due ot Uno, execution time ~ 3 microseconds
-                digitalWrite(pseudo_axis->ls_home.output_pin, UNRESSED);
+                pseudo_axis->ls_home.status = UNPRESSED;
+                // using digital write so it can work on Due or Uno, execution time ~ 3 microseconds
+                digitalWrite(pseudo_axis->ls_home.output_pin, UNPRESSED);
 
                 // resets currrent position to 0
                 pseudo_axis->motor_position_current = 0;
@@ -73,12 +72,12 @@ void isr_motor_pulse(PseudoAxis *pseudo_axis)
         {
             pseudo_axis->motor_position_current--;
 
-            if (!pseudo_axis->ls_far.status)
-            { // if !PRESSED where PRESSED = 0
+            if (pseudo_axis->ls_far.status == PRESSED)
+            {
                 // sets limit switch to unpressed
-                pseudo_axis->ls_far.status = UNRESSED;
+                pseudo_axis->ls_far.status = UNPRESSED;
 
-                digitalWrite(pseudo_axis->ls_far.output_pin, UNRESSED);
+                digitalWrite(pseudo_axis->ls_far.output_pin, UNPRESSED);
 
                 // resets currrent position to max length of gentry
                 pseudo_axis->motor_position_current = pseudo_axis->axis_length_counts;
@@ -102,11 +101,11 @@ void reset_pseudo_axis(PseudoAxis *pseudo_axis)
 void dump_data(PseudoAxis *pseudo_axis)
 {
     if (Serial) {
-        String home_status;
-        String far_status;
+        char *home_status;
+        char *far_status;
         Serial.print("Axis:              "); Serial.println(pseudo_axis->axis_name);
-        Serial.print("Axis length:       "); Serial.println(pseudo_axis->axis_length_counts);
-        Serial.print("Motor position:    "); Serial.println(pseudo_axis->motor_position_current);
+        Serial.print("Axis length:       "); Serial.print(pseudo_axis->axis_length_counts); Serial.println(" counts");
+        Serial.print("Motor position:    "); Serial.print(pseudo_axis->motor_position_current); Serial.println(" counts");
         if (pseudo_axis->ls_home.status == PRESSED) home_status = "PRESSED";
         else home_status = "UNPRESSED";
         Serial.print("LS home status:    "); Serial.println(home_status);

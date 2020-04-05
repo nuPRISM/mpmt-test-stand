@@ -6,19 +6,19 @@
 typedef struct PseudoEncoder
 {
     uint32_t motor_pulse_pin;
-    volatile uint32_t channel_a_out;
+    volatile uint32_t channel_a_pin;
 } PseudoEncoder;
+
+typedef enum {
+    PRESSED = LOW,
+    UNPRESSED = HIGH
+} LimitSwitchStatus;
 
 typedef struct PseudoLimitSwitch
 {
     uint32_t output_pin;
-    uint32_t status;
+    LimitSwitchStatus status;
 } PseudoLimitSwitch;
-
-typedef enum {
-    PRESSED = LOW,
-    UNRESSED = HIGH
-} LimitSwitchStatus;
 
 typedef struct PseudoAxis
 {   
@@ -29,8 +29,8 @@ typedef struct PseudoAxis
     uint32_t motor_position_default;
     uint32_t motor_dir_pin;
     volatile int skip_counter;
-    int steps_for_ratio;                // values necesarry to determine steps vs counts ration
-    int counts_for_ratio;               // values necesarry to determine steps vs counts ration
+    int steps_for_ratio;                // values necessary to determine steps vs counts ratio
+    int counts_for_ratio;               // values necessary to determine steps vs counts ratio
     int changes_to_skip;
     PseudoLimitSwitch ls_home;
     PseudoLimitSwitch ls_far;

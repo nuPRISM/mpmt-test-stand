@@ -5,7 +5,7 @@
 #define PWM_FREQ        245.
 #define PWM_PIN         11.
 #define STEPS_TO_TAKE   800.
-float delay_millis = ((1000/PWM_FREQ/2)*STEPS_TO_TAKE);
+float delay_millis = ((1000./PWM_FREQ/2.)*STEPS_TO_TAKE);
 
 
 #define BAUDRATE 250000
@@ -30,7 +30,7 @@ float delay_millis = ((1000/PWM_FREQ/2)*STEPS_TO_TAKE);
 #define STEPS 8
 #define COUNTS 5
 
-// gentry length definition in counts
+// gantry length definition in counts
 #define AXIS_LENGTH_COUNTS_X 2000
 #define AXIS_LENGTH_COUNTS_Y 2000
 
@@ -67,15 +67,15 @@ void setup()
 {
   pseudo_encoder_x = {
       .motor_pulse_pin = MOTOR_AXIS_X,
-      .channel_a_out = ENCODER_OUT_X
+      .channel_a_pin = ENCODER_OUT_X
       };
-  // pseudo_encoder_y = {
-  //     .motor_pulse_pin = MOTOR_AXIS_Y,
-  //     .channel_a_out = ENCODER_OUT_Y
-  //     };
+  pseudo_encoder_y = {
+      .motor_pulse_pin = MOTOR_AXIS_Y,
+      .channel_a_pin = ENCODER_OUT_Y
+      };
 
   set_up_encoder(&pseudo_encoder_x, &isr_motor_pulse_x);
-  // set_up_encoder(&pseudo_encoder_y, &isr_motor_pulse_y);
+  set_up_encoder(&pseudo_encoder_y, &isr_motor_pulse_y);
 
   pseudo_axis_x = {
       .axis_name = "X",
@@ -90,54 +90,55 @@ void setup()
       .changes_to_skip = 2 * (STEPS - COUNTS),
       .ls_home = {
         .output_pin = LIMIT_SW_OUT_HOME_X,
-        .status = UNRESSED
+        .status = UNPRESSED
       },
       .ls_far = {
         .output_pin = LIMIT_SW_OUT_FAR_X,
-        .status = UNRESSED
+        .status = UNPRESSED
       }
       };
 
-  // pseudo_axis_y = {
-  //     .axis_name = "Y",
-  //     .encoder = pseudo_encoder_y,
-  //     .axis_length_counts = AXIS_LENGTH_COUNTS_Y,
-  //     .motor_position_current = MOTOR_START_POSITION_Y,
-  //     .motor_position_default = MOTOR_START_POSITION_Y,
-  //     .motor_dir_pin = MOTOR_DIR_Y,
-  //     .skip_counter = 0,
-  //     .steps_for_ratio = STEPS,
-  //     .counts_for_ratio = COUNTS,
-  //     .changes_to_skip = 2 * (STEPS - COUNTS),
-  //     .ls_home = {
-  //       .output_pin = LIMIT_SW_OUT_HOME_Y,
-  //       .status = UNRESSED
-  //     },
-  //     .ls_far = {
-  //       .output_pin = LIMIT_SW_OUT_FAR_Y,
-  //       .status = UNRESSED
-  //     }
-  //     };
+  pseudo_axis_y = {
+      .axis_name = "Y",
+      .encoder = pseudo_encoder_y,
+      .axis_length_counts = AXIS_LENGTH_COUNTS_Y,
+      .motor_position_current = MOTOR_START_POSITION_Y,
+      .motor_position_default = MOTOR_START_POSITION_Y,
+      .motor_dir_pin = MOTOR_DIR_Y,
+      .skip_counter = 0,
+      .steps_for_ratio = STEPS,
+      .counts_for_ratio = COUNTS,
+      .changes_to_skip = 2 * (STEPS - COUNTS),
+      .ls_home = {
+        .output_pin = LIMIT_SW_OUT_HOME_Y,
+        .status = UNPRESSED
+      },
+      .ls_far = {
+        .output_pin = LIMIT_SW_OUT_FAR_Y,
+        .status = UNPRESSED
+      }
+      };
 
   delay(1000);
 
   reset_pseudo_axis(&pseudo_axis_x);
-  // reset_pseudo_axis(&pseudo_axis_y);
+  reset_pseudo_axis(&pseudo_axis_y);
 
   // setup serial for monitoring
   Serial.begin(BAUDRATE);
 
   // pretend to be a motor
-  pinMode(MOTOR_DIR_X, INPUT_PULLUP);
-  pinMode(PWM_PIN, OUTPUT);
+  // pinMode(MOTOR_DIR_X, INPUT_PULLUP);
+  // pinMode(PWM_PIN, OUTPUT);
 }
 
 void loop()
 {
   // put your main code here, to run repeatedly:
   dump_data(&pseudo_axis_x);
-  delay(5000);
-  analogWrite(PWM_PIN, 122);
-  delay(delay_millis);
-  analogWrite(PWM_PIN, 0);
+  dump_data(&pseudo_axis_y);
+  delay(1000);
+  // analogWrite(PWM_PIN, 122);
+  // delay(delay_millis);
+  // analogWrite(PWM_PIN, 0);
 }

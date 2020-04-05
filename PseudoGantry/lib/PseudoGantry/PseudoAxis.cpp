@@ -102,11 +102,17 @@ void reset_pseudo_axis(PseudoAxis *pseudo_axis)
 void dump_data(PseudoAxis *pseudo_axis)
 {
     if (Serial) {
-        Serial.print("Axis:             "); Serial.println(pseudo_axis->axis_name);
-        Serial.print("Axis length       "); Serial.println(pseudo_axis->axis_length_counts);
-        Serial.print("Motor position    "); Serial.println(pseudo_axis->motor_position_current);
-        Serial.print("LS home status    "); Serial.println(pseudo_axis->ls_home.status);
-        Serial.print("LS far status     "); Serial.println(pseudo_axis->ls_far.status);
+        String home_status;
+        String far_status;
+        Serial.print("Axis:              "); Serial.println(pseudo_axis->axis_name);
+        Serial.print("Axis length:       "); Serial.println(pseudo_axis->axis_length_counts);
+        Serial.print("Motor position:    "); Serial.println(pseudo_axis->motor_position_current);
+        if (pseudo_axis->ls_home.status == PRESSED) home_status = "PRESSED";
+        else home_status = "UNPRESSED";
+        Serial.print("LS home status:    "); Serial.println(home_status);
+        if (pseudo_axis->ls_far.status == PRESSED) far_status = "PRESSED";
+        else far_status = "UNPRESSED";
+        Serial.print("LS far status:     "); Serial.println(far_status);
         Serial.println("--------------------------------------------");
     }
     else {

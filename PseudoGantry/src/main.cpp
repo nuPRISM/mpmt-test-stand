@@ -57,7 +57,7 @@ void isr_motor_pulse_y()
 {
     static uint32_t last_interrupt_time = 0;
     uint32_t interrupt_time = micros();
-    if (interrupt_time - last_interrupt_time > 1000) {
+    if (interrupt_time - last_interrupt_time > 100) {
           isr_motor_pulse(&pseudo_axis_y);
     }
     last_interrupt_time = interrupt_time;
@@ -130,7 +130,6 @@ void setup()
   // pretend to be a motor
   pinMode(MOTOR_DIR_X, INPUT_PULLUP);
   pinMode(PWM_PIN, OUTPUT);
-  Serial.print("delay: "); Serial.println(delay_millis);
 }
 
 void loop()

@@ -1,7 +1,14 @@
 #include <Arduino.h>
-#include <math.h>
 #include "PseudoAxis.h"
 
+// pins and constants for testing pseudo gantry
+#define PWM_FREQ        245.
+#define PWM_PIN         11.
+#define STEPS_TO_TAKE   800.
+float delay_millis = ((1000/PWM_FREQ/2)*STEPS_TO_TAKE);
+
+
+#define BAUDRATE 250000
 // pin assignments
 #define MOTOR_AXIS_X 2 // cannot change on uno, only these two pins support hardware interrupts
 #define MOTOR_AXIS_Y 3 // cannot change on uno, only these two pins support hardware interrupts
@@ -24,8 +31,8 @@
 #define COUNTS 5
 
 // gentry length definition in counts
-#define AXIS_LENGTH_COUNTS_X 1000000
-#define AXIS_LENGTH_COUNTS_Y 1000000
+#define AXIS_LENGTH_COUNTS_X 2000
+#define AXIS_LENGTH_COUNTS_Y 2000
 
 //
 #define MOTOR_START_POSITION_X 0
@@ -38,27 +45,40 @@ PseudoAxis pseudo_axis_y;
 
 void isr_motor_pulse_x()
 {
-  isr_motor_pulse(&pseudo_axis_x);
+    static uint32_t last_interrupt_time = 0;
+    uint32_t interrupt_time = micros();
+    if (interrupt_time - last_interrupt_time > 100) {
+          isr_motor_pulse(&pseudo_axis_x);
+    }
+    last_interrupt_time = interrupt_time;
 }
 
 void isr_motor_pulse_y()
 {
-  isr_motor_pulse(&pseudo_axis_y);
+    static uint32_t last_interrupt_time = 0;
+    uint32_t interrupt_time = micros();
+    if (interrupt_time - last_interrupt_time > 1000) {
+          isr_motor_pulse(&pseudo_axis_y);
+    }
+    last_interrupt_time = interrupt_time;
 }
 
 void setup()
 {
   pseudo_encoder_x = {
       .motor_pulse_pin = MOTOR_AXIS_X,
-      .channel_a_out = ENCODER_OUT_X};
-  pseudo_encoder_y = {
-      .motor_pulse_pin = MOTOR_AXIS_Y,
-      .channel_a_out = ENCODER_OUT_Y};
+      .channel_a_out = ENCODER_OUT_X
+      };
+  // pseudo_encoder_y = {
+  //     .motor_pulse_pin = MOTOR_AXIS_Y,
+  //     .channel_a_out = ENCODER_OUT_Y
+  //     };
 
   set_up_encoder(&pseudo_encoder_x, &isr_motor_pulse_x);
-  set_up_encoder(&pseudo_encoder_y, &isr_motor_pulse_y);
+  // set_up_encoder(&pseudo_encoder_y, &isr_motor_pulse_y);
 
   pseudo_axis_x = {
+      .axis_name = "X",
       .encoder = pseudo_encoder_x,
       .axis_length_counts = AXIS_LENGTH_COUNTS_X,
       .motor_position_current = MOTOR_START_POSITION_X,
@@ -68,27 +88,57 @@ void setup()
       .steps_for_ratio = STEPS,
       .counts_for_ratio = COUNTS,
       .changes_to_skip = 2 * (STEPS - COUNTS),
-  };
+      .ls_home = {
+        .output_pin = LIMIT_SW_OUT_HOME_X,
+        .status = UNRESSED
+      },
+      .ls_far = {
+        .output_pin = LIMIT_SW_OUT_FAR_X,
+        .status = UNRESSED
+      }
+      };
 
-  pseudo_axis_y = {
-      .encoder = pseudo_encoder_y,
-      .axis_length_counts = AXIS_LENGTH_COUNTS_Y,
-      .motor_position_current = MOTOR_START_POSITION_Y,
-      .motor_position_default = MOTOR_START_POSITION_Y,
-      .motor_dir_pin = MOTOR_DIR_Y,
-      .skip_counter = 0,
-      .steps_for_ratio = STEPS,
-      .counts_for_ratio = COUNTS,
-      .changes_to_skip = 2 * (STEPS - COUNTS),
-  };
+  // pseudo_axis_y = {
+  //     .axis_name = "Y",
+  //     .encoder = pseudo_encoder_y,
+  //     .axis_length_counts = AXIS_LENGTH_COUNTS_Y,
+  //     .motor_position_current = MOTOR_START_POSITION_Y,
+  //     .motor_position_default = MOTOR_START_POSITION_Y,
+  //     .motor_dir_pin = MOTOR_DIR_Y,
+  //     .skip_counter = 0,
+  //     .steps_for_ratio = STEPS,
+  //     .counts_for_ratio = COUNTS,
+  //     .changes_to_skip = 2 * (STEPS - COUNTS),
+  //     .ls_home = {
+  //       .output_pin = LIMIT_SW_OUT_HOME_Y,
+  //       .status = UNRESSED
+  //     },
+  //     .ls_far = {
+  //       .output_pin = LIMIT_SW_OUT_FAR_Y,
+  //       .status = UNRESSED
+  //     }
+  //     };
 
   delay(1000);
 
   reset_pseudo_axis(&pseudo_axis_x);
-  reset_pseudo_axis(&pseudo_axis_y);
+  // reset_pseudo_axis(&pseudo_axis_y);
+
+  // setup serial for monitoring
+  Serial.begin(BAUDRATE);
+
+  // pretend to be a motor
+  pinMode(MOTOR_DIR_X, INPUT_PULLUP);
+  pinMode(PWM_PIN, OUTPUT);
+  Serial.print("delay: "); Serial.println(delay_millis);
 }
 
 void loop()
 {
   // put your main code here, to run repeatedly:
+  dump_data(&pseudo_axis_x);
+  delay(5000);
+  analogWrite(PWM_PIN, 122);
+  delay(delay_millis);
+  analogWrite(PWM_PIN, 0);
 }

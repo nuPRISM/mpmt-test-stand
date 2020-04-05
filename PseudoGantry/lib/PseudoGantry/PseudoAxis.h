@@ -21,11 +21,12 @@ typedef enum {
 } LimitSwitchStatus;
 
 typedef struct PseudoAxis
-{
+{   
+    String axis_name;
     PseudoEncoder encoder;
-    uint64_t axis_length_counts;
-    uint64_t motor_position_current;
-    uint64_t motor_position_default;
+    uint32_t axis_length_counts;
+    uint32_t motor_position_current;
+    uint32_t motor_position_default;
     uint32_t motor_dir_pin;
     volatile int skip_counter;
     int steps_for_ratio;                // values necesarry to determine steps vs counts ration
@@ -38,6 +39,7 @@ typedef struct PseudoAxis
 void reset_pseudo_axis(PseudoAxis *pseudo_axis);
 void set_up_encoder(PseudoEncoder *encoder, void (*isr_motor_pulse)(void));
 void isr_motor_pulse(PseudoAxis *pseudo_axis);
-void steps_to_counts(PseudoAxis *pseudo_axis);
+bool toggle_encoder_output(PseudoAxis *pseudo_axis);
+void dump_data(PseudoAxis *pseudo_axis);
 
 #endif // PSEUDO_AXIS_H

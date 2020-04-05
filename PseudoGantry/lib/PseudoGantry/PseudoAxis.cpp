@@ -8,32 +8,38 @@ void set_up_encoder(PseudoEncoder *encoder, void (*isr_motor_pulse)(void))
     attachInterrupt(digitalPinToInterrupt(encoder->motor_pulse_pin), isr_motor_pulse, CHANGE);
 }
 
-void steps_to_counts(PseudoAxis *pseudo_axis)
+bool toggle_encoder_output(PseudoAxis *pseudo_axis)
 {
     pseudo_axis->skip_counter++;
     // skip steps in the beginning
-    if (pseudo_axis->skip_counter <= pseudo_axis->changes_to_skip)
-        return;
+    if (pseudo_axis->skip_counter <= pseudo_axis->changes_to_skip) return false;
     // else start toggling until the next set of STEPS
     else if ((pseudo_axis->skip_counter <= (2 * pseudo_axis->steps_for_ratio)) || (pseudo_axis->changes_to_skip == 0))
-    {
-        bool motor_pin_status = digitalRead((pseudo_axis->encoder).motor_pulse_pin);
+    {   
+        bool motor_pin_status = digitalRead(pseudo_axis->encoder.motor_pulse_pin);
+        // Serial.print("motor pin:    "); Serial.println(motor_pin_status);
         digitalWrite((pseudo_axis->encoder).channel_a_out, motor_pin_status ^ HIGH);
+        // check if encoder count needs to be incremented
+        // if HIGH it means triggered on rising
+        if (motor_pin_status) return true;
+        else return false;
     }
     else
     {
         // this is assigned 1 and not 0 because at this point our step_count_x is ((2 * STEPS) + 1)
         // which means we are onto the next set of 8, and 17 would be the beginnig of that set
         pseudo_axis->skip_counter = 1;
-        return;
+        return false;
     }
 }
 
 void isr_motor_pulse(PseudoAxis *pseudo_axis)
-{
-    steps_to_counts(pseudo_axis);
+{   
+    if (!toggle_encoder_output(pseudo_axis)) return;
 
     bool direction = digitalRead(pseudo_axis->motor_dir_pin);
+    // Serial.print("direction:    "); Serial.println(direction);
+    // Serial.print("to skip:      "); Serial.println(pseudo_axis->changes_to_skip);
 
     if (direction)
     {
@@ -84,10 +90,26 @@ void isr_motor_pulse(PseudoAxis *pseudo_axis)
             digitalWrite(pseudo_axis->ls_home.output_pin, PRESSED);
         }
     }
+    // dump_data(pseudo_axis);
 }
 
 void reset_pseudo_axis(PseudoAxis *pseudo_axis)
 {
     pseudo_axis->skip_counter=0;
     pseudo_axis->motor_position_current = pseudo_axis->motor_position_default;
+}
+
+void dump_data(PseudoAxis *pseudo_axis)
+{
+    if (Serial) {
+        Serial.print("Axis:             "); Serial.println(pseudo_axis->axis_name);
+        Serial.print("Axis length       "); Serial.println(pseudo_axis->axis_length_counts);
+        Serial.print("Motor position    "); Serial.println(pseudo_axis->motor_position_current);
+        Serial.print("LS home status    "); Serial.println(pseudo_axis->ls_home.status);
+        Serial.print("LS far status     "); Serial.println(pseudo_axis->ls_far.status);
+        Serial.println("--------------------------------------------");
+    }
+    else {
+        return;
+    }
 }

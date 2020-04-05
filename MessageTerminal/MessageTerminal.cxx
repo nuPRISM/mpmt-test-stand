@@ -7,6 +7,7 @@
 #include "TestStandCommHost.h"
 
 #include "shared_defs.h"
+#include "SerialResult.h"
 
 #include "macros.h"
 
@@ -17,12 +18,12 @@
 #define BASIC_CMD(_name)                     \
 void _name(istringstream& iss)               \
 {                                            \
-    if (comm._name()) {                      \
+    SerialResult res = comm._name();         \
+    if (res == SERIAL_OK) {                  \
         cout << "OK" << endl;                \
     }                                        \
     else {                                   \
-        printf("ERR: Received MSG ID: %d\n", \
-                comm.received_message().id); \
+        printf("ERROR: %d\n", res);          \
     }                                        \
 }
 
@@ -68,11 +69,12 @@ void move(istringstream& iss)
         else if (word == "neg") dir = DIR_NEGATIVE;
         else break;
 
-        if (comm.move(accel, hold_vel, dist, axis, dir)) {
+        SerialResult res = comm.move(accel, hold_vel, dist, axis, dir);
+        if (res == SERIAL_OK) {
             cout << "OK" << endl;
         }
         else {
-            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+            printf("ERROR: %d\n", res);
             return;
         }
 
@@ -84,15 +86,17 @@ void move(istringstream& iss)
 
 void get_status(istringstream& iss)
 {
-    if (comm.get_status()) {
+    SerialResult res = comm.get_status();
+    if (res == SERIAL_OK) {
         cout << "OK" << endl;
     }
     else {
-        printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+        printf("ERROR: %d\n", res);
         return;
     }
 
-    if (comm.recv_message(RECV_MSG_TIMEOUT)) {
+    res = comm.recv_message(RECV_MSG_TIMEOUT);
+    if (res == SERIAL_OK) {
         if (comm.received_message().id == MSG_ID_STATUS) {
             Status status = (Status)((comm.received_message().data)[0]);
             switch (status) {
@@ -103,11 +107,11 @@ void get_status(istringstream& iss)
             }
         }
         else {
-            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+            printf("ERROR: Wrong ID: %d\n", comm.received_message().id);
         }
     }
     else {
-        printf("ERR: No response\n");
+        printf("ERROR: %d\n", res);
     }
 }
 
@@ -123,31 +127,38 @@ void get_data(istringstream& iss)
         else if (data_word == "TEMP") data_id = DATA_TEMP;
         else break;
 
-        if (comm.get_data(data_id)) {
+        SerialResult res = comm.get_data(data_id);
+        if (res == SERIAL_OK) {
             cout << "OK" << endl;
         }
         else {
-            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+            printf("ERROR: %d\n", res);
             return;
         }
 
-        if (comm.recv_message(RECV_MSG_TIMEOUT) && comm.received_message().id == MSG_ID_DATA) {
-            switch (data_id) {
-                case DATA_MOTOR:
-                {
-                    uint8_t *data = comm.received_message().data;
-                    uint32_t motor_x = NTOHL(data);
-                    uint32_t motor_y = NTOHL(data + 4);
-                    printf("Motor Position: (%u, %u)\n", motor_x, motor_y);
-                    break;
+        res = comm.recv_message(RECV_MSG_TIMEOUT);
+        if (res == SERIAL_OK) {
+            if (comm.received_message().id == MSG_ID_DATA) {
+                switch (data_id) {
+                    case DATA_MOTOR:
+                    {
+                        uint8_t *data = comm.received_message().data;
+                        uint32_t motor_x = NTOHL(data);
+                        uint32_t motor_y = NTOHL(data + 4);
+                        printf("Motor Position: (%u, %u)\n", motor_x, motor_y);
+                        break;
+                    }
+                    case DATA_TEMP:
+                        // TODO
+                        break;
                 }
-                case DATA_TEMP:
-                    // TODO
-                    break;
+            }
+            else {
+                printf("ERROR: Wrong ID: %d\n", comm.received_message().id);
             }
         }
         else {
-            printf("ERR: Received MSG ID: %d\n", comm.received_message().id);
+            printf("ERROR: %d\n", res);
         }
 
         return;

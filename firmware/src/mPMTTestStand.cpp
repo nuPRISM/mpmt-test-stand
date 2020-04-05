@@ -43,7 +43,7 @@ void mPMTTestStand::setup()
     axis_setup(AXIS_Y, &(this->conf.io.io_axis_y), &(this->conf.gantry.axis_mech));
 
     // Wait until we can successfully ping the host
-    while (!(this->comm.ping())) {
+    while (this->comm.ping() != SERIAL_OK) {
         delay(100);
         DEBUG_PRINTLN("Waiting for host...");
     }
@@ -52,6 +52,12 @@ void mPMTTestStand::setup()
     this->status = STATUS_IDLE;
 }
 
+/**
+ * @brief Handles the first part of the homing routine (part A)
+ * 
+ * Drives both axes in the negative direction until the home limit
+ * switch is pressed.
+ */
 void mPMTTestStand::handle_home_a()
 {
     AxisMotionSpec motion = {
@@ -68,6 +74,12 @@ void mPMTTestStand::handle_home_a()
     this->status = STATUS_HOMING;
 }
 
+/**
+ * @brief Handles the second part of the homing routine (part B)
+ * 
+ * Drives both axes in the positive direction until the home limit
+ * switch is released.
+ */
 void mPMTTestStand::handle_home_b()
 {
     AxisMotionSpec motion = {
@@ -224,7 +236,7 @@ void mPMTTestStand::execute()
     }
 
     // Check for any messages
-    if (this->comm.check_for_message()) {
+    if (this->comm.check_for_message() == SERIAL_OK) {
         uint8_t id = this->comm.received_message().id;
         DEBUG_PRINT_VAL("Received Message w/ ID", id);
         switch (id) {

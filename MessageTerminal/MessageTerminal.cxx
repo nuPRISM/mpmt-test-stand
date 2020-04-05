@@ -99,7 +99,6 @@ void get_status(istringstream& iss)
                 case STATUS_IDLE:   puts("Status: IDLE"); break;
                 case STATUS_MOVING: puts("Status: MOVING"); break;
                 case STATUS_HOMING: puts("Status: HOMING"); break;
-                case STATUS_FAULT:  puts("Status: FAULT"); break;
                 default:            puts("ERR: Invalid status"); break;
             }
         }
@@ -138,7 +137,7 @@ void get_data(istringstream& iss)
                 {
                     uint8_t *data = comm.received_message().data;
                     uint32_t motor_x = NTOHL(data);
-                    uint32_t motor_y = NTOHL(data);
+                    uint32_t motor_y = NTOHL(data + 4);
                     printf("Motor Position: (%u, %u)\n", motor_x, motor_y);
                     break;
                 }

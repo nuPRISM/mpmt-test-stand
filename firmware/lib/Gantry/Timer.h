@@ -1,14 +1,24 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include "Arduino.h"
+#include <Arduino.h>
 
-void start_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity);
+#define TC_IRQN_I(_x)          TC##_x##_IRQn
+/** Generates the IRQn value corresponding to a TC IRQ number */
+#define TC_IRQN(_x)            TC_IRQN_I(_x)
 
-void reset_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t velocity);
+#define TC_ISR_I(_x)           void TC##_x##_Handler()
+/** Generates the ISR function name corresponding to a TC IRQ number */
+#define TC_ISR(_x)             TC_ISR_I(_x)
 
-void start_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel);
+// PWM Timers
+void configure_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, Pio *pio_bank, EPioType periph, uint32_t pin_mask);
+void reset_pwm_timer(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t frequency, uint8_t duty_cycle_on_percent);
 
-void reset_timer_accel(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t accel);
+// Timer Interrupts
+void configure_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq);
+void reset_timer_interrupt(Tc *tc, uint32_t channel, IRQn_Type irq, uint32_t frequency);
+
+void stop_timer(Tc *tc, uint32_t channel, IRQn_Type irq);
 
 #endif // TIMER_H

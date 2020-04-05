@@ -1,13 +1,17 @@
 #ifndef MPMT_TEST_STAND_H
 #define MPMT_TEST_STAND_H
 
-#include <Arduino.h>
-
+/* **************************** Local Includes ***************************** */
 #include "ArduinoSerialDevice.h"
 #include "TestStandCommController.h"
 #include "Thermistor10k.h"
+#include "Axis.h"
 
+/* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
+
+/* **************************** System Includes **************************** */
+#include <Arduino.h>
 
 typedef struct {
     // Serial Devices
@@ -15,30 +19,34 @@ typedef struct {
     uint32_t serial_comm_baud_rate;
     // Thermistor Pins
     uint8_t pin_therm_amb;
-    uint8_t pin_therm_motor1;
+    uint8_t pin_therm_motor_x;
     uint8_t pin_therm_mpmt;
-    uint8_t pin_therm_motor2;
+    uint8_t pin_therm_motor_y;
     uint8_t pin_therm_optical;
-    // Gantry X-Axis Pins
-    uint8_t pin_motor_x_step;
-    uint8_t pin_motor_x_dir;
-    uint8_t pin_motor_x_enc_a;
-    uint8_t pin_motor_x_enc_b;
-    uint8_t pin_motor_x_ls_home;
-    uint8_t pin_motor_x_ls_far;
-    // Gantry Y-Axis Pins
-    uint8_t pin_motor_y_step;
-    uint8_t pin_motor_y_dir;
-    uint8_t pin_motor_y_enc_a;
-    uint8_t pin_motor_y_enc_b;
-    uint8_t pin_motor_y_ls_home;
-    uint8_t pin_motor_y_ls_far;
-} mPMTTestStandIO;
+    // Gantry Axis Pins
+    AxisIO io_axis_x;
+    AxisIO io_axis_y;
+} mPMTTestStandIOConfig;
+
+typedef struct {
+    AxisMech axis_mech;
+    uint32_t vel_start;
+    uint32_t vel_home_a;
+    uint32_t vel_home_b;
+    uint32_t accel_home_a;
+    uint32_t accel_home_b;
+} mPMTTestStandGantryConfig;
+
+typedef struct {
+    mPMTTestStandIOConfig io;
+    mPMTTestStandGantryConfig gantry;
+} mPMTTestStandConfig;
 
 class mPMTTestStand
 {
     private:
-        const mPMTTestStandIO& io;
+        const mPMTTestStandConfig& conf;
+
         ArduinoSerialDevice comm_dev;
         TestStandCommController comm;
         Thermistor10k thermistor_ambient;
@@ -48,15 +56,23 @@ class mPMTTestStand
         Thermistor10k thermistor_optical;
 
         Status status;
+        bool home_a_done;
 
-        void handle_home();
+        const AxisState *x_state;
+        const AxisState *y_state;
+
+        void handle_home_a();
+        void handle_home_b();
         void handle_move();
         void handle_stop();
         void handle_get_status();
         void handle_get_data();
 
+        void debug_dump_axis(AxisId axis_id);
+        void debug_dump();
+
     public:
-        mPMTTestStand(const mPMTTestStandIO& io);
+        mPMTTestStand(const mPMTTestStandConfig& conf);
         void setup();
         void execute();
 };

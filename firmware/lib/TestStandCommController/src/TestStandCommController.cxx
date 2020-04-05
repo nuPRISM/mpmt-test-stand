@@ -1,5 +1,6 @@
-#include "Arduino.h"
 #include "TestStandCommController.h"
+#include "macros.h"
+#include <Arduino.h>
 
 static uint8_t send_buf[MSG_DATA_LENGTH_MAX];
 
@@ -41,11 +42,15 @@ SerialResult TestStandCommController::status(Status status)
     return this->session.send_message(msg);
 }
 
-SerialResult TestStandCommController::data(uint8_t *data, uint8_t length)
+SerialResult TestStandCommController::position(int32_t x_counts, int32_t y_counts)
 {
+    uint8_t data[2*4];
+    HTONL(data, x_counts);
+    HTONL(data + 4, y_counts);
+
     Message msg = {
-        .id = MSG_ID_DATA,
-        .length = length,
+        .id = MSG_ID_POSITION,
+        .length = sizeof(data),
         .data = data
     };
     return this->session.send_message(msg);

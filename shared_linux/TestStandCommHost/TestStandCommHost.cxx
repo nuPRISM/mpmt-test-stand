@@ -12,9 +12,18 @@ SerialResult TestStandCommHost::ping()
     return this->send_basic_msg(MSG_ID_PING);
 }
 
-SerialResult TestStandCommHost::get_status()
+SerialResult TestStandCommHost::get_status(Status *status_out, uint32_t timeout_ms)
 {
-    return this->send_basic_msg(MSG_ID_GET_STATUS);
+    SerialResult res = this->send_basic_msg(MSG_ID_GET_STATUS);
+    if (res != SERIAL_OK) return res;
+
+    res = this->recv_message(timeout_ms);
+    if (res != SERIAL_OK) return res;
+
+    if (this->received_message().id != MSG_ID_STATUS) return SERIAL_ERR_WRONG_MSG;
+
+    *status_out = (Status)((this->received_message().data)[0]);
+    return SERIAL_OK;
 }
 
 SerialResult TestStandCommHost::home()
@@ -45,12 +54,18 @@ SerialResult TestStandCommHost::stop()
     return this->send_basic_msg(MSG_ID_STOP);
 }
 
-SerialResult TestStandCommHost::get_data(DataId data_id)
+SerialResult TestStandCommHost::get_position(Position *position_out, uint32_t timeout_ms)
 {
-    Message msg = {
-        .id = MSG_ID_GET_DATA,
-        .length = 1,
-        .data = (uint8_t *)&data_id
-    };
-    return this->session.send_message(msg);
+    SerialResult res = this->send_basic_msg(MSG_ID_GET_POSITION);
+    if (res != SERIAL_OK) return res;
+
+    res = this->recv_message(timeout_ms);
+    if (res != SERIAL_OK) return res;
+
+    if (this->received_message().id != MSG_ID_POSITION) return SERIAL_ERR_WRONG_MSG;
+
+    uint8_t *data = this->received_message().data;
+    position_out->x_counts = NTOHL(data);
+    position_out->y_counts = NTOHL(data + 4);
+    return SERIAL_OK;
 }

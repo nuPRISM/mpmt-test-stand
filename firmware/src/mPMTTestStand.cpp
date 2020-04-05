@@ -135,27 +135,19 @@ void mPMTTestStand::handle_get_status()
     this->comm.status(this->status);
 }
 
-void mPMTTestStand::handle_get_data()
+void mPMTTestStand::handle_get_position()
 {
-    DataId data_id = (DataId)((this->comm.received_message().data)[0]);
-    switch (data_id) {
-        case DATA_MOTOR:
-        {
-            uint32_t axis_x_pos = this->x_state->encoder_current;
-            uint32_t axis_y_pos = this->y_state->encoder_current;
+    this->comm.position(this->x_state->encoder_current, this->y_state->encoder_current);
+}
 
-            uint8_t data[2*4];
-            HTONL(data, axis_x_pos);
-            HTONL(data + 4, axis_y_pos);
-            this->comm.data(data, sizeof(data));
-            break;
-        }
-        case DATA_TEMP:
-        {
-            // TODO
-            break;
-        }
-    }
+void mPMTTestStand::handle_get_axis_state()
+{
+    // TODO
+}
+
+void mPMTTestStand::handle_get_temp()
+{
+    // TODO
 }
 
 void mPMTTestStand::debug_dump_axis(AxisId axis_id)
@@ -252,8 +244,14 @@ void mPMTTestStand::execute()
             case MSG_ID_GET_STATUS:
                 this->handle_get_status();
                 break;
-            case MSG_ID_GET_DATA:
-                this->handle_get_data();
+            case MSG_ID_GET_POSITION:
+                this->handle_get_position();
+                break;
+            case MSG_ID_GET_AXIS_STATE:
+                this->handle_get_axis_state();
+                break;
+            case MSG_ID_GET_TEMP:
+                this->handle_get_temp();
                 break;
             default:
                 break;

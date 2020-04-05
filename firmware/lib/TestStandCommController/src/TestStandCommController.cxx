@@ -42,11 +42,11 @@ SerialResult TestStandCommController::status(Status status)
     return this->session.send_message(msg);
 }
 
-SerialResult TestStandCommController::position(int32_t x, int32_t y)
+SerialResult TestStandCommController::position(int32_t x_counts, int32_t y_counts)
 {
     uint8_t data[2*4];
-    HTONL(data, x);
-    HTONL(data + 4, y);
+    HTONL(data, x_counts);
+    HTONL(data + 4, y_counts);
 
     Message msg = {
         .id = MSG_ID_POSITION,

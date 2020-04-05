@@ -65,7 +65,7 @@ SerialResult TestStandCommHost::get_position(Position *position_out, uint32_t ti
     if (this->received_message().id != MSG_ID_POSITION) return SERIAL_ERR_WRONG_MSG;
 
     uint8_t *data = this->received_message().data;
-    position_out->x = NTOHL(data);
-    position_out->y = NTOHL(data + 4);
+    position_out->x_counts = NTOHL(data);
+    position_out->y_counts = NTOHL(data + 4);
     return SERIAL_OK;
 }

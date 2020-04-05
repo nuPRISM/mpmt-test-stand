@@ -107,7 +107,7 @@ void get_position(istringstream& iss)
     Position position;
     SerialResult res = comm.get_position(&position, RECV_MSG_TIMEOUT);
     if (res == SERIAL_OK) {
-        printf("Position: (%d, %d)\n", position.x, position.y);
+        printf("Position (counts): (%d, %d)\n", position.x_counts, position.y_counts);
     }
     else {
         printf("ERROR: %d\n", res);

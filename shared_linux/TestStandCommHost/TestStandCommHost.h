@@ -6,8 +6,8 @@
 #include "shared_defs.h"
 
 typedef struct {
-    int32_t x;
-    int32_t y;
+    int32_t x_counts;
+    int32_t y_counts;
 } Position;
 
 /**

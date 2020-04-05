@@ -6,6 +6,7 @@
 #include "Gantry.h"
 
 #include "shared_defs.h"
+#include "TestStandMessages.h"
 #include "macros.h"
 
 #include <unistd.h>
@@ -42,19 +43,11 @@ BASIC_CMD(stop);
 
 void move(istringstream& iss)
 {
-    uint32_t accel, hold_vel, dist;
     AxisId axis;
     AxisDirection dir;
+    uint32_t vel_hold, dist;
 
     do {
-        // accel, hold_vel, dist
-        if (!iss.good()) break;
-        iss >> accel;
-        if (!iss.good()) break;
-        iss >> hold_vel;
-        if (!iss.good()) break;
-        iss >> dist;
-
         string word;
 
         // axis
@@ -71,9 +64,23 @@ void move(istringstream& iss)
         else if (word == "neg") dir = AXIS_DIR_NEGATIVE;
         else break;
 
-        SerialResult res = comm.move(accel, hold_vel, dist, axis, dir);
+        // vel_hold, dist
+        if (!iss.good()) break;
+        iss >> vel_hold;
+        if (!iss.good()) break;
+        iss >> dist;
+
+        AxisResult axis_res;
+        SerialResult res = comm.move(axis, dir, vel_hold, dist, &axis_res, RECV_MSG_TIMEOUT);
         if (res == SERIAL_OK) {
-            cout << "OK" << endl;
+            switch (axis_res) {
+                case AXIS_OK:                 puts("AXIS_OK"); break;
+                case AXIS_ERR_ALREADY_MOVING: puts("AXIS_ERR_ALREADY_MOVING"); break;
+                case AXIS_ERR_LS_HOME:        puts("AXIS_ERR_LS_HOME"); break;
+                case AXIS_ERR_LS_FAR:         puts("AXIS_ERR_LS_FAR"); break;
+                case AXIS_ERR_INVALID:        puts("AXIS_ERR_INVALID"); break;
+                default:                      puts("ERR: Invalid AxisResult"); break;
+            }
         }
         else {
             printf("ERROR: %d\n", res);
@@ -83,7 +90,7 @@ void move(istringstream& iss)
         return;
     } while(0);
 
-    cout << "usage: move <accel> <hold_vel> <dist> <x|y> <pos|neg>" << endl;
+    cout << "usage: move <x|y> <pos|neg> <hold_vel> <dist>" << endl;
 }
 
 void get_status(istringstream& iss)
@@ -106,7 +113,7 @@ void get_status(istringstream& iss)
 
 void get_position(istringstream& iss)
 {
-    Position position;
+    PositionMsgData position;
     SerialResult res = comm.get_position(&position, RECV_MSG_TIMEOUT);
     if (res == SERIAL_OK) {
         printf("Position (counts): (%d, %d)\n", position.x_counts, position.y_counts);

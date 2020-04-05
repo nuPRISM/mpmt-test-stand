@@ -33,7 +33,7 @@ class TestStandComm
         TestStandComm(SerialDevice& device);
 
         SerialResult check_for_message();
-        SerialResult recv_message(uint32_t timeout_ms);
+        SerialResult recv_message(uint8_t expect_id, uint8_t expect_length, uint32_t timeout_ms);
         Message& received_message();
 
 };

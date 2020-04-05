@@ -2,14 +2,10 @@
 #define TEST_STAND_COMM_HOST_H
 
 #include "TestStandComm.h"
+#include "TestStandMessages.h"
 #include "Gantry.h"
 
 #include "shared_defs.h"
-
-typedef struct {
-    int32_t x_counts;
-    int32_t y_counts;
-} Position;
 
 /**
  * @class TestStandCommHost
@@ -24,9 +20,9 @@ class TestStandCommHost : public TestStandComm
         SerialResult ping();
         SerialResult get_status(Status *status_out, uint32_t timeout_ms);
         SerialResult home();
-        SerialResult move(uint32_t accel, uint32_t hold_vel, uint32_t dist, AxisId axis, AxisDirection dir);
+        SerialResult move(AxisId axis, AxisDirection dir, uint32_t vel_hold, uint32_t dist_counts, AxisResult *res_out, uint32_t timeout_ms);
         SerialResult stop();
-        SerialResult get_position(Position *position_out, uint32_t timeout_ms);
+        SerialResult get_position(PositionMsgData *position_out, uint32_t timeout_ms);
 };
 
 #endif // TEST_STAND_COMM_HOST_H

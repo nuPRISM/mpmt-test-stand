@@ -17,7 +17,8 @@ typedef enum {
     SERIAL_ERR_SEND_FAILED,     //!< Message failed to send
     SERIAL_ERR_NO_ACK,          //!< After sending a message, the response was not an ACK
     SERIAL_ERR_ACK_FAILED,      //!< After receiving a message, failed to send an ACK
-    SERIAL_ERR_WRONG_MSG        //!< An unexpected message was received
+    SERIAL_ERR_WRONG_MSG,       //!< An unexpected message was received
+    SERIAL_ERR_DATA_LENGTH      //!< Wrong length of data was received
 } SerialResult;
 
 #endif // SERIAL_RESULT_H

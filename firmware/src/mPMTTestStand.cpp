@@ -1,5 +1,6 @@
 /* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
+#include "TestStandMessages.h"
 #include "Debug.h"
 
 /* ************************ Shared Project Includes ************************ */
@@ -97,30 +98,27 @@ void mPMTTestStand::handle_home_b()
 
 void mPMTTestStand::handle_move()
 {
-    // Process command arguments
-    uint32_t accel, vel_hold, dist;
-    AxisId axis_id;
-    AxisDirection dir;
+    MoveMsgData data;
+    AxisResult res;
+    if (this->comm.recv_move(&data)) {
+        AxisMotionSpec motion = {
+            .dir          = (AxisDirection)data.dir,
+            .total_counts = data.dist_counts,
+            .accel        = this->conf.gantry.accel,
+            .vel_start    = this->conf.gantry.vel_start,
+            .vel_hold     = data.vel_hold
+        };
 
-    uint8_t *data = this->comm.received_message().data;
+        res = axis_start((AxisId)data.axis, &motion);
 
-    accel    = NTOHL(data);
-    vel_hold = NTOHL(data + 4);
-    dist     = NTOHL(data + 8);
-    axis_id  = (AxisId)data[12];
-    dir      = (AxisDirection)data[13];
-
-    AxisMotionSpec motion = {
-        .dir          = dir,
-        .total_counts = dist,
-        .accel        = accel,
-        .vel_start    = this->conf.gantry.vel_start,
-        .vel_hold     = vel_hold
-    };
-
-    if (axis_start(axis_id, &motion) == AXIS_OK) {
-        this->status = STATUS_MOVING;
+        if (res == AXIS_OK) {
+            this->status = STATUS_MOVING;
+        }
     }
+    else {
+        res = AXIS_ERR_INVALID;
+    }
+    this->comm.axis_result(res);
 }
 
 void mPMTTestStand::handle_stop()

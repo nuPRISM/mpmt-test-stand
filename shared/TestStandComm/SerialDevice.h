@@ -40,9 +40,11 @@ class SerialDevice
         /**
          * @brief Read a single byte from the serial device
          * 
-         * @return The value read
+         * @param out Pointer to where the read byte will be stored
+         * 
+         * @return true if the bytes was read successfully, otherwise false
          */
-        virtual uint8_t ser_read() = 0;
+        virtual bool ser_read(uint8_t *out) = 0;
 
         /**
          * @brief Transmits a buffer of data on the serial device

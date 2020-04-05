@@ -15,7 +15,7 @@ class ArduinoSerialDevice: public SerialDevice
         bool ser_connect(uint32_t baud_rate);
         void ser_flush();
         uint32_t ser_available();
-        uint8_t ser_read();
+        bool ser_read(uint8_t *out);
         bool ser_write(uint8_t *data, uint32_t length);
         void ser_disconnect();
 

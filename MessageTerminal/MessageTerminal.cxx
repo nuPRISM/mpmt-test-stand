@@ -1,15 +1,17 @@
+#include "LinuxSerialDevice.h"
+#include "TestStandCommHost.h"
+
+#include "SerialResult.h"
+
+#include "Gantry.h"
+
+#include "shared_defs.h"
+#include "macros.h"
+
 #include <unistd.h>
 
 #include <iostream>
 #include <sstream>
-
-#include "LinuxSerialDevice.h"
-#include "TestStandCommHost.h"
-
-#include "shared_defs.h"
-#include "SerialResult.h"
-
-#include "macros.h"
 
 #define BAUD_RATE 115200
 
@@ -42,7 +44,7 @@ void move(istringstream& iss)
 {
     uint32_t accel, hold_vel, dist;
     AxisId axis;
-    Direction dir;
+    AxisDirection dir;
 
     do {
         // accel, hold_vel, dist
@@ -65,8 +67,8 @@ void move(istringstream& iss)
         // dir
         if (!iss.good()) break;
         iss >> word;
-        if (word == "pos") dir = DIR_POSITIVE;
-        else if (word == "neg") dir = DIR_NEGATIVE;
+        if (word == "pos") dir = AXIS_DIR_POSITIVE;
+        else if (word == "neg") dir = AXIS_DIR_NEGATIVE;
         else break;
 
         SerialResult res = comm.move(accel, hold_vel, dist, axis, dir);

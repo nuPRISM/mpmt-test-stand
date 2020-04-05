@@ -5,6 +5,7 @@
 #include "ArduinoSerialDevice.h"
 #include "TestStandCommController.h"
 #include "Thermistor10k.h"
+#include "Gantry.h"
 #include "Axis.h"
 
 /* ************************ Shared Project Includes ************************ */

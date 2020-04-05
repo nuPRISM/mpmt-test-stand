@@ -1,8 +1,8 @@
 #ifndef AXIS_H
 #define AXIS_H
 
-/* ************************ Shared Project Includes ************************ */
-#include "shared_defs.h"
+/* **************************** Local Includes ***************************** */
+#include "Gantry.h"
 
 /* **************************** System Includes **************************** */
 #include <Arduino.h>
@@ -47,7 +47,7 @@ typedef struct {
  * @brief Fully specifies a motion for an axis to execute
  */
 typedef struct {
-    Direction dir;                     //!< Movement direction
+    AxisDirection dir;                 //!< Movement direction
     uint32_t total_counts;             //!< The total distance [encoder counts]
     uint32_t accel;                    //!< Acceleration       [motor steps / s^2]
     uint32_t vel_start;                //!< Starting velocity  [motor steps / s]
@@ -83,21 +83,8 @@ typedef struct {
     volatile VelSeg velocity_segment;  //!< Current velcoity segment of the axis
     volatile int32_t encoder_current;  //!< Current position of the axis in encoder counts
     volatile int32_t encoder_target;   //!< Position at which the next segment transition will occur
-    volatile Direction dir;            //!< Current direction of motion of the axis
+    volatile AxisDirection dir;        //!< Current direction of motion of the axis
 } AxisState;
-
-/**
- * @enum AxisResult
- * 
- * @brief Possible return values for a call to axis_start
- */
-typedef enum {
-    AXIS_OK,                           //!< Axis movement started OK
-    AXIS_ERR_ALREADY_MOVING,           //!< Axis is already moving
-    AXIS_ERR_LS_HOME,                  //!< Trying to move backward while HOME limit switch is pressed
-    AXIS_ERR_LS_FAR,                   //!< Trying to move forward while FAR limit switch is pressed
-    AXIS_ERR_INVALID                   //!< The parameters resulted in an invalid motion profile
-} AxisResult;
 
 /*****************************************************************************/
 /*                             PUBLIC FUNCTIONS                              */

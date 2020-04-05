@@ -94,11 +94,9 @@ uint32_t LinuxSerialDevice::ser_available()
     return bytes_avail;
 }
 
-uint8_t LinuxSerialDevice::ser_read()
+bool LinuxSerialDevice::ser_read(uint8_t *out)
 {
-    uint8_t byte_in;
-    read(this->serial_port, &byte_in, 1);
-    return byte_in;
+    return (read(this->serial_port, out, 1) == 1);
 }
 
 bool LinuxSerialDevice::ser_write(uint8_t *data, uint32_t length)

@@ -31,6 +31,7 @@ typedef struct {
 
 typedef struct {
     AxisMech axis_mech;
+    uint32_t accel;
     uint32_t vel_start;
     uint32_t vel_home_a;
     uint32_t vel_home_b;

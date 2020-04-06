@@ -42,10 +42,22 @@ SerialResult TestStandComm::check_for_message()
 
 /**
  * @brief Wrapper around @see SerialSession::recv_message(uint32_t timeout_ms)
+ * 
+ * @param expect_id     The expected ID of the message being received
+ * @param expect_length The expected data length of the message being received
+ * 
+ * @return @see SerialSession::recv_message(uint32_t timeout_ms)
+ *         SERIAL_ERR_WRONG_MSG if the received ID does not match expect_id
+ *         SERIAL_ERR_DATA_LENGTH if the received data length does not match expect_length
  */
-SerialResult TestStandComm::recv_message(uint32_t timeout_ms)
+SerialResult TestStandComm::recv_message(uint8_t expect_id, uint8_t expect_length, uint32_t timeout_ms)
 {
-    return this->session.recv_message(timeout_ms);
+    SerialResult res = this->session.recv_message(timeout_ms);
+    if (res != SERIAL_OK) return res;
+
+    if (this->received_message().id != expect_id) return SERIAL_ERR_WRONG_MSG;
+    if (this->received_message().length != expect_length) return SERIAL_ERR_DATA_LENGTH;
+    return SERIAL_OK;
 }
 
 /**

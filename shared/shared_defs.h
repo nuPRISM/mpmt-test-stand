@@ -1,6 +1,9 @@
 #ifndef SHARED_DEFS_H
 #define SHARED_DEFS_H
 
+#define ENCODER_COUNTS_PER_REV 500
+#define MOTOR_STEPS_PER_REV    800
+
 typedef enum {
     STATUS_IDLE,
     STATUS_HOMING,

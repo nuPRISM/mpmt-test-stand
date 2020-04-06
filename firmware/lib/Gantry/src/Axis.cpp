@@ -264,14 +264,14 @@ static AxisResult start_axis(Axis *axis, AxisMotionSpec *motion)
     if (validation != AXIS_OK) return validation;
 
     // Convert from steps to counts
-    uint32_t accel = motion->accel * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
-    uint32_t vel_start = motion->vel_start * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
-    uint32_t vel_hold = motion->vel_hold * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
+    uint32_t accel_counts     = motion->accel     * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
+    uint32_t vel_start_counts = motion->vel_start * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
+    uint32_t vel_hold_counts  = motion->vel_hold  * axis->mech.counts_per_rev / axis->mech.steps_per_rev;
 
     // Generate velocity profile
     bool valid_profile = generate_vel_profile(
         (motion->dir == AXIS_DIR_NEGATIVE),
-        accel, vel_start, vel_hold,
+        accel_counts, vel_start_counts, vel_hold_counts,
         motion->total_counts,
         &(axis->motion.profile));
     if (!valid_profile) return AXIS_ERR_INVALID;
@@ -426,9 +426,11 @@ static __attribute__((always_inline)) inline void handle_isr_accel(Axis *axis)
     switch (axis->state.velocity_segment) {
         case VEL_SEG_ACCELERATE:
         {
-            // Accelerate until we reach the holding velocity (however many counts that takes)
-            if (axis->state.next_velocity < axis->motion.spec.vel_hold) {
-                axis->state.next_velocity++;
+            // Accelerate until we reach the holding velocity or the target encoder count
+            if (!REACHED_TARGET(axis->state.dir, axis->state.encoder_current, axis->state.encoder_target)) {
+                if (axis->state.next_velocity < axis->motion.spec.vel_hold) {
+                    axis->state.next_velocity++;
+                }
             }
             else {
                 axis->state.velocity_segment = VEL_SEG_HOLD;

@@ -42,7 +42,7 @@ static bool validate_move_params(float *dest_mm, float *vel_mm_s)
         cm_msg(
             MERROR,
             "validate_move_params",
-            "Destination on x-axis should be between %f mm and %f mm inclusive.\n",
+            "Destination on x-axis should be between %f mm and %f mm inclusive.",
             gantry_x_min_mm, gantry_x_max_mm);
         return false;
     }
@@ -51,7 +51,7 @@ static bool validate_move_params(float *dest_mm, float *vel_mm_s)
         cm_msg(
             MERROR,
             "validate_move_params",
-            "Destination on y-axis should be between %f mm and %f mm inclusive.\n",
+            "Destination on y-axis should be between %f mm and %f mm inclusive.",
             gantry_y_min_mm, gantry_y_max_mm);
         return false;
     }
@@ -61,7 +61,7 @@ static bool validate_move_params(float *dest_mm, float *vel_mm_s)
         cm_msg(
             MERROR,
             "validate_move_params",
-            "Velocity should be between %f mm/s and %f mm/s inclusive.\n",
+            "Velocity should be between %f mm/s and %f mm/s inclusive.",
             gantry_vel_min_mm_s, gantry_vel_max_mm_s);
         return false;
     }

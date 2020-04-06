@@ -144,27 +144,29 @@ void start_move(INT hDB, INT hkey, void *info)
   printf("START MOVE\n");
   printf("--------------------------------------------------------------------------------\n");
 
-  // Little magic to reset the key to 'n' without retriggering hotlink
-  BOOL move = false;
-  db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
+  INT status;
 
   // Get the destination position (absolute distance)
   float destination[2] = {0,0};
   int size_dest = sizeof(destination);
-  if (db_get_value(hDB, 0, ODB_VAR_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE) != DB_SUCCESS) {
-      // TODO error message
+  if ((status = db_get_value(hDB, 0, ODB_VAR_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE)) != DB_SUCCESS) {
+      cm_msg(MERROR, "start_move", "Failed to retrieve destination (%s) from ODB. Error: %d", ODB_VAR_DESTINATION, status);
       return;
   }
 
   // Get the velocity
   float velocity[2] = {0,0};
   int size_vel = sizeof(velocity);
-  if (db_get_value(hDB, 0, ODB_VAR_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE) != DB_SUCCESS) {
-    // TODO error message
+  if ((status = db_get_value(hDB, 0, ODB_VAR_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE)) != DB_SUCCESS) {
+    cm_msg(MERROR, "start_move", "Failed to retrieve velocity (%s) from ODB. Error: %d", ODB_VAR_VELOCITY, status);
     return;
   }
 
   arduino_attempt_move(destination, velocity);
+
+  // Little magic to reset the key to 'n' without retriggering hotlink
+  BOOL move = false;
+  db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
 
   printf("================================================================================\n");
 }
@@ -175,11 +177,17 @@ void start_home(INT hDB, INT hkey, void *info)
 
   if(!gStartHome) return; // Just return if home not requested...
 
+  printf("================================================================================\n");
+  printf("START HOME\n");
+  printf("--------------------------------------------------------------------------------\n");
+
   arduino_run_home();
 
   // Little magic to reset the key to 'n' without retriggering hotlink
   BOOL home = false;
   db_set_data_index1(hDB, handleHome, &home, sizeof(home), 0, TID_BOOL, FALSE);
+
+  printf("================================================================================\n");
 }
 
 /*-- Frontend Init -------------------------------------------------*/

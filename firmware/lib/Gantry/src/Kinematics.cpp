@@ -58,7 +58,8 @@ bool generate_vel_profile(
 
         profile_out->dist_accel = dist_accel * dir;
         profile_out->dist_hold  = dist_hold  * dir;
-        profile_out->dist_decel = dist_accel * dir;
+        // Handle rounding errors by making dist_decel whatever the remaining distance is
+        profile_out->dist_decel = (dist_total - dist_accel - dist_hold) * dir;
         return true;
     }
     else if (v_hold == v_start) {

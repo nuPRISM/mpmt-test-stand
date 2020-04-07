@@ -10,7 +10,7 @@
 #include <termios.h> // Contains POSIX terminal control definitions
 #include <unistd.h> // write(), read(), close()
 #include <sys/ioctl.h> // ioctl()
-#include <sys/time.h>
+#include <time.h>
 
 LinuxSerialDevice::LinuxSerialDevice()
 {
@@ -111,7 +111,9 @@ void LinuxSerialDevice::ser_disconnect()
 
 uint64_t LinuxSerialDevice::platform_millis()
 {
-    struct timeval tval;
-    gettimeofday(&tval, NULL);
-    return (tval.tv_usec / 1000);
+    struct timespec monotime;
+    // Use CLOCK_MONOTONIC (rather than CLOCK_REALTIME) since we don't care about
+    // absolute time, just elapsed time
+    clock_gettime(CLOCK_MONOTONIC, &monotime);
+    return ((monotime.tv_sec * 1000) + (monotime.tv_nsec / 1E6));
 }

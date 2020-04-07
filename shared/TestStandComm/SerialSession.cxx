@@ -1,7 +1,7 @@
 #include "SerialSession.h"
 
 /** Maximum time to wait to receive an ACK after sending a message (milliseconds) */
-#define ACK_TIMEOUT_MS 500
+#define ACK_TIMEOUT_MS 100
 
 /**
  * @brief Constructs a new SerialSession

@@ -34,6 +34,11 @@ Arduino frontend for mPMT test stand.
 #define ODB_VAR_DESTINATION  ODB_PATH_SETTINGS "/Destination"
 #define ODB_VAR_VELOCITY     ODB_PATH_SETTINGS "/Velocity"
 
+// Note: these must be exactly 4 letters long
+#define ODB_BANK_GANTRY      "GANT"
+#define ODB_BANK_STATUS      "STAT"
+#define ODB_BANK_TEMP        "TEMP"
+
 /* Hardware */
 extern HNDLE hDB;
 
@@ -344,59 +349,85 @@ int dummy_counter = 0;
 /*-- Event readout -------------------------------------------------*/
 INT read_arduino_state(char *pevent, INT off)
 {
+  printf("[READ ARDUINO STATE] ");
 
   // Create event header
   bk_init32(pevent);
-  
-  // Create a bank with some unsigned integers (move control variables))   
-  
-  // Bank data of unsigned int
-  uint32_t *pddata;
-  
-  // Bank names must be exactly four char
-  bk_create(pevent, "MOTO", TID_DWORD, (void**)&pddata);
-  
-  // Read the state of the motors from Arduino
-  // TOFIX!!!
-  uint32_t moving = 1;
-  uint32_t homing = 0;
-  uint32_t is_initialized = 0;
-  uint32_t at_limit = 0x0202;
-  uint32_t counter = dummy_counter++;
-  uint32_t gantry_position_x = (dummy_counter %100);  // Maybe these should be floats?
-  uint32_t gantry_position_y = 200 - (dummy_counter %100);  // Maybe these should be floats?
 
-  // Save variables in bank
-  *pddata++ = moving;
-  *pddata++ = homing;
-  *pddata++ = is_initialized;
-  *pddata++ = at_limit;
-  *pddata++ = counter;
-  *pddata++ = gantry_position_x;
-  *pddata++ = gantry_position_y;
+  // Gantry Bank
+  float gantry_x_mm, gantry_y_mm;
+  if (arduino_get_position(&gantry_x_mm, &gantry_y_mm)) {
+    printf("| Position: (%f mm, %f mm) |", gantry_x_mm, gantry_y_mm);
+
+    float *pddata_gantry;
+    bk_create(pevent, ODB_BANK_GANTRY, TID_FLOAT, (void**)&pddata_gantry);
+    *pddata_gantry++ = gantry_x_mm;
+    *pddata_gantry++ = gantry_y_mm;
+    bk_close(pevent, pddata_gantry);
+  }
+
+  // Status Bank
+  DWORD status;
+  if (arduino_get_status(&status)) {
+    printf("| Status: %d |", status);
+
+    DWORD *pddata_status;
+    bk_create(pevent, ODB_BANK_STATUS, TID_DWORD, (void**)&pddata_status);
+    *pddata_status++ = status;
+    bk_close(pevent, pddata_status);
+  }
+  
+//   // Create a bank with some unsigned integers (move control variables))   
+  
+//   // Bank data of unsigned int
+//   uint32_t *pddata;
+  
+//   // Bank names must be exactly four char
+//   bk_create(pevent, "MOTO", TID_DWORD, (void**)&pddata);
+  
+//   // Read the state of the motors from Arduino
+//   // TOFIX!!!
+//   uint32_t moving = 1;
+//   uint32_t homing = 0;
+//   uint32_t is_initialized = 0;
+//   uint32_t at_limit = 0x0202;
+//   uint32_t counter = dummy_counter++;
+//   uint32_t gantry_position_x = (dummy_counter %100);  // Maybe these should be floats?
+//   uint32_t gantry_position_y = 200 - (dummy_counter %100);  // Maybe these should be floats?
+
+//   // Save variables in bank
+//   *pddata++ = moving;
+//   *pddata++ = homing;
+//   *pddata++ = is_initialized;
+//   *pddata++ = at_limit;
+//   *pddata++ = counter;
+//   *pddata++ = gantry_position_x;
+//   *pddata++ = gantry_position_y;
     
-  bk_close(pevent, pddata);	
+//   bk_close(pevent, pddata);	
 
-  // Create a bank with some float (temperature))  
+//   // Create a bank with some float (temperature))  
   
-  // Bank data of float
-  float *pddata2;
+//   // Bank data of float
+//   float *pddata2;
   
-  // Bank names must be exactly four char
-  bk_create(pevent, "TEMP", TID_FLOAT, (void**)&pddata2);
+//   // Bank names must be exactly four char
+//   bk_create(pevent, "TEMP", TID_FLOAT, (void**)&pddata2);
   
-  // Read the temperature from Arduino
-  // TOFIX!!!
-  float temp[5] = {34.2, 25.1, 34.4, 26.5, 34.3};
-  temp[3] += dummy_counter %4;
-  temp[4] -= dummy_counter %3;
+//   // Read the temperature from Arduino
+//   // TOFIX!!!
+//   float temp[5] = {34.2, 25.1, 34.4, 26.5, 34.3};
+//   temp[3] += dummy_counter %4;
+//   temp[4] -= dummy_counter %3;
 
-  // Save temperature variables in bank
-  for(int i = 0; i < 5; i++) *pddata2++ = temp[i];
+//   // Save temperature variables in bank
+//   for(int i = 0; i < 5; i++) *pddata2++ = temp[i];
     
-  bk_close(pevent, pddata2);	
-  
-  
+//   bk_close(pevent, pddata2);
+
+
+  printf("\n");
+
   return bk_size(pevent);
 
 }

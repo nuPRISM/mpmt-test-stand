@@ -1,10 +1,15 @@
 #ifndef ARDUINO_HELPER_H
 #define ARDUINO_HELPER_H
 
+#include "midas.h"
+
 bool arduino_connect(char *device_file);
 void arduino_disconnect();
 
 void arduino_move(float *dest_mm, float *vel_mm_s);
 void arduino_run_home();
+
+bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out);
+bool arduino_get_status(DWORD *status_out);
 
 #endif // ARDUINO_HELPER_H

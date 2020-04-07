@@ -7,8 +7,6 @@
 
 #include "shared_defs.h"
 
-#include "midas.h"
-
 #include <stdio.h>
 #include <math.h>
 
@@ -71,6 +69,10 @@ static bool validate_move_params(float *dest_mm, float *vel_mm_s)
 
 static int32_t mm_to_cts(float val_mm) {
     return round(val_mm / mm_cts_ratio);
+}
+
+static float cts_to_mm(int32_t val_cts) {
+    return (val_cts * mm_cts_ratio);
 }
 
 static uint32_t mm_to_steps(float val_mm) {
@@ -194,4 +196,34 @@ void arduino_move(float *dest_mm, float *vel_mm_s)
 void arduino_run_home()
 {
     handle_serial_result(comm.home());
+}
+
+/**
+ * @brief Retrieves the current position of the gantry from the Arduino
+ * 
+ * @param motor_x_mm_out Pointer to where X coordinate in mm should be stored
+ * @param motor_y_mm_out Pointer to where Y coordinate in mm should be stored
+ */
+bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out)
+{
+    // Retrieve current position
+    PositionMsgData pos_counts;
+    if (!handle_serial_result(comm.get_position(&pos_counts, MSG_RECEIVE_TIMEOUT))) return false;
+    // Convert to mm
+    *gantry_x_mm_out = cts_to_mm(pos_counts.x_counts);
+    *gantry_y_mm_out = cts_to_mm(pos_counts.y_counts);
+    return true;
+}
+
+/**
+ * @brief Retrieves the current status of the Arduino
+ * 
+ * @param status_out Pointer to where the status should be stored
+ */
+bool arduino_get_status(DWORD *status_out)
+{
+    Status status;
+    if (!handle_serial_result(comm.get_status(&status, MSG_RECEIVE_TIMEOUT))) return false;
+    *status_out = status;
+    return true;
 }

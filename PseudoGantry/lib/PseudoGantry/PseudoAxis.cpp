@@ -12,7 +12,7 @@ bool toggle_encoder_output(PseudoAxis *pseudo_axis)
 {   
     if (pseudo_axis->changes_to_skip != 0) pseudo_axis->change_counter++;
     // skip steps in the beginning
-    if (pseudo_axis->change_counter <= pseudo_axis->changes_to_skip) return false;
+    if ((pseudo_axis->change_counter <= pseudo_axis->changes_to_skip) && (pseudo_axis->changes_to_skip != 0)) return false;
     // else start toggling until the next set of STEPS
     else if ((pseudo_axis->change_counter <= (2 * pseudo_axis->steps_for_ratio)) || (pseudo_axis->changes_to_skip == 0))
     {   

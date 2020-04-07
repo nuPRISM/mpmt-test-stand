@@ -77,8 +77,15 @@ ARDUINO_LIB_TSC = $(ARDUINO_LIB_SHARED)/TestStandComm
 ARDUINO_LIB_TSCH = $(ARDUINO_LIB_SHARED_LINUX)/TestStandCommHost
 ARDUINO_LIB_LSD = $(ARDUINO_LIB_SHARED_LINUX)/LinuxSerialDevice
 ARDUINO_LIB_GANTRY = $(ARDUINO_LIB_FIRMWARE)/Gantry/include
+ARDUINO_LIB_TEMP = $(ARDUINO_LIB_FIRMWARE)/TempMeasure/include
 
-ARDUINO_INCS += -I$(ARDUINO_LIB_TSC) -I$(ARDUINO_LIB_TSCH) -I$(ARDUINO_LIB_LSD) -I$(ARDUINO_LIB_UTIL) -I$(ARDUINO_LIB_SHARED) -I$(ARDUINO_LIB_GANTRY)
+ARDUINO_INCS += -I$(ARDUINO_LIB_TSC)    \
+                -I$(ARDUINO_LIB_TSCH)   \
+                -I$(ARDUINO_LIB_LSD)    \
+                -I$(ARDUINO_LIB_UTIL)   \
+                -I$(ARDUINO_LIB_SHARED) \
+                -I$(ARDUINO_LIB_GANTRY) \
+                -I$(ARDUINO_LIB_TEMP)
 
 ARDUINO_SRCS = $(addprefix $(ARDUINO_LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx) \
                $(addprefix $(ARDUINO_LIB_TSCH)/, TestStandCommHost.cxx) \

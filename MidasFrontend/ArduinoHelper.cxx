@@ -1,6 +1,8 @@
 #include "ArduinoHelper.h"
 #include "TestStandMessages.h"
+
 #include "Gantry.h"
+#include "TempMeasure.h"
 
 #include "LinuxSerialDevice.h"
 #include "TestStandCommHost.h"
@@ -10,8 +12,9 @@
 #include <stdio.h>
 #include <math.h>
 
-LinuxSerialDevice device;
-TestStandCommHost comm(device);
+/*****************************************************************************/
+/*                                 CONSTANTS                                 */
+/*****************************************************************************/
 
 // Gantry Mechanical Properties
 const float pulley_diameter_mm   = 17;
@@ -26,6 +29,26 @@ const float gantry_y_min_mm      = 0.0;
 const float gantry_y_max_mm      = 1200.0;
 const float gantry_vel_min_mm_s  = 0.0;    // [mm/s]
 const float gantry_vel_max_mm_s  = 10.0;   // [mm/s]
+
+const char * serial_result_msgs[] = {
+    [SERIAL_OK]                  = "Send or receive completed successfully",
+    [SERIAL_OK_NO_MSG]           = "No message was received, but that was expected",
+    [SERIAL_ERR_NO_MSG]          = "No message was received and one was expected",
+    [SERIAL_ERR_TIMEOUT]         = "A message was not received within the allotted timeout",
+    [SERIAL_ERR_MSG_IN_PROGRESS] = "A partial message has been received when another operation started",
+    [SERIAL_ERR_SEND_FAILED]     = "Message failed to send",
+    [SERIAL_ERR_NO_ACK]          = "After sending a message, the response was not an ACK",
+    [SERIAL_ERR_ACK_FAILED]      = "After receiving a message, failed to send an ACK",
+    [SERIAL_ERR_WRONG_MSG]       = "An unexpected message was received",
+    [SERIAL_ERR_DATA_LENGTH]     = "Wrong length of data was received",
+};
+
+/*****************************************************************************/
+/*                             PRIVATE VARIABLES                             */
+/*****************************************************************************/
+
+static LinuxSerialDevice device;
+static TestStandCommHost comm(device);
 
 /*****************************************************************************/
 /*                             PRIVATE FUNCTIONS                             */
@@ -83,7 +106,7 @@ static AxisDirection get_direction(int32_t displacement) {
 static bool handle_serial_result(SerialResult res) {
     if (res == SERIAL_OK) return true;
 
-    printf("Serial Error: %d\n", res);
+    printf("Serial Error (%d): %s\n", res, serial_result_msgs[res]);
     return false;
 }
 
@@ -196,10 +219,27 @@ void arduino_run_home()
 }
 
 /**
+ * @brief Retrieves the current status of the Arduino
+ * 
+ * @param status_out Pointer to where the status should be stored
+ * 
+ * @return true if the status was retrieved successfully, otherwise false
+ */
+bool arduino_get_status(DWORD *status_out)
+{
+    Status status;
+    if (!handle_serial_result(comm.get_status(&status, MSG_RECEIVE_TIMEOUT_MS))) return false;
+    *status_out = status;
+    return true;
+}
+
+/**
  * @brief Retrieves the current position of the gantry from the Arduino
  * 
  * @param motor_x_mm_out Pointer to where X coordinate in mm should be stored
  * @param motor_y_mm_out Pointer to where Y coordinate in mm should be stored
+ * 
+ * @return true if the position was retrieved successfully, otherwise false
  */
 bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out)
 {
@@ -213,14 +253,13 @@ bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out)
 }
 
 /**
- * @brief Retrieves the current status of the Arduino
+ * @brief Retrieves the latest temperature readings from the Arduino
  * 
- * @param status_out Pointer to where the status should be stored
+ * @param temp_out Pointer to a struct where the read temperatures will be stored
+ * 
+ * @return true if the temperatures were retrieved successfully, otherwise false
  */
-bool arduino_get_status(DWORD *status_out)
+bool arduino_get_temp(TempData *temp_out)
 {
-    Status status;
-    if (!handle_serial_result(comm.get_status(&status, MSG_RECEIVE_TIMEOUT_MS))) return false;
-    *status_out = status;
-    return true;
+    return handle_serial_result(comm.get_temp(temp_out, MSG_RECEIVE_TIMEOUT_MS));
 }

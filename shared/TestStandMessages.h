@@ -1,7 +1,6 @@
 #ifndef TEST_STAND_MESSAGES_H
 #define TEST_STAND_MESSAGES_H
 
-#include "Gantry.h"
 #include <stdint.h>
 
 /*****************************************************************************/
@@ -60,5 +59,13 @@ typedef struct {
     int32_t x_counts;
     int32_t y_counts;
 } __attribute__((__packed__)) PositionMsgData;
+
+typedef struct {
+    int32_t temp_ambient;
+    int32_t temp_motor_x;
+    int32_t temp_motor_y;
+    int32_t temp_mpmt;
+    int32_t temp_optical;
+} __attribute__((__packed__)) TempMsgData;
 
 #endif // TEST_STAND_MESSAGES_H

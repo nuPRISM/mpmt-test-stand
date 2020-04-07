@@ -3,7 +3,9 @@
 
 #include "TestStandComm.h"
 #include "TestStandMessages.h"
+
 #include "Gantry.h"
+#include "TempMeasure.h"
 
 #include "shared_defs.h"
 
@@ -22,7 +24,7 @@ class TestStandCommController : public TestStandComm
         SerialResult status(Status status);
         SerialResult position(int32_t x_counts, int32_t y_counts);
         SerialResult axis_state(/*TODO*/);
-        SerialResult temp(/*TODO*/);
+        SerialResult temp(TempData *temp_data);
         SerialResult axis_result(AxisResult result);
 
         bool recv_move(MoveMsgData *data_out);

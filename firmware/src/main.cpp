@@ -17,8 +17,8 @@ const mPMTTestStandConfig conf = {
         // Thermistor Pins
         .pin_therm_amb          = A0,
         .pin_therm_motor_x      = A1,
-        .pin_therm_mpmt         = A2,
         .pin_therm_motor_y      = A3,
+        .pin_therm_mpmt         = A2,
         .pin_therm_optical      = A4,
         // Gantry X-Axis Pins
         .io_axis_x = {

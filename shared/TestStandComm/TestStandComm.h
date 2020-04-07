@@ -38,4 +38,30 @@ class TestStandComm
 
 };
 
+/**
+ * @brief Convert a uint32_t from network byte order (big endian) to host byte order
+ */
+int32_t inline ntohl(int32_t val)
+{
+    uint8_t *ptr = (uint8_t *)&val;
+    return (ptr[0] << 24 |
+            ptr[1] << 16 |
+            ptr[2] <<  8 |
+            ptr[3] <<  0 );
+}
+
+/**
+ * @brief Convert a uint32_t from host byte order to network byte order (big endian)
+ */
+int32_t inline htonl(int32_t val)
+{
+    uint32_t out;
+    uint8_t *ptr = (uint8_t *)&out;
+    ptr[0] = (val >> 24) & 0xFF;
+    ptr[1] = (val >> 16) & 0xFF;
+    ptr[2] = (val >>  8) & 0xFF;
+    ptr[3] = (val >>  0) & 0xFF;
+    return out;
+}
+
 #endif // TEST_STAND_COMM_H

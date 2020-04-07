@@ -35,4 +35,6 @@
         (*((uint8_t *)(_ptr) + 3)) = GET_BYTE(_val, 0); \
     } while (0)
 
+#define HTOND(_ptr, _val_ptr) HTONL(_ptr, *((int32_t *)(_val_ptr)))
+
 #endif // MACROS_H

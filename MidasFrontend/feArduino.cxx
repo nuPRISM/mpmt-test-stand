@@ -354,6 +354,17 @@ INT read_arduino_state(char *pevent, INT off)
   // Create event header
   bk_init32(pevent);
 
+  // Status Bank
+  DWORD status;
+  if (arduino_get_status(&status)) {
+    printf("| Status: %d |", status);
+
+    DWORD *pddata_status;
+    bk_create(pevent, ODB_BANK_STATUS, TID_DWORD, (void**)&pddata_status);
+    *pddata_status++ = status;
+    bk_close(pevent, pddata_status);
+  }
+
   // Gantry Bank
   float gantry_x_mm, gantry_y_mm;
   if (arduino_get_position(&gantry_x_mm, &gantry_y_mm)) {
@@ -366,15 +377,24 @@ INT read_arduino_state(char *pevent, INT off)
     bk_close(pevent, pddata_gantry);
   }
 
-  // Status Bank
-  DWORD status;
-  if (arduino_get_status(&status)) {
-    printf("| Status: %d |", status);
+  // Temp Bank
+  TempData temp_data;
+  if (arduino_get_temp(&temp_data)) {
+    printf("| Temperature: (%f, %f, %f, %f, %f) |",
+        temp_data.temp_ambient,
+        temp_data.temp_motor_x,
+        temp_data.temp_motor_y,
+        temp_data.temp_mpmt,
+        temp_data.temp_optical);
 
-    DWORD *pddata_status;
-    bk_create(pevent, ODB_BANK_STATUS, TID_DWORD, (void**)&pddata_status);
-    *pddata_status++ = status;
-    bk_close(pevent, pddata_status);
+    float *pddata_temp;
+    bk_create(pevent, ODB_BANK_TEMP, TID_DOUBLE, (void**)&pddata_temp);
+    *pddata_temp++ = temp_data.temp_ambient;
+    *pddata_temp++ = temp_data.temp_motor_x;
+    *pddata_temp++ = temp_data.temp_motor_y;
+    *pddata_temp++ = temp_data.temp_mpmt;
+    *pddata_temp++ = temp_data.temp_optical;
+    bk_close(pevent, pddata_temp);
   }
   
 //   // Create a bank with some unsigned integers (move control variables))   

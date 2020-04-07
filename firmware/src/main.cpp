@@ -3,6 +3,9 @@
 #include "Timer.h"
 #include "Debug.h"
 
+/* ************************ Shared Project Includes ************************ */
+#include "shared_defs.h"
+
 /* **************************** System Includes **************************** */
 #include <Arduino.h>
 
@@ -10,7 +13,7 @@ const mPMTTestStandConfig conf = {
     .io = {
         // Serial Devices
         .serial_comm            = Serial,
-        .serial_comm_baud_rate  = 115200,
+        .serial_comm_baud_rate  = SERIAL_BAUD_RATE,
         // Thermistor Pins
         .pin_therm_amb          = A0,
         .pin_therm_motor_x      = A1,

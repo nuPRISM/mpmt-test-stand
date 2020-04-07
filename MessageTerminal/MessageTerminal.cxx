@@ -14,10 +14,6 @@
 #include <iostream>
 #include <sstream>
 
-#define BAUD_RATE 115200
-
-#define RECV_MSG_TIMEOUT 5000
-
 #define BASIC_CMD(_name)                     \
 void _name(istringstream& iss)               \
 {                                            \
@@ -71,7 +67,7 @@ void move(istringstream& iss)
         iss >> dist;
 
         AxisResult axis_res;
-        SerialResult res = comm.move(axis, dir, vel_hold, dist, &axis_res, RECV_MSG_TIMEOUT);
+        SerialResult res = comm.move(axis, dir, vel_hold, dist, &axis_res, MSG_RECEIVE_TIMEOUT_MS);
         if (res == SERIAL_OK) {
             switch (axis_res) {
                 case AXIS_OK:                 puts("AXIS_OK"); break;
@@ -96,7 +92,7 @@ void move(istringstream& iss)
 void get_status(istringstream& iss)
 {
     Status status;
-    SerialResult res = comm.get_status(&status, RECV_MSG_TIMEOUT);
+    SerialResult res = comm.get_status(&status, MSG_RECEIVE_TIMEOUT_MS);
     if (res == SERIAL_OK) {
         switch (status) {
             case STATUS_IDLE:   puts("Status: IDLE"); break;
@@ -114,7 +110,7 @@ void get_status(istringstream& iss)
 void get_position(istringstream& iss)
 {
     PositionMsgData position;
-    SerialResult res = comm.get_position(&position, RECV_MSG_TIMEOUT);
+    SerialResult res = comm.get_position(&position, MSG_RECEIVE_TIMEOUT_MS);
     if (res == SERIAL_OK) {
         printf("Position (counts): (%d, %d)\n", position.x_counts, position.y_counts);
     }
@@ -137,7 +133,7 @@ cmd_handler get_cmd_handler(const string& cmd_name)
 
 bool connect_to_arduino()
 {
-    if (!device.ser_connect(BAUD_RATE)) return false;
+    if (!device.ser_connect(SERIAL_BAUD_RATE)) return false;
     device.ser_flush();
 
     cout << "Waiting for Arduino..." << flush;

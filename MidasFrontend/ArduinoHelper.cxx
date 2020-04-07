@@ -10,9 +10,6 @@
 #include <stdio.h>
 #include <math.h>
 
-#define BAUD_RATE           115200
-#define MSG_RECEIVE_TIMEOUT 5000
-
 LinuxSerialDevice device;
 TestStandCommHost comm(device);
 
@@ -114,7 +111,7 @@ static bool move_axis(AxisId axis, int32_t cur_pos_counts, float dest_mm, float 
     // Send command
     SerialResult ser_res;
     AxisResult axis_res;
-    ser_res = comm.move(axis, dir, vel_steps_s, abs(disp_counts), &axis_res, MSG_RECEIVE_TIMEOUT);
+    ser_res = comm.move(axis, dir, vel_steps_s, abs(disp_counts), &axis_res, MSG_RECEIVE_TIMEOUT_MS);
 
     // Handle results
     return (handle_serial_result(ser_res) && handle_axis_result(axis_res));
@@ -138,7 +135,7 @@ bool arduino_connect(char *device_file)
 {
     // Open the serial device
     device.set_device_file(device_file);
-    if (!device.ser_connect(BAUD_RATE)) return false;
+    if (!device.ser_connect(SERIAL_BAUD_RATE)) return false;
     device.ser_flush();
     
     printf("Waiting for Arduino...");
@@ -173,7 +170,7 @@ void arduino_move(float *dest_mm, float *vel_mm_s)
 
     // Get current position
     PositionMsgData cur_pos_counts;
-    if (!handle_serial_result(comm.get_position(&cur_pos_counts, MSG_RECEIVE_TIMEOUT))) return;
+    if (!handle_serial_result(comm.get_position(&cur_pos_counts, MSG_RECEIVE_TIMEOUT_MS))) return;
 
     // Attempt movement
     bool x_success = move_axis(AXIS_X, cur_pos_counts.x_counts, dest_mm[AXIS_X], vel_mm_s[AXIS_X]);
@@ -208,7 +205,7 @@ bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out)
 {
     // Retrieve current position
     PositionMsgData pos_counts;
-    if (!handle_serial_result(comm.get_position(&pos_counts, MSG_RECEIVE_TIMEOUT))) return false;
+    if (!handle_serial_result(comm.get_position(&pos_counts, MSG_RECEIVE_TIMEOUT_MS))) return false;
     // Convert to mm
     *gantry_x_mm_out = cts_to_mm(pos_counts.x_counts);
     *gantry_y_mm_out = cts_to_mm(pos_counts.y_counts);
@@ -223,7 +220,7 @@ bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out)
 bool arduino_get_status(DWORD *status_out)
 {
     Status status;
-    if (!handle_serial_result(comm.get_status(&status, MSG_RECEIVE_TIMEOUT))) return false;
+    if (!handle_serial_result(comm.get_status(&status, MSG_RECEIVE_TIMEOUT_MS))) return false;
     *status_out = status;
     return true;
 }

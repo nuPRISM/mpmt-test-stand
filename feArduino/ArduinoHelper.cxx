@@ -28,7 +28,7 @@ const float gantry_x_max_mm      = 1200.0; // max rail is 1219 mm
 const float gantry_y_min_mm      = 0.0;
 const float gantry_y_max_mm      = 1200.0;
 const float gantry_vel_min_mm_s  = 0.0;    // [mm/s]
-const float gantry_vel_max_mm_s  = 10.0;   // [mm/s]
+const float gantry_vel_max_mm_s  = 20.0;   // [mm/s]
 
 const char * serial_result_msgs[] = {
     [SERIAL_OK]                  = "Send or receive completed successfully",
@@ -42,6 +42,14 @@ const char * serial_result_msgs[] = {
     [SERIAL_ERR_WRONG_MSG]       = "An unexpected message was received",
     [SERIAL_ERR_DATA_LENGTH]     = "Wrong length of data was received",
     [SERIAL_ERR_DATA_CORRUPT]    = "Received serial data was corrupted"
+};
+
+const char * axis_result_msgs[] = {
+    [AXIS_OK]                  = "Axis movement started OK",
+    [AXIS_ERR_ALREADY_MOVING]  = "Axis is already moving",
+    [AXIS_ERR_LS_HOME]         = "Trying to move backward while HOME limit switch is pressed",
+    [AXIS_ERR_LS_FAR]          = "Trying to move forward while FAR limit switch is pressed",
+    [AXIS_ERR_INVALID]         = "The parameters resulted in an invalid motion profile"
 };
 
 /*****************************************************************************/
@@ -88,33 +96,39 @@ static bool validate_move_params(float *dest_mm, float *vel_mm_s)
     return true;
 }
 
-static int32_t mm_to_cts(float val_mm) {
+static int32_t mm_to_cts(float val_mm)
+{
     return round(val_mm / mm_cts_ratio);
 }
 
-static float cts_to_mm(int32_t val_cts) {
+static float cts_to_mm(int32_t val_cts)
+{
     return (val_cts * mm_cts_ratio);
 }
 
-static uint32_t mm_to_steps(float val_mm) {
+static uint32_t mm_to_steps(float val_mm)
+{
     return round(val_mm / mm_steps_ratio);
 }
 
-static AxisDirection get_direction(int32_t displacement) {
+static AxisDirection get_direction(int32_t displacement)
+{
     return (displacement < 0 ? AXIS_DIR_NEGATIVE : AXIS_DIR_POSITIVE);
 }
 
-static bool handle_serial_result(SerialResult res) {
+static bool handle_serial_result(SerialResult res)
+{
     if (res == SERIAL_OK) return true;
 
-    printf("Serial Error (%d): %s\n", res, serial_result_msgs[res]);
+    cm_msg(MERROR, "handle_serial_result", "Serial Error (%d): %s\n", res, serial_result_msgs[res]);
     return false;
 }
 
-static bool handle_axis_result(AxisResult res) {
+static bool handle_axis_result(AxisId axis, AxisResult res)
+{
     if (res == AXIS_OK) return true;
 
-    printf("Axis Error: %d\n", res);
+    cm_msg(MERROR, "handle_axis_result", "Axis Error (%d) on %c axis: %s\n", res, (axis == AXIS_X ? 'X' : 'Y'), axis_result_msgs[res]);
     return false;
 }
 
@@ -138,7 +152,7 @@ static bool move_axis(AxisId axis, int32_t cur_pos_counts, float dest_mm, float 
     ser_res = comm.move(axis, dir, vel_steps_s, abs(disp_counts), &axis_res, MSG_RECEIVE_TIMEOUT_MS);
 
     // Handle results
-    return (handle_serial_result(ser_res) && handle_axis_result(axis_res));
+    return (handle_serial_result(ser_res) && handle_axis_result(axis, axis_res));
 }
 
 /*****************************************************************************/
@@ -161,7 +175,7 @@ bool arduino_connect(char *device_file)
     device.set_device_file(device_file);
     if (!device.ser_connect(SERIAL_BAUD_RATE)) return false;
     device.ser_flush();
-    
+
     printf("Waiting for Arduino...");
     while (!(comm.check_for_message() && comm.received_message().id == MSG_ID_PING));
     // There might be more ping messages sitting in the buffer, so flush them all out
@@ -191,13 +205,13 @@ void arduino_disconnect()
  * @param dest_mm   Pointer to two floats (the absolute x and y coordinates in mm)
  * @param vel_mm_s  Pointer to two floats (the x and y velocities in mm/s)
  */
-void arduino_move(float *dest_mm, float *vel_mm_s)
+bool arduino_move(float *dest_mm, float *vel_mm_s)
 {
-    if (!validate_move_params(dest_mm, vel_mm_s)) return;
+    if (!validate_move_params(dest_mm, vel_mm_s)) return false;
 
     // Get current position
     PositionMsgData cur_pos_counts;
-    if (!handle_serial_result(comm.get_position(&cur_pos_counts, MSG_RECEIVE_TIMEOUT_MS))) return;
+    if (!handle_serial_result(comm.get_position(&cur_pos_counts, MSG_RECEIVE_TIMEOUT_MS))) return false;
 
     // Attempt movement
     bool x_success = move_axis(AXIS_X, cur_pos_counts.x_counts, dest_mm[AXIS_X], vel_mm_s[AXIS_X]);
@@ -205,21 +219,21 @@ void arduino_move(float *dest_mm, float *vel_mm_s)
 
     // Handle results
     if (x_success && y_success) {
-        printf("Moving to position (%f mm, %f mm)\n", dest_mm[AXIS_X], dest_mm[AXIS_Y]);
-        printf("Moving with velocity (%f mm/s, %f mm/s)\n", vel_mm_s[AXIS_X], vel_mm_s[AXIS_Y]);
+        cm_msg(MINFO, "arduino_move", "Moving to position (%.2f mm, %.2f mm) with velocity (%.2f mm/s, %.2f mm/s)",
+                dest_mm[AXIS_X], dest_mm[AXIS_Y],
+                vel_mm_s[AXIS_X], vel_mm_s[AXIS_Y]);
+        return true;
     }
-    else {
-        // Stop both axis if anything went wrong
-        handle_serial_result(comm.stop());
-    }
+    // Error messages will have been printed by move_axis
+    return false;
 }
 
 /**
  * @brief Tells the Arduino to start the homing routine
  */
-void arduino_run_home()
+bool arduino_run_home()
 {
-    handle_serial_result(comm.home());
+    return handle_serial_result(comm.home());
 }
 
 /**

@@ -20,6 +20,9 @@ March, 2002
 #include <iostream>
 #include <chrono>
 
+#include "feArduino.h"
+#include "shared_defs.h"
+
 #define  EQ_NAME   "Scan"
 #define  EQ_EVID   1
 #define  EQ_TRGMSK 0x1111
@@ -130,41 +133,61 @@ INT frontend_exit()
 /*-- Begin of Run --------------------------------------------------*/
 INT begin_of_run(INT run_number, char *error)
 {
-
   // Get Scan parameters...
   std::string path;
   path += "/Equipment/";
   path += EQ_NAME;
   path += "/Settings";
 
-
-  // Setup hot-links (open record, callbacks) to StartHome variable
-
-  // This is variable name
-  std::string varpath = path + "/StepSize";
+  std::string varpath;
+  int status;
+  int size;
 
   // Step size
+  varpath =  path + "/StepSize";
   float step_size = 10.0;  // step size in mm.
-  int size = sizeof(step_size);
-  int status = db_get_value(hDB, 0, varpath.c_str(), &step_size, &size, TID_FLOAT, TRUE);
-   
+  size = sizeof(step_size);
+  status = db_get_value(hDB, 0, varpath.c_str(), &step_size, &size, TID_FLOAT, TRUE);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "begin_of_run", "Failed to retrieve StepSize from ODB. Error: %d", status);
+      return CM_DB_ERROR;
+  }
+
+  // Speed
+  varpath =  path + "/Speed";
+  float speed = 10.0;  // speed in mm/s.
+  size = sizeof(speed);
+  status = db_get_value(hDB, 0, varpath.c_str(), &speed, &size, TID_FLOAT, TRUE);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "begin_of_run", "Failed to retrieve Speed from ODB. Error: %d", status);
+      return CM_DB_ERROR;
+  }
+
   // Start Position
   varpath = path + "/StartPosition";
   float start_position[2] = {50.0,50.0};  // in mm.
   size = sizeof(start_position);
   status = db_get_value(hDB, 0, varpath.c_str(), &start_position, &size, TID_FLOAT, TRUE);
- 
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "begin_of_run", "Failed to retrieve StartPosition from ODB. Error: %d", status);
+      return CM_DB_ERROR;
+  }
+
   // Start Position
   varpath = path + "/Distance";
   float distance[2] = {100.0,100.0};  // in mm.
   size = sizeof(distance);
   status = db_get_value(hDB, 0, varpath.c_str(), &distance, &size, TID_FLOAT, TRUE);
- 
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "begin_of_run", "Failed to retrieve Distance from ODB. Error: %d", status);
+      return CM_DB_ERROR;
+  }
+
   // Add some error checking that the distances and starting point are reasonable!!!
   // *** ASDASDASD ASD*** ** 
   if(distance[0] < step_size || distance[1] < step_size){
     cm_msg(MERROR,"begin_of_run","Error, distance (%f %f) must be greater than step size %f \n",
-	   distance[0],distance[1],step_size);  
+       distance[0],distance[1],step_size);  
   }
 
   // Scan Time in Milliseconds
@@ -172,13 +195,24 @@ INT begin_of_run(INT run_number, char *error)
   gScanTime = 5000.0;
   size = sizeof(gScanTime);
   status = db_get_value(hDB, 0, varpath.c_str(), &gScanTime, &size, TID_FLOAT, TRUE);
- 
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "begin_of_run", "Failed to retrieve ScanTime from ODB. Error: %d", status);
+      return CM_DB_ERROR;
+  }
 
+  // Set velocity
+  float velocity[2];
+  velocity[0] = speed;
+  velocity[1] = speed;
+  size = sizeof(velocity);
+  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_VELOCITY, &velocity, size, 2, TID_FLOAT);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "begin_of_run", "Failed to set velocity in ODB. Error: %d", status);
+      return CM_DB_ERROR;
+  }
 
-  //status = gen_scan_path();
-  
   gScanPoints.clear();
-  
+
   // Setup a rectangular scan, moving in X first.
   bool moving_forward = true; //ie, moving in +X direction.
   float current_x_pos = start_position[0];
@@ -216,7 +250,7 @@ INT begin_of_run(INT run_number, char *error)
   }
 
   cm_msg(MINFO,"begin_of_run","Setup scan: step size = %f mm, distance = {%f,%f}mm, scan time = %f total points = %i",
-	 step_size,distance[0],distance[1],gScanTime, gScanPoints.size());  
+	 step_size,distance[0],distance[1],gScanTime, (int)gScanPoints.size());  
 
 
 
@@ -261,54 +295,119 @@ INT resume_run(INT run_number, char *error)
   return SUCCESS;
 }
 
-/*-- Frontend Loop -------------------------------------------------*/
-INT frontend_loop()
+INT request_move(float x_mm, float y_mm)
 {
+  int size;
+  int status;
 
-  INT status;
-  char str[128];
-  
-  // Only want to start checking if the begin_of_run has been called.                                   
-  if (!gbl_called_BOR) return SUCCESS;
-  
-  // Make sure we are running
-  if (run_state != STATE_RUNNING) return SUCCESS;
-  
-  
-  // Are we making a move?
-  DWORD gantry_moving = false;  // step size in mm.
-  int size = sizeof(gantry_moving);
-  status = db_get_value(hDB, 0, "/Equipment/ARDUINO/Variables/MOTO[0]", &gantry_moving, &size, TID_DWORD, TRUE);
+  // Set the Destination
+  float destination[2];
+  destination[0] = x_mm;
+  destination[1] = y_mm;
+  size = sizeof(destination);
+  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_DESTINATION, &destination, size, 2, TID_FLOAT);
+  if (status != DB_SUCCESS) {
+    cm_msg(MERROR, "request_move", "Failed to set Destination in ODB. Error: %d", status);
+    return CM_DB_ERROR;
+  }
 
-  // Temporary kludge to make the move routines work.
+  // Clear MoveResponse
+  BOOL move_response[2] = {false, false};
+  size = sizeof(move_response);
+  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_RESPONSE, &move_response, size, 2, TID_BOOL);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "start_move", "Failed to clear MoveResponse in ODB. Error: %d", status);
+      return CM_DB_ERROR;
+  }
+
+  // Send MoveRequest
+  BOOL move_request = true;
+  size = sizeof(move_request);
+  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_REQUEST, &move_request, size, 1, TID_BOOL);
+  if (status != DB_SUCCESS) {
+    cm_msg(MERROR, "request_move", "Failed to set MoveRequest in ODB. Error: %d", status);
+    return CM_DB_ERROR;
+  }
+
+  // Check MoveResponse
+  size = sizeof(move_response);
+  // Wait until move_response[0] is true (indicating a response is ready)
+  do {
+    status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_RESPONSE, &move_response, &size, TID_BOOL, TRUE);
+    if (status != DB_SUCCESS) {
+        cm_msg(MERROR, "request_move", "Failed to retrieve MoveResponse from ODB. Error: %d", status);
+        return CM_DB_ERROR;
+    }
+    usleep(100000); // Delay so we're not constantly polling
+  } while (!(move_response[0]));
+  // Check if move request was successful
+  if (move_response[1]) {
+    usleep(500000); // Delay so status has a chance to update
+    return SUCCESS;
+  }
+  else {
+    return CM_DB_ERROR;
+  }
+}
+
+void start_measurement()
+{
+  // This is a placeholder for triggering the digitizer
+  timeStartMeasurement = Clock::now();
+}
+
+bool measurement_complete()
+{
+  // This is a placeholder for checking if the digitizer has finished acquiring data
   Clock::time_point timeNow = Clock::now();
   std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - timeStartMeasurement);
   double timediff = ms.count();
 
-  gantry_moving = true;
-  if(timediff < (gScanTime+2000.0) || timediff > (5000 + gScanTime)){     
-    gantry_moving = false;
+  return (timediff >= (gScanTime + 1000));
+}
+
+/*-- Frontend Loop -------------------------------------------------*/
+INT frontend_loop()
+{
+  INT status;
+  char str[128];
+
+  // Only want to start checking if the begin_of_run has been called.                                   
+  if (!gbl_called_BOR) return SUCCESS;
+
+  // Make sure we are running
+  if (run_state != STATE_RUNNING) return SUCCESS;
+
+  // Are we making a move?
+  DWORD teststand_status = false;
+  int size = sizeof(teststand_status);
+  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_STATUS, &teststand_status, &size, TID_DWORD, TRUE);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "frontend_loop", "Failed to retrieve status from ODB. Error: %d", status);
+      return CM_DB_ERROR;
   }
-
-  if(0)  if(((int)timediff)%1000 == 0)
-    std::cout << timediff << " " << gScanTime << " " << gantry_moving << std::endl;
-
+  bool gantry_moving = (teststand_status == STATUS_MOVING);
 
   if (!gantry_moving ) { // No, we are not moving; 
 
-    if(gGantryWasMoving){ // We just finished moving.  Start the measurement (record current time)
-      timeStartMeasurement = Clock::now();
+    if(gGantryWasMoving) { // We just finished moving.  Start the measurement (record current time)
+      start_measurement();
       gGantryWasMoving = false;
-      printf("Starting measurement at this point\n");
+      std::cout << "    Starting measurement at this point." << std::endl;
     }
 
-    // Have we finished doing the measurements at this point
-    if(timediff < (gScanTime + 1000)){ // If no, keep waiting
+    // Have we finished doing the measurements at this point (or have we not moved at all yet)
+    if (measurement_complete() || (gbl_current_point < 0)) {
+      if (gbl_current_point >= 0) {
+        std::cout << "    Finished measurement at this point." << std::endl;
+      }
+    }
+    else { // If no, keep waiting
       return SUCCESS;
     }
 
     // Terminate the sequence once we have finished last move.
-    if (gbl_current_point >= gScanPoints.size()) {
+    if (gbl_current_point >= (int)gScanPoints.size()) {
       cm_msg(MINFO, "frontend_loop", "Stopping run after all points are done. Resetting current point number.");
       gbl_current_point = 0;
       // Stop the run
@@ -318,31 +417,25 @@ INT frontend_loop()
 
     // increment for next position
     gbl_current_point++;
+    printf("POINT %d / %d:\n", (gbl_current_point + 1), (int)gScanPoints.size());
 
+    // Move
+    float x_mm = gScanPoints[gbl_current_point].first;
+    float y_mm = gScanPoints[gbl_current_point].second;
+    status = request_move(x_mm, y_mm);
+    if (status == SUCCESS) {
+        gGantryWasMoving = true;
+        printf("    Started move to position (%.2f mm, %.2f mm)\n", x_mm, y_mm);
+    }
+    else { // Move failed
+      // Stop the run
+      printf("    MoveRequest failed. Error: %d\n", status);
+      status = cm_transition(TR_STOP, 0, str, sizeof(str), TR_SYNC, 0);
+      return status;
+    }
 
-    std::cout << "Finished measurement at this point. On point: " 
-	      << gbl_current_point << " " <<  gScanPoints.size() << std::endl;;
-        
-    // Set the next destination
-    float destination[2];
-    destination[0] = gScanPoints[gbl_current_point].first;
-    destination[1] = gScanPoints[gbl_current_point].second;
-    size = sizeof(destination);
-    status = db_set_value(hDB, 0, "/Equipment/ARDUINO/Settings/Destination", &destination, size, 2, TID_FLOAT);    
-
-    // Start the move
-    BOOL start = 1;
-    size = sizeof(start);
-    status = db_set_value(hDB, 0, "/Equipment/ARDUINO/Settings/StartMove", &start, size, 1, TID_BOOL);    
-    
-    printf("Started move to position %f %f\n",destination[0],destination[1]);
-    gGantryWasMoving = true;    
-    
-    // give feArduino a little time to start moving...
-    usleep(200000);
-
-  }else{  // Yes, we are moving;
-    gGantryWasMoving = true;    
+  } else {  // Yes, we are moving;
+    gGantryWasMoving = true;
     usleep(1);
   }
 

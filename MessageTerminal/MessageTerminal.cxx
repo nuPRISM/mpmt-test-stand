@@ -7,7 +7,6 @@
 
 #include "shared_defs.h"
 #include "TestStandMessages.h"
-#include "macros.h"
 
 #include <unistd.h>
 

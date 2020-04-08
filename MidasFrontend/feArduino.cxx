@@ -149,7 +149,8 @@ void start_move(INT hDB, INT hkey, void *info)
   // Get the destination position (absolute distance)
   float destination[2] = {0,0};
   int size_dest = sizeof(destination);
-  if ((status = db_get_value(hDB, 0, ODB_VAR_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE)) != DB_SUCCESS) {
+  status = db_get_value(hDB, 0, ODB_VAR_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE);
+  if (status != DB_SUCCESS) {
       cm_msg(MERROR, "start_move", "Failed to retrieve destination (%s) from ODB. Error: %d", ODB_VAR_DESTINATION, status);
       return;
   }
@@ -157,12 +158,13 @@ void start_move(INT hDB, INT hkey, void *info)
   // Get the velocity
   float velocity[2] = {0,0};
   int size_vel = sizeof(velocity);
-  if ((status = db_get_value(hDB, 0, ODB_VAR_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE)) != DB_SUCCESS) {
+  status = db_get_value(hDB, 0, ODB_VAR_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE);
+  if (status != DB_SUCCESS) {
     cm_msg(MERROR, "start_move", "Failed to retrieve velocity (%s) from ODB. Error: %d", ODB_VAR_VELOCITY, status);
     return;
   }
 
-  arduino_attempt_move(destination, velocity);
+  arduino_move(destination, velocity);
 
   // Little magic to reset the key to 'n' without retriggering hotlink
   BOOL move = false;

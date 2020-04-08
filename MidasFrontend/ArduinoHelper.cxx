@@ -29,8 +29,8 @@ const float gantry_x_min_mm      = 0.0;
 const float gantry_x_max_mm      = 1200.0; // max rail is 1219 mm
 const float gantry_y_min_mm      = 0.0;
 const float gantry_y_max_mm      = 1200.0;
-const float gantry_vel_min_mm_s  = 0.0; 
-const float gantry_vel_max_mm_s  = 10.0;
+const float gantry_vel_min_mm_s  = 0.0;    // [mm/s]
+const float gantry_vel_max_mm_s  = 10.0;   // [mm/s]
 
 /*****************************************************************************/
 /*                             PRIVATE FUNCTIONS                             */
@@ -95,7 +95,7 @@ static bool handle_axis_result(AxisResult res) {
     return false;
 }
 
-static bool attempt_move_axis(AxisId axis, int32_t cur_pos_counts, float dest_mm, float vel_mm_s)
+static bool move_axis(AxisId axis, int32_t cur_pos_counts, float dest_mm, float vel_mm_s)
 {
     // Target position
     int32_t target_counts = mm_to_cts(dest_mm);
@@ -127,6 +127,8 @@ static bool attempt_move_axis(AxisId axis, int32_t cur_pos_counts, float dest_mm
  * 
  * This includes opening the serial device as well as waiting to receive a
  * ping message from the Arduino to validate that it is running
+ * 
+ * @param device_file Path to the serial port's device file (e.g. /dev/ttyACM0)
  * 
  * @return true if the connection was successfully established, otherwise false
  */
@@ -163,7 +165,7 @@ void arduino_disconnect()
  * @param dest_mm   Pointer to two floats (the absolute x and y coordinates in mm)
  * @param vel_mm_s  Pointer to two floats (the x and y velocities in mm/s)
  */
-void arduino_attempt_move(float *dest_mm, float *vel_mm_s)
+void arduino_move(float *dest_mm, float *vel_mm_s)
 {
     if (!validate_move_params(dest_mm, vel_mm_s)) return;
 
@@ -172,8 +174,8 @@ void arduino_attempt_move(float *dest_mm, float *vel_mm_s)
     if (!handle_serial_result(comm.get_position(&cur_pos_counts, MSG_RECEIVE_TIMEOUT))) return;
 
     // Attempt movement
-    bool x_success = attempt_move_axis(AXIS_X, cur_pos_counts.x_counts, dest_mm[AXIS_X], vel_mm_s[AXIS_X]);
-    bool y_success = attempt_move_axis(AXIS_Y, cur_pos_counts.y_counts, dest_mm[AXIS_Y], vel_mm_s[AXIS_Y]);
+    bool x_success = move_axis(AXIS_X, cur_pos_counts.x_counts, dest_mm[AXIS_X], vel_mm_s[AXIS_X]);
+    bool y_success = move_axis(AXIS_Y, cur_pos_counts.y_counts, dest_mm[AXIS_Y], vel_mm_s[AXIS_Y]);
 
     // Handle results
     if (x_success && y_success) {

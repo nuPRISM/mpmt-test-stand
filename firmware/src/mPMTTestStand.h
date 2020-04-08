@@ -17,7 +17,7 @@
 typedef struct {
     // Serial Devices
     UARTClass& serial_comm;
-    uint32_t serial_comm_baud_rate;
+    SerialBaudRate serial_comm_baud_rate;
     // Thermistor Pins
     uint8_t pin_therm_amb;
     uint8_t pin_therm_motor_x;
@@ -63,6 +63,7 @@ class mPMTTestStand
         const AxisState *x_state;
         const AxisState *y_state;
 
+        void handle_echo();
         void handle_home_a();
         void handle_home_b();
         void handle_move();

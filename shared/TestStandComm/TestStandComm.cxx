@@ -33,6 +33,76 @@ SerialResult TestStandComm::send_basic_msg(uint8_t id)
 }
 
 /**
+ * @brief Sends a ping message
+ * 
+ * @return @see send_basic_msg(uint8_t id)
+ */
+SerialResult TestStandComm::ping()
+{
+    return this->send_basic_msg(MSG_ID_PING);
+}
+
+SerialResult TestStandComm::echo(uint8_t *data, uint8_t length)
+{
+    Message msg = {
+        .id = MSG_ID_ECHO,
+        .length = length,
+        .data = data
+    };
+
+    return this->session.send_message(msg);
+}
+
+/**
+ * @brief Sends an ECHO message filled with every byte value to verify the serial link is working
+ * 
+ * @param timeout_ms Maximum time (in milliseconds) to wait for a response
+ * 
+ * @return @see SerialSession::send_message(Message& msg)
+ */
+SerialResult TestStandComm::link_check(uint32_t timeout_ms)
+{
+    int i;
+
+    // Fill send buffer with every value between 0 and MSG_DATA_LENGTH_MAX
+    for (i = 0; i < MSG_DATA_LENGTH_MAX; i++) {
+        this->send_buf[i] = i;
+    }
+
+    // Send ECHO
+    SerialResult res = this->echo(this->send_buf, MSG_DATA_LENGTH_MAX);
+    if (res != SERIAL_OK) return res;
+
+    // Receive ECHOED
+    res = this->recv_message(MSG_ID_ECHOED, MSG_DATA_LENGTH_MAX, timeout_ms);
+    if (res != SERIAL_OK) return res;
+
+    // Verify data
+    for (i = 0; i < MSG_DATA_LENGTH_MAX; i++) {
+        if (this->received_message().data[i] != i) return SERIAL_ERR_DATA_CORRUPT;
+    }
+
+    return SERIAL_OK;
+}
+
+/**
+ * @brief Handles receiving an ECHO message by sending the same data back in an ECHOED message
+ * 
+ * @return @see SerialSession::send_message(Message& msg)
+ */
+SerialResult TestStandComm::recv_echo()
+{
+    // Send the exact same data back
+    Message msg = {
+        .id = MSG_ID_ECHOED,
+        .length = this->received_message().length,
+        .data = this->received_message().data
+    };
+
+    return this->session.send_message(msg);
+}
+
+/**
  * @brief Wrapper around @see SerialSession::check_for_message()
  */
 SerialResult TestStandComm::check_for_message()
@@ -45,6 +115,7 @@ SerialResult TestStandComm::check_for_message()
  * 
  * @param expect_id     The expected ID of the message being received
  * @param expect_length The expected data length of the message being received
+ * @param timeout_ms    Maximum time (in milliseconds) to wait for a message
  * 
  * @return @see SerialSession::recv_message(uint32_t timeout_ms)
  *         SERIAL_ERR_WRONG_MSG if the received ID does not match expect_id

@@ -19,7 +19,6 @@ class TestStandCommHost : public TestStandComm
     public:
         TestStandCommHost(SerialDevice& device);
 
-        SerialResult ping();
         SerialResult get_status(Status *status_out, uint32_t timeout_ms);
         SerialResult home();
         SerialResult move(AxisId axis, AxisDirection dir, uint32_t vel_hold, uint32_t dist_counts, AxisResult *res_out, uint32_t timeout_ms);

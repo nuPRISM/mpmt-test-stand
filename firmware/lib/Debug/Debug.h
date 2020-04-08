@@ -29,6 +29,16 @@ do {                                 \
     DEBUG_PRINTLN(_val);             \
 } while (0)
 
+#define PROFILE(_name, _thresh_us, _x)         \
+do {                                           \
+    uint32_t start = micros();                 \
+    _x;                                        \
+    uint32_t delta = micros() - start;         \
+    if (delta < (_thresh_us)) break;           \
+    DEBUG_PRINT(_name); DEBUG_PRINT(": ");     \
+    DEBUG_PRINT(delta); DEBUG_PRINTLN(" us");  \
+} while(0)
+
 #define PERIODIC(_x, _t)               \
 do {                                   \
     static uint32_t last_time = 0;     \

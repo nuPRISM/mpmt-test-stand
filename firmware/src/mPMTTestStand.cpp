@@ -1,5 +1,6 @@
 /* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
+#include "Messages.h"
 #include "TestStandMessages.h"
 #include "Gantry.h"
 #include "TempMeasure.h"
@@ -50,6 +51,11 @@ void mPMTTestStand::setup()
     DEBUG_PRINTLN("Host connected!");
 
     this->status = STATUS_IDLE;
+}
+
+void mPMTTestStand::handle_echo()
+{
+    this->comm.recv_echo();
 }
 
 /**
@@ -236,29 +242,15 @@ void mPMTTestStand::execute()
         uint8_t id = this->comm.received_message().id;
         DEBUG_PRINT_VAL("Received Message w/ ID", id);
         switch (id) {
-            case MSG_ID_HOME:
-                this->handle_home_a();
-                break;
-            case MSG_ID_MOVE:
-                this->handle_move();
-                break;
-            case MSG_ID_STOP:
-                this->handle_stop();
-                break;
-            case MSG_ID_GET_STATUS:
-                this->handle_get_status();
-                break;
-            case MSG_ID_GET_POSITION:
-                this->handle_get_position();
-                break;
-            case MSG_ID_GET_AXIS_STATE:
-                this->handle_get_axis_state();
-                break;
-            case MSG_ID_GET_TEMP:
-                this->handle_get_temp();
-                break;
-            default:
-                break;
+            case MSG_ID_ECHO:           this->handle_echo();           break;
+            case MSG_ID_HOME:           this->handle_home_a();         break;
+            case MSG_ID_MOVE:           this->handle_move();           break;
+            case MSG_ID_STOP:           this->handle_stop();           break;
+            case MSG_ID_GET_STATUS:     this->handle_get_status();     break;
+            case MSG_ID_GET_POSITION:   this->handle_get_position();   break;
+            case MSG_ID_GET_AXIS_STATE: this->handle_get_axis_state(); break;
+            case MSG_ID_GET_TEMP:       this->handle_get_temp();       break;
+            default:                                                   break;
         }
     }
 }

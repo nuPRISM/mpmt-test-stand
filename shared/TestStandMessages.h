@@ -7,9 +7,6 @@
 /*                                MESSAGE IDS                                */
 /*****************************************************************************/
 
-// Two-way Messages
-#define MSG_ID_PING             0x03
-
 // PC -> Arduino Messages
 #define MSG_ID_GET_STATUS       0x40
 #define MSG_ID_HOME             0x41

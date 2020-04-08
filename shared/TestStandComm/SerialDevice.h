@@ -3,6 +3,17 @@
 
 #include <stdint.h>
 
+typedef enum {
+    BAUD_9600   = 9600,
+    BAUD_19200  = 19200,
+    BAUD_38400  = 38400,
+    BAUD_57600  = 57600,
+    BAUD_115200 = 115200,
+    BAUD_230400 = 230400,
+    BAUD_460800 = 460800,
+    BAUD_500000 = 500000
+} SerialBaudRate;
+
 /**
  * @class SerialDevice
  * 
@@ -22,7 +33,7 @@ class SerialDevice
          * 
          * @return true if the connection opened successfully, otherwise false
          */
-        virtual bool ser_connect(uint32_t baud_rate) = 0;
+        virtual bool ser_connect(SerialBaudRate baud_rate) = 0;
 
         /**
          * @brief Flush all data currently in the receive buffer of the serial device

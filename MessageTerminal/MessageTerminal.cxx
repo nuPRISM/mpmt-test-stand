@@ -119,6 +119,22 @@ void get_position(istringstream& iss)
     }
 }
 
+void get_temp(istringstream& iss)
+{
+    TempData temp_data;
+    SerialResult res = comm.get_temp(&temp_data, MSG_RECEIVE_TIMEOUT_MS);
+    if (res == SERIAL_OK) {
+        printf("Ambient : %12f deg C\n", temp_data.temp_ambient);
+        printf("Motor X : %12f deg C\n", temp_data.temp_motor_x);
+        printf("Motor Y : %12f deg C\n", temp_data.temp_motor_y);
+        printf("mPMT    : %12f deg C\n", temp_data.temp_mpmt);
+        printf("Optical : %12f deg C\n", temp_data.temp_optical);
+    }
+    else {
+        printf("ERROR: %d\n", res);
+    }
+}
+
 cmd_handler get_cmd_handler(const string& cmd_name)
 {
     if (cmd_name == "ping")           return ping;
@@ -127,8 +143,21 @@ cmd_handler get_cmd_handler(const string& cmd_name)
     if (cmd_name == "move")           return move;
     if (cmd_name == "stop")           return stop;
     if (cmd_name == "get_position")   return get_position;
+    if (cmd_name == "get_temp")       return get_temp;
 
     return nullptr;
+}
+
+bool link_check()
+{
+    SerialResult res = comm.link_check(MSG_RECEIVE_TIMEOUT_MS);
+    if (res == SERIAL_OK) {
+        printf("OK\n");
+        return true;
+    }
+
+    printf("ERROR: %d\n", res);
+    return false;
 }
 
 bool connect_to_arduino()
@@ -185,6 +214,9 @@ int main(int argc, char *argv[])
         else if (word == "reset") {
             device.ser_disconnect();
             if (!connect_to_arduino()) return 1;
+        }
+        else if (word == "link_check") {
+            link_check();
         }
         else {
             // Handle command

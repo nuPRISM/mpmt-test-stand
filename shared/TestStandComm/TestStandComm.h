@@ -28,9 +28,16 @@ class TestStandComm
     protected:
         SerialResult send_basic_msg(uint8_t id);
         SerialSession session;
+        uint8_t send_buf[MSG_DATA_LENGTH_MAX];
 
     public:
         TestStandComm(SerialDevice& device);
+
+        SerialResult ping();
+        SerialResult echo(uint8_t *data, uint8_t length);
+        SerialResult recv_echo();
+
+        SerialResult link_check(uint32_t timeout_ms);
 
         SerialResult check_for_message();
         SerialResult recv_message(uint8_t expect_id, uint8_t expect_length, uint32_t timeout_ms);

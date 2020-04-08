@@ -12,7 +12,7 @@ class ArduinoSerialDevice: public SerialDevice
     public:
         ArduinoSerialDevice(HardwareSerial& device);
         
-        bool ser_connect(uint32_t baud_rate);
+        bool ser_connect(SerialBaudRate baud_rate);
         void ser_flush();
         uint32_t ser_available();
         bool ser_read(uint8_t *out);

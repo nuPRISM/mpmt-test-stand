@@ -41,6 +41,7 @@ const char * serial_result_msgs[] = {
     [SERIAL_ERR_ACK_FAILED]      = "After receiving a message, failed to send an ACK",
     [SERIAL_ERR_WRONG_MSG]       = "An unexpected message was received",
     [SERIAL_ERR_DATA_LENGTH]     = "Wrong length of data was received",
+    [SERIAL_ERR_DATA_CORRUPT]    = "Received serial data was corrupted"
 };
 
 /*****************************************************************************/
@@ -162,12 +163,15 @@ bool arduino_connect(char *device_file)
     device.ser_flush();
     
     printf("Waiting for Arduino...");
-    while (!(comm.check_for_message() && comm.received_message().id == MSG_ID_PING)) {
-        // Wait for ping
-    }
+    while (!(comm.check_for_message() && comm.received_message().id == MSG_ID_PING));
     // There might be more ping messages sitting in the buffer, so flush them all out
     device.ser_flush();
     printf("Connected!\n");
+
+    // Verify link
+    printf("Verifying link...");
+    if (!handle_serial_result(comm.link_check(MSG_RECEIVE_TIMEOUT_MS))) return false;
+    printf("SUCCESS\n");
 
     return true;
 }

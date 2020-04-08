@@ -13,11 +13,6 @@ TestStandCommHost::TestStandCommHost(SerialDevice& device) : TestStandComm(devic
     // Nothing else to do
 }
 
-SerialResult TestStandCommHost::ping()
-{
-    return this->send_basic_msg(MSG_ID_PING);
-}
-
 SerialResult TestStandCommHost::get_status(Status *status_out, uint32_t timeout_ms)
 {
     SerialResult res = this->send_basic_msg(MSG_ID_GET_STATUS);

@@ -5,7 +5,7 @@
 
 #define MSG_RECEIVE_TIMEOUT_MS 250
 
-#define ENCODER_COUNTS_PER_REV 500
+#define ENCODER_COUNTS_PER_REV 800//500
 #define MOTOR_STEPS_PER_REV    800
 
 typedef enum {

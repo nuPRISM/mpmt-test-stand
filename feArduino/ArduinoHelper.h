@@ -10,6 +10,7 @@ void arduino_disconnect();
 
 bool arduino_move(float *dest_mm, float *vel_mm_s);
 bool arduino_run_home();
+bool arduino_stop();
 
 bool arduino_get_status(DWORD *status_out);
 bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out);

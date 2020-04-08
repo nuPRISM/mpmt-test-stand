@@ -28,7 +28,7 @@ const float gantry_x_max_mm      = 1200.0; // max rail is 1219 mm
 const float gantry_y_min_mm      = 0.0;
 const float gantry_y_max_mm      = 1200.0;
 const float gantry_vel_min_mm_s  = 0.0;    // [mm/s]
-const float gantry_vel_max_mm_s  = 20.0;   // [mm/s]
+const float gantry_vel_max_mm_s  = 50.0;   // [mm/s]
 
 const char * serial_result_msgs[] = {
     [SERIAL_OK]                  = "Send or receive completed successfully",
@@ -234,6 +234,14 @@ bool arduino_move(float *dest_mm, float *vel_mm_s)
 bool arduino_run_home()
 {
     return handle_serial_result(comm.home());
+}
+
+/**
+ * @brief Tells the Arduino to cease all motor functions
+ */
+bool arduino_stop()
+{
+    return handle_serial_result(comm.stop());
 }
 
 /**

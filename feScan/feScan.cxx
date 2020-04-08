@@ -503,7 +503,7 @@ INT read_scan_state(char *pevent, INT off)
   bk_create(pevent, "SCAN", TID_DWORD, (void**)&pddata);
   
   *pddata++ = 0; // In scan?
-  *pddata++ = gbl_current_point;
+  *pddata++ = (gbl_current_point + 1); // gbl_current_point is 0-indexed
   *pddata++ = gScanPoints.size();
   bk_close(pevent, pddata);	
 

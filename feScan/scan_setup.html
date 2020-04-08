@@ -13,6 +13,15 @@
    </style>
 
    <script>
+   function setup() {
+     statusPeriodicUpdate();
+     mhttpd_init('Scan Setup');
+     setInterval(statusPeriodicUpdate, 5000);
+     setupCanvas();
+     setInterval(updateCanvas, 100);
+     statusPeriodicUpdate();
+   }
+
    var gStatusInflight = false;
    function statusPeriodicUpdate(){
 
@@ -23,13 +32,69 @@
       // Get padiwa values
       mjsonrpc_send_request([
          mjsonrpc_make_request("db_get_values",{"paths":["/Equipment/Scan/Variables"]}),
-      ]).then(function (rpc) {         
-         
+      ]).then(function (rpc) {
+        document.getElementById("progressbar").setAttribute("data-max-value",parseInt(rpc[0].result.data[0].scan[2]));
+        gStatusInflight = false;
+      }).catch(function(error) {
+         if (error.request) {
+            var s = mjsonrpc_decode_error(error);
+            console.log("mjsonrpc_error_alert: " + s);
+         } else {
+            console.log("mjsonroc_error_alert: " + error);
+         }
+      });
+   }
 
-        //console.log(parseInt(rpc[0].result.data[0].scan[2]));
-        document.getElementById("progressbar").setAttribute("data-max-value",parseInt(rpc[0].result.data[0].scan[2]))
-//        document.getElementById("progressbar").setAttribute("data-max-value",200)
+   var gantry_width_mm = 1200;
+   var gantry_height_mm = 1200;
 
+   var canvas;
+   var ctx;
+   function setupCanvas() {
+     canvas = document.getElementById("test_stand_canvas");
+     ctx = canvas.getContext("2d");
+     // Put origin at bottom-left corner
+     ctx.translate(0, canvas.height);
+     ctx.scale(1, -1);
+   }
+
+   function draw_gantry(x_mm, y_mm) {
+     x_px = x_mm / gantry_width_mm * canvas.width;
+     y_px = y_mm / gantry_height_mm * canvas.height;
+
+     // Erase everything
+     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+     // Draw horizontal line
+     ctx.beginPath();
+     ctx.moveTo(0, y_px);
+     ctx.lineTo(canvas.width, y_px);
+     ctx.stroke();
+     // Draw vertical line
+     ctx.beginPath();
+     ctx.moveTo(x_px, 0);
+     ctx.lineTo(x_px, canvas.height);
+     ctx.stroke();
+     // Draw circle
+     ctx.beginPath();
+     ctx.arc(x_px, y_px, 10, 0, 2*Math.PI);
+     ctx.stroke();
+   }
+
+   var gCanvaseUpdateInFlight = false;
+   function updateCanvas() {
+       if (gCanvaseUpdateInFlight) return;
+       gCanvaseUpdateInFlight = true;
+
+      // Get gantry position
+      mjsonrpc_send_request([
+         mjsonrpc_make_request("db_get_values",{"paths":["/Equipment/ARDUINO/Variables"]}),
+      ]).then(function (rpc) {
+          var x_mm = parseFloat(rpc[0].result.data[0].gant[0]);
+          var y_mm = parseFloat(rpc[0].result.data[0].gant[1])
+        //   console.log("(" + x_mm + ", " + y_mm + ")");
+          draw_gantry(x_mm, y_mm);
+          gCanvaseUpdateInFlight = false;
       }).catch(function(error) {
          if (error.request) {
             var s = mjsonrpc_decode_error(error);
@@ -46,13 +111,13 @@
 
 </head>
 
-<body class="mcss" onload="statusPeriodicUpdate();mhttpd_init('Scan Setup'); setInterval(statusPeriodicUpdate,5000);statusPeriodicUpdate();">
+<body class="mcss" onload="setup();">
 
 <!-- header and side navigation will be filled in mhttpd_init -->
 <div id="mheader"></div>
 <div id="msidenav"></div>
 
-<div id="mmain">
+<div id="mmain" style="font-family: verdana,tahoma,sans-serif;">
 
   <table class="mtable">
     <tr>
@@ -64,6 +129,14 @@
       </td>
        <td >       
         <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize" ></div> 
+      </td>
+    </tr>
+    <tr>
+      <td>
+        Gantry Speed (mm/s)
+      </td>
+       <td >       
+        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Speed" ></div> 
       </td>
     </tr>
     <tr>
@@ -92,6 +165,11 @@
         <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime" ></div> 
       </td>
     </tr>
+    <tr>
+      <td colspan="2">
+        <input class="mbutton" id="startButton" type="button" value="Start" onclick="mhttpd_start_run();" style="visibility: visible; width: 100%; padding: 5px;">
+      </td>
+    </tr>
   </table>
 
   <table class="mtable">
@@ -103,7 +181,7 @@
         Total number of points
       </td>
        <td >       
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Variables/SCAN[2]" ></div> 
+        <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[2]" ></div> 
       </td>
     </tr>
     <tr>
@@ -111,7 +189,7 @@
         Current point
       </td>
        <td >       
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Variables/SCAN[1]" ></div> 
+        <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[1]" ></div> 
       </td>
     </tr>
 
@@ -124,6 +202,21 @@
     </tr>
 
   </table>
+
+  <span class="mtableheader" style="display: block; margin: 15px auto; width: 300px;">Gantry Position</span>
+
+  <div style="display: block; width: 300px; margin: 0 auto; text-align: right;">
+    <span>(</span>
+    <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[0]" ></span><span> mm</span>
+    <span>, </span>
+    <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[1]" ></span><span> mm</span>
+    <span>)</span>
+  </div>
+
+  <canvas id="test_stand_canvas" width="300px" height="300px" style="display: block; margin: 0 auto; border:1px solid #000000;">
+  </canvas>
+
+  <br/>
 
 </body>
 </html>

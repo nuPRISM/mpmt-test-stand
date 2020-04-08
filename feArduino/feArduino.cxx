@@ -279,6 +279,7 @@ INT frontend_init()
 /*-- Frontend Exit -------------------------------------------------*/
 INT frontend_exit()
 {
+  arduino_stop();
   arduino_disconnect();
   return SUCCESS;
 }
@@ -296,7 +297,7 @@ INT begin_of_run(INT run_number, char *error)
 /*-- End of Run ----------------------------------------------------*/
 INT end_of_run(INT run_number, char *error)
 {
-
+  arduino_stop();
   printf("EOR\n");
   
   return SUCCESS;

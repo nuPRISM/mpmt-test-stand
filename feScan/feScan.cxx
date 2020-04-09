@@ -96,7 +96,7 @@ EQUIPMENT equipment[] = {
       LAM_SOURCE(0, 0x8111),     /* event source crate 0, all stations */
       "MIDAS",                /* format */
       TRUE,                   /* enabled */
-      RO_RUNNING | RO_ODB,             /* read always */
+      RO_RUNNING | RO_EOR | RO_ODB,  /* read during and at end of run */
       500,                    /* poll for 500ms */
       0,                      /* stop run after this event limit */
       0,                      /* number of sub events */

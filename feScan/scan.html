@@ -6,7 +6,7 @@
     <script src="controls.js"></script>
     <script src="midas.js"></script>
     <script src="mhttpd.js"></script>
-    <title>Scan Setup</title>
+    <title>Scan</title>
 
     <style>
         .mtable td { padding: 10px; }
@@ -17,15 +17,15 @@
         const ODB_PATH_ARDUINO_VARIABLES = "/Equipment/ARDUINO/Variables";
         const ODB_PATH_SCAN_VARIABLES    = "/Equipment/Scan/Variables";
 
-        const SCAN_STATUS_STOPPED   = 0;
-        const SCAN_STATUS_STARTED   = 1;
-        const SCAN_STATUS_MOVING    = 2;
-        const SCAN_STATUS_MEASURING = 3;
+        const SCAN_STATUS_STOPPED        = 0;
+        const SCAN_STATUS_STARTED        = 1;
+        const SCAN_STATUS_MOVING         = 2;
+        const SCAN_STATUS_MEASURING      = 3;
 
-        const GANTRY_WIDTH_MM       = 1200;
-        const GANTRY_HEIGHT_MM      = 1200;
+        const GANTRY_WIDTH_MM            = 1200;
+        const GANTRY_HEIGHT_MM           = 1200;
 
-        const UPDATE_FREQ_MS        = 200;
+        const UPDATE_FREQ_MS             = 200;
 
         /* ******************************** GLOBALS ********************************* */
         var gUpdateInflight = false;
@@ -34,7 +34,7 @@
 
         /* ********************************* CANVAS ********************************* */
         function setupCanvas() {
-            gCanvas = document.getElementById("test_stand_canvas");
+            gCanvas = document.getElementById("testStandCanvas");
             gCtx = gCanvas.getContext("2d");
             // Put origin at bottom-left corner
             gCtx.translate(0, gCanvas.height);
@@ -81,11 +81,32 @@
 
         function update_status(status_num, num_points) {
             // Scan Status field
-            document.getElementById("scan_status").innerHTML = getStatusString(status_num);
+            document.getElementById("scanStatus").innerHTML = getStatusString(status_num);
             // Progress Bar
-            document.getElementById("progressbar").setAttribute("data-max-value", num_points);
+            document.getElementById("progressBar").setAttribute("data-max-value", num_points);
 
-
+            // Setup Fields
+            var setupFields = Array.from(document.getElementsByClassName("scanSetup"));
+            var startButton = document.getElementById("startButton");
+            var stopButton = document.getElementById("stopButton");
+            if (status_num == SCAN_STATUS_STOPPED) {
+                // No scan in progress
+                setupFields.forEach(function (item, index) {
+                    // Enabled editing fields
+                    item.setAttribute("data-odb-editable", "1");
+                });
+                startButton.disabled = false;
+                stopButton.disabled = true;
+            }
+            else {
+                // Scan in progress
+                setupFields.forEach(function (item, index) {
+                    // Disable editing fields
+                    item.removeAttribute("data-odb-editable");
+                });
+                startButton.disabled = true;
+                stopButton.disabled = false;
+            }
         }
 
         /* ********************************* GENERAL **********************************/
@@ -120,7 +141,7 @@
         }
 
         function setup() {
-            mhttpd_init('Scan Setup');
+            mhttpd_init("Scan");
 
             setupCanvas();
             periodicUpdate();
@@ -128,9 +149,6 @@
             setInterval(periodicUpdate, UPDATE_FREQ_MS);
         }
     </script>
-
-
-
 </head>
 
 <body class="mcss" onload="setup();">
@@ -150,7 +168,7 @@
         Step Size (mm)
       </td>
        <td >       
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize" ></div> 
+        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize" ></div>
       </td>
     </tr>
     <tr>
@@ -158,7 +176,7 @@
         Gantry Speed (mm/s)
       </td>
        <td >       
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Speed" ></div> 
+        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Speed" ></div>
       </td>
     </tr>
     <tr>
@@ -166,8 +184,8 @@
         Starting Position (mm) [X,Y]
       </td>
        <td >       
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[0]" ></div>
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[1]" ></div> 
+        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[0]" ></div>
+        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[1]" ></div>
       </td>
     </tr>
     <tr>
@@ -175,8 +193,8 @@
         Scan Distance (mm) [X,Y]
       </td>
        <td >       
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[0]" ></div>
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[1]" ></div> 
+        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[0]" ></div>
+        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[1]" ></div>
       </td>
     </tr>
     <tr>
@@ -184,7 +202,7 @@
         Scan Time at each Point (ms)
       </td>
        <td >       
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime" ></div> 
+        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime" ></div>
       </td>
     </tr>
     <tr>
@@ -204,7 +222,7 @@
         Scan Status
       </td>
        <td >
-        <div id="scan_status"></div>
+        <div id="scanStatus"></div>
       </td>
     </tr>
     <tr>
@@ -226,8 +244,8 @@
 
     <tr>
       <th colspan="2" style="text-align: left;"> 
-	<div id="progressbar" class="modbhbar" style="width:300px;height:20px;color:orange;" 
-	     data-odb-path="/Equipment/Scan/Variables/SCAN[1]"
+    <div id="progressBar" class="modbhbar" style="width:300px;height:20px;color:orange;" 
+         data-odb-path="/Equipment/Scan/Variables/SCAN[1]"
              data-min-value="0" data-max-value="10" data-print-value="1"></div>
       </th>
     </tr>
@@ -244,7 +262,7 @@
     <span>)</span>
   </div>
 
-  <canvas id="test_stand_canvas" width="300px" height="300px" style="display: block; margin: 0 auto; border:1px solid #000000;">
+  <canvas id="testStandCanvas" width="300px" height="300px" style="display: block; margin: 0 auto; border:1px solid #000000;">
   </canvas>
 
   <br/>

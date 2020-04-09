@@ -1,7 +1,7 @@
 #ifndef FE_ARDUINO_H
 #define FE_ARDUINO_H
 
-#define ODB_PATH_EQS                 "/Equipment"
+#define ODB_PATH_EQS                   "/Equipment"
 
 // Equipment Name
 #define EQ_ARDUINO                     "ARDUINO"

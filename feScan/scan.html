@@ -32,7 +32,7 @@
         #testStandCanvas {
             display: block;
             margin: 0 auto;
-            border:1px solid #000000;
+            border: 5px solid #000000;
         }
     </style>
 
@@ -50,6 +50,10 @@
         const GANTRY_HEIGHT_MM           = 1200;
 
         const UPDATE_FREQ_MS             = 200;
+
+        const CANVAS_COLOUR_DEFAULT      = "#000000";
+        const CANVAS_COLOUR_MOVING       = "#15c165";
+        const CANVAS_COLOUR_MEASURING    = "#e86868";
 
         /* ******************************** GLOBALS ********************************* */
         var gUpdateInflight = false;
@@ -130,6 +134,16 @@
                 });
                 startButton.disabled = true;
                 stopButton.disabled = false;
+
+                if (status_num == SCAN_STATUS_MOVING) {
+                    gCanvas.style.borderColor = CANVAS_COLOUR_MOVING;
+                }
+                else if (status_num == SCAN_STATUS_MEASURING) {
+                    gCanvas.style.borderColor = CANVAS_COLOUR_MEASURING;
+                }
+                else {
+                    gCanvas.style.borderColor = CANVAS_COLOUR_DEFAULT;
+                }
             }
         }
 

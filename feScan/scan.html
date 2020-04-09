@@ -10,6 +10,30 @@
 
     <style>
         .mtable td { padding: 10px; }
+
+        .column {
+            display: inline-block;
+            vertical-align: top;
+            text-align: left;
+            padding: 20px;
+        }
+
+        .row {
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .runButton {
+            visibility: visible;
+            width: 40%;
+            padding: 5px;
+        }
+
+        #testStandCanvas {
+            display: block;
+            margin: 0 auto;
+            border:1px solid #000000;
+        }
     </style>
 
     <script>
@@ -159,113 +183,103 @@
 
 <div id="mmain" style="font-family: verdana,tahoma,sans-serif;">
 
-  <table class="mtable">
-    <tr>
-      <th colspan="2" class="mtableheader">Scan Setup</th>
-    </tr>
-    <tr>
-      <td>
-        Step Size (mm)
-      </td>
-       <td >       
-        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize" ></div>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        Gantry Speed (mm/s)
-      </td>
-       <td >       
-        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Speed" ></div>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        Starting Position (mm) [X,Y]
-      </td>
-       <td >       
-        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[0]" ></div>
-        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[1]" ></div>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        Scan Distance (mm) [X,Y]
-      </td>
-       <td >       
-        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[0]" ></div>
-        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[1]" ></div>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        Scan Time at each Point (ms)
-      </td>
-       <td >       
-        <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime" ></div>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2" style="text-align: center;">
-        <input class="mbutton" id="startButton" type="button" value="Start" onclick="mhttpd_start_run();" style="visibility: visible; width: 40%; padding: 5px;">
-        <input class="mbutton" id="stopButton" type="button" value="Stop" onclick="mhttpd_stop_run();" style="visibility: visible; width: 40%; padding: 5px;">
-      </td>
-    </tr>
-  </table>
+<div class="row">
 
-  <table class="mtable">
-    <tr>
-      <th colspan="2" class="mtableheader">Scan Status</th>
-    </tr>
-    <tr>
-      <td>
-        Scan Status
-      </td>
-       <td >
-        <div id="scanStatus"></div>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        Total number of points
-      </td>
-       <td >       
-        <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[2]" ></div> 
-      </td>
-    </tr>
-    <tr>
-      <td>
-        Current point
-      </td>
-       <td >       
-        <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[1]" ></div> 
-      </td>
-    </tr>
+    <div class="column">
 
-    <tr>
-      <th colspan="2" style="text-align: left;"> 
-    <div id="progressBar" class="modbhbar" style="width:300px;height:20px;color:orange;" 
-         data-odb-path="/Equipment/Scan/Variables/SCAN[1]"
-             data-min-value="0" data-max-value="10" data-print-value="1"></div>
-      </th>
-    </tr>
+        <table class="mtable">
+            <tr><th colspan="2" class="mtableheader">Scan Setup</th></tr>
+            <tr>
+                <td>Step Size (mm)</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Gantry Speed (mm/s)</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Speed"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Starting Position (mm) [X,Y]</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[0]"></div>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[1]"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Scan Distance (mm) [X,Y]</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[0]"></div>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[1]"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Scan Time at each Point (ms)</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime"></div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align: center;">
+                    <input class="mbutton runButton" id="startButton" type="button" value="Start" onclick="mhttpd_start_run();">
+                    <input class="mbutton runButton" id="stopButton" type="button" value="Stop" onclick="mhttpd_stop_run();">
+                </td>
+            </tr>
+        </table>
 
-  </table>
+        <br />
 
-  <span class="mtableheader" style="display: block; margin: 15px auto; width: 300px;">Gantry Position</span>
+        <table class="mtable">
+            <tr><th colspan="2" class="mtableheader">Scan Status</th></tr>
+            <tr>
+                <td>Scan Status</td>
+                <td>
+                    <div id="scanStatus"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Total number of points</td>
+                <td>
+                    <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[2]"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Current point</td>
+                <td>
+                    <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[1]"></div>
+                </td>
+            </tr>
 
-  <div style="display: block; width: 300px; margin: 0 auto; text-align: right;">
-    <span>(</span>
-    <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[0]" ></span><span> mm</span>
-    <span>, </span>
-    <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[1]" ></span><span> mm</span>
-    <span>)</span>
-  </div>
+            <tr>
+                <th colspan="2" style="text-align: left;">
+                    <div id="progressBar" class="modbhbar" style="width:300px; height:20px; color:orange;"
+                        data-odb-path="/Equipment/Scan/Variables/SCAN[1]"
+                        data-min-value="0" data-max-value="10" data-print-value="1"></div>
+                </th>
+            </tr>
+        </table>
 
-  <canvas id="testStandCanvas" width="300px" height="300px" style="display: block; margin: 0 auto; border:1px solid #000000;">
-  </canvas>
+    </div> <!-- column -->
 
-  <br/>
+    <div class="column">
+
+        <span class="mtableheader" style="display: block; margin: 15px 0px;">Gantry Position</span>
+
+        <canvas id="testStandCanvas" width="500px" height="500px"></canvas>
+
+        <div style="display: block; width: 100%; margin: 0 auto; text-align: right;">
+            <span>(</span>
+            <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[0]" ></span><span> mm</span>
+            <span>, </span>
+            <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[1]" ></span><span> mm</span>
+            <span>)</span>
+        </div>
+
+    </div> <!-- column -->
+
+</div> <!-- row -->
 
 </body>
 </html>

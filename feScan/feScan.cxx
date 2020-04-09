@@ -27,6 +27,11 @@ March, 2002
 #define  EQ_EVID   1
 #define  EQ_TRGMSK 0x1111
 
+#define SCAN_STATUS_STOPPED 0
+#define SCAN_STATUS_STARTED 1
+#define SCAN_STATUS_MOVING 2
+#define SCAN_STATUS_MEASURING 3
+
 /* Hardware */
 extern HNDLE hDB;
 
@@ -65,6 +70,7 @@ std::vector<std::pair<float,float> > gScanPoints;  // All the points in the pres
 float gScanTime; // Scan time in milliseconds.
 typedef std::chrono::high_resolution_clock Clock;
 Clock::time_point timeStartMeasurement;  // time at the start of the measurement at particular point.   
+DWORD gScanStatus;
 
 /*-- Function declarations -----------------------------------------*/
 INT frontend_init();
@@ -117,6 +123,7 @@ INT frontend_init()
     return FE_ERR_ODB;
   }
 
+  gScanStatus = SCAN_STATUS_STOPPED;
 
   return SUCCESS;
 }
@@ -133,6 +140,8 @@ INT frontend_exit()
 /*-- Begin of Run --------------------------------------------------*/
 INT begin_of_run(INT run_number, char *error)
 {
+  gScanStatus = SCAN_STATUS_STARTED;
+
   // Get Scan parameters...
   std::string path;
   path += "/Equipment/";
@@ -278,6 +287,8 @@ INT end_of_run(INT run_number, char *error)
   gbl_called_BOR = FALSE;
   gGantryWasMoving = false;
 
+  gScanStatus = SCAN_STATUS_STOPPED;
+
   printf("EOR\n");
   
   return SUCCESS;
@@ -392,6 +403,7 @@ INT frontend_loop()
 
     if(gGantryWasMoving) { // We just finished moving.  Start the measurement (record current time)
       start_measurement();
+      gScanStatus = SCAN_STATUS_MEASURING;
       gGantryWasMoving = false;
       std::cout << "    Starting measurement at this point." << std::endl;
     }
@@ -424,6 +436,7 @@ INT frontend_loop()
     float y_mm = gScanPoints[gbl_current_point].second;
     status = request_move(x_mm, y_mm);
     if (status == SUCCESS) {
+        gScanStatus = SCAN_STATUS_MOVING;
         gGantryWasMoving = true;
         printf("    Started move to position (%.2f mm, %.2f mm)\n", x_mm, y_mm);
     }
@@ -502,7 +515,7 @@ INT read_scan_state(char *pevent, INT off)
   
   bk_create(pevent, "SCAN", TID_DWORD, (void**)&pddata);
   
-  *pddata++ = 0; // In scan?
+  *pddata++ = gScanStatus;
   *pddata++ = (gbl_current_point + 1); // gbl_current_point is 0-indexed
   *pddata++ = gScanPoints.size();
   bk_close(pevent, pddata);	

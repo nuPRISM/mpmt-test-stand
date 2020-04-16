@@ -12,7 +12,7 @@ This repository contains the following directories:
 
 
 *   **MessageTerminal**: Command-line application for testing and debugging the Arduino firmware and serial communication software
-*   **feArduino: **MIDAS frontend application for managing communication with the Arduino
+*   **feArduino**: MIDAS frontend application for managing communication with the Arduino
 *   **feScan**: MIDAS frontend application for running/monitoring a scan
 *   **firmware**: Arduino Due firmware
 *   **PseudoGantry**: Arduino project that emulates the behavior of the gantry (motor drivers, limit switches and encoders)
@@ -176,12 +176,12 @@ There are 3 steps to building, flashing and running the required software to ope
 4. Run the following command:
 
 
-```
-pio run -t upload --upload-port <port>
-```
+    ```
+    pio run -t upload --upload-port <port>
+    ```
 
 
- where `<port>` is the serial port you noted down earlier (e.g. COM3 on Windows or /dev/ttyACM0 on Linux))
+     where `<port>` is the serial port you noted down earlier (e.g. COM3 on Windows or /dev/ttyACM0 on Linux))
 
 
 ### Build / Run feArduino
@@ -237,10 +237,9 @@ pio run -t upload --upload-port <port>
 3. Assuming the build was successful, run the following command:
 
 
-```
-	./feScan.exe
-
-```
+    ```
+    ./feScan.exe
+    ```
 
 
 
@@ -359,7 +358,7 @@ To start the program, run the following command:
 
 You can type ? and hit enter to see a list of available commands.
 
-**NOTE: **You must exit the MessageTerminal before trying to flash new firmware to the Arduino since only one program can communicate with the serial port at a time.
+**NOTE**: You must exit the MessageTerminal before trying to flash new firmware to the Arduino since only one program can communicate with the serial port at a time.
 
 
 ### Debugging

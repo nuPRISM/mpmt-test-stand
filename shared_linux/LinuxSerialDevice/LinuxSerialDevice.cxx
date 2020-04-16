@@ -10,7 +10,7 @@
 #include <termios.h> // Contains POSIX terminal control definitions
 #include <unistd.h> // write(), read(), close()
 #include <sys/ioctl.h> // ioctl()
-#include <sys/time.h>
+#include <time.h>
 
 LinuxSerialDevice::LinuxSerialDevice()
 {
@@ -22,7 +22,22 @@ void LinuxSerialDevice::set_device_file(const char *device_file)
     this->device_file = device_file;
 }
 
-bool LinuxSerialDevice::ser_connect(uint32_t baud_rate)
+static speed_t get_termios_baud_rate(SerialBaudRate baud_rate)
+{
+    switch (baud_rate) {
+        case BAUD_9600   : return B9600;
+        case BAUD_19200  : return B19200;
+        case BAUD_38400  : return B38400;
+        case BAUD_57600  : return B57600;
+        case BAUD_115200 : return B115200;
+        case BAUD_230400 : return B230400;
+        case BAUD_460800 : return B460800;
+        case BAUD_500000 : return B500000;
+        default          : return 0;
+    }
+}
+
+bool LinuxSerialDevice::ser_connect(SerialBaudRate baud_rate)
 {
     // Reference: https://blog.mbedded.ninja/programming/operating-systems/linux/linux-serial-ports-using-c-cpp/
 
@@ -56,6 +71,7 @@ bool LinuxSerialDevice::ser_connect(uint32_t baud_rate)
     tty.c_lflag &= ~ECHOE;    // Disable erasure
     tty.c_lflag &= ~ECHONL;   // Disable new-line echo
     tty.c_lflag &= ~ISIG;     // Disable interpretation of INTR, QUIT and SUSP
+    tty.c_lflag &= ~IEXTEN;   // Disable interpretation of VDISCARD=SI and VLNEXT=SYN
     // Input Modes
     tty.c_iflag &= ~(IXON | IXOFF | IXANY);                          // Turn off s/w flow ctrl
     tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL); // Disable any special handling of received bytes
@@ -67,9 +83,14 @@ bool LinuxSerialDevice::ser_connect(uint32_t baud_rate)
     tty.c_cc[VTIME] = 0;
     tty.c_cc[VMIN] = 0;
 
-    // Set baud rate
-    cfsetispeed(&tty, baud_rate);
-    cfsetospeed(&tty, baud_rate);
+    // Baud rate
+    speed_t termios_baud_rate = get_termios_baud_rate(baud_rate);
+    if (termios_baud_rate == 0) {
+        printf("Error: Invalid baud rate: %d\n", baud_rate);
+        return false;
+    }
+    cfsetispeed(&tty, termios_baud_rate);
+    cfsetospeed(&tty, termios_baud_rate);
 
     // Save tty settings
     if (tcsetattr(serial_port, TCSANOW, &tty) != 0) {
@@ -111,7 +132,9 @@ void LinuxSerialDevice::ser_disconnect()
 
 uint64_t LinuxSerialDevice::platform_millis()
 {
-    struct timeval tval;
-    gettimeofday(&tval, NULL);
-    return (tval.tv_usec / 1000);
+    struct timespec monotime;
+    // Use CLOCK_MONOTONIC (rather than CLOCK_REALTIME) since we don't care about
+    // absolute time, just elapsed time
+    clock_gettime(CLOCK_MONOTONIC, &monotime);
+    return ((monotime.tv_sec * 1000) + (monotime.tv_nsec / 1E6));
 }

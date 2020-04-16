@@ -20,7 +20,7 @@ class LinuxSerialDevice: public SerialDevice
         LinuxSerialDevice();
         void set_device_file(const char *device_file);
 
-        bool ser_connect(uint32_t baud_rate);
+        bool ser_connect(SerialBaudRate baud_rate);
         void ser_flush();
         uint32_t ser_available();
         bool ser_read(uint8_t *out);

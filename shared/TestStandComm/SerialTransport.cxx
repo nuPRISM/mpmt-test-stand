@@ -46,59 +46,55 @@ void SerialTransport::reset()
  */
 bool SerialTransport::check_for_message(Message& msg)
 {
-    uint32_t avail;
-    if ((avail = this->device.ser_available()) > 0) {
-        uint8_t byte_in;
-        while (avail > 0) {
-            // Read next byte in
-            if (!this->device.ser_read(&byte_in)) break;
-            avail--;
+    uint8_t byte_in;
+    while (this->device.ser_available() > 0) {
+        // Read next byte in
+        if (!this->device.ser_read(&byte_in)) break;
 
-            switch (this->pending_message.current_segment) {
-                case MSG_SEG_START:
-                    if (byte_in == MSG_DELIM_START) {
-                        this->msg_in_progress = true;
-                        this->pending_message.current_segment = MSG_SEG_ID;
-                    }
-                    break;
-                case MSG_SEG_ID:
-                    msg.id = byte_in;
-                    this->pending_message.current_segment = MSG_SEG_LENGTH;
-                    break;
-                case MSG_SEG_LENGTH:
-                    msg.length = byte_in;
-                    this->pending_message.msg_length = byte_in;
+        switch (this->pending_message.current_segment) {
+            case MSG_SEG_START:
+                if (byte_in == MSG_DELIM_START) {
+                    this->msg_in_progress = true;
+                    this->pending_message.current_segment = MSG_SEG_ID;
+                }
+                break;
+            case MSG_SEG_ID:
+                msg.id = byte_in;
+                this->pending_message.current_segment = MSG_SEG_LENGTH;
+                break;
+            case MSG_SEG_LENGTH:
+                msg.length = byte_in;
+                this->pending_message.msg_length = byte_in;
+                this->pending_message.bytes_read = 0;
+                this->pending_message.current_segment = (byte_in == 0 ? MSG_SEG_CRC : MSG_SEG_DATA);
+                break;
+            case MSG_SEG_DATA:
+                msg.data[this->pending_message.bytes_read] = byte_in;
+                this->pending_message.bytes_read++;
+
+                if (this->pending_message.bytes_read == this->pending_message.msg_length) {
                     this->pending_message.bytes_read = 0;
-                    this->pending_message.current_segment = (byte_in == 0 ? MSG_SEG_CRC : MSG_SEG_DATA);
-                    break;
-                case MSG_SEG_DATA:
-                    msg.data[this->pending_message.bytes_read] = byte_in;
-                    this->pending_message.bytes_read++;
-
-                    if (this->pending_message.bytes_read == this->pending_message.msg_length) {
-                        this->pending_message.bytes_read = 0;
-                        this->pending_message.current_segment = MSG_SEG_CRC;
-                    }
-                    break;
-                case MSG_SEG_CRC:
-                    ((uint8_t *)&(this->pending_message.crc))[this->pending_message.bytes_read] = byte_in;
-                    this->pending_message.bytes_read++;
-                    if (this->pending_message.bytes_read == sizeof(this->pending_message.crc)) {
-                        this->pending_message.bytes_read = 0;
-                        // TODO CRC check
-                        this->pending_message.current_segment = MSG_SEG_END;
-                    }
-                    break;
-                case MSG_SEG_END:
-                    this->reset();
-                    if (byte_in == MSG_DELIM_END) {
-                        // Stop processing serial data as soon as we've read in a full message
-                        return true;
-                    }
-                    break;
-                default:
-                    break;
-            }
+                    this->pending_message.current_segment = MSG_SEG_CRC;
+                }
+                break;
+            case MSG_SEG_CRC:
+                ((uint8_t *)&(this->pending_message.crc))[this->pending_message.bytes_read] = byte_in;
+                this->pending_message.bytes_read++;
+                if (this->pending_message.bytes_read == sizeof(this->pending_message.crc)) {
+                    this->pending_message.bytes_read = 0;
+                    // TODO CRC check
+                    this->pending_message.current_segment = MSG_SEG_END;
+                }
+                break;
+            case MSG_SEG_END:
+                this->reset();
+                if (byte_in == MSG_DELIM_END) {
+                    // Stop processing serial data as soon as we've read in a full message
+                    return true;
+                }
+                break;
+            default:
+                break;
         }
     }
 

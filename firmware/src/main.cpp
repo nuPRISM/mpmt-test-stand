@@ -3,6 +3,9 @@
 #include "Timer.h"
 #include "Debug.h"
 
+/* ************************ Shared Project Includes ************************ */
+#include "shared_defs.h"
+
 /* **************************** System Includes **************************** */
 #include <Arduino.h>
 
@@ -10,12 +13,12 @@ const mPMTTestStandConfig conf = {
     .io = {
         // Serial Devices
         .serial_comm            = Serial,
-        .serial_comm_baud_rate  = 115200,
+        .serial_comm_baud_rate  = SERIAL_BAUD_RATE,
         // Thermistor Pins
         .pin_therm_amb          = A0,
         .pin_therm_motor_x      = A1,
-        .pin_therm_mpmt         = A2,
         .pin_therm_motor_y      = A3,
+        .pin_therm_mpmt         = A2,
         .pin_therm_optical      = A4,
         // Gantry X-Axis Pins
         .io_axis_x = {
@@ -84,6 +87,7 @@ void setup()
 
 void loop()
 {
+    // PROFILE("Test Stand", 1000, test_stand.execute());
     test_stand.execute();
 
     // Blink an LED

@@ -17,12 +17,12 @@
 typedef struct {
     // Serial Devices
     UARTClass& serial_comm;
-    uint32_t serial_comm_baud_rate;
+    SerialBaudRate serial_comm_baud_rate;
     // Thermistor Pins
     uint8_t pin_therm_amb;
     uint8_t pin_therm_motor_x;
-    uint8_t pin_therm_mpmt;
     uint8_t pin_therm_motor_y;
+    uint8_t pin_therm_mpmt;
     uint8_t pin_therm_optical;
     // Gantry Axis Pins
     AxisIO io_axis_x;
@@ -52,9 +52,9 @@ class mPMTTestStand
         ArduinoSerialDevice comm_dev;
         TestStandCommController comm;
         Thermistor10k thermistor_ambient;
-        Thermistor10k thermistor_motor1;
+        Thermistor10k thermistor_motor_x;
+        Thermistor10k thermistor_motor_y;
         Thermistor10k thermistor_mpmt;
-        Thermistor10k thermistor_motor2;
         Thermistor10k thermistor_optical;
 
         Status status;
@@ -63,6 +63,7 @@ class mPMTTestStand
         const AxisState *x_state;
         const AxisState *y_state;
 
+        void handle_echo();
         void handle_home_a();
         void handle_home_b();
         void handle_move();

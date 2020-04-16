@@ -7,16 +7,11 @@
 
 #include "shared_defs.h"
 #include "TestStandMessages.h"
-#include "macros.h"
 
 #include <unistd.h>
 
 #include <iostream>
 #include <sstream>
-
-#define BAUD_RATE 115200
-
-#define RECV_MSG_TIMEOUT 5000
 
 #define BASIC_CMD(_name)                     \
 void _name(istringstream& iss)               \
@@ -71,7 +66,7 @@ void move(istringstream& iss)
         iss >> dist;
 
         AxisResult axis_res;
-        SerialResult res = comm.move(axis, dir, vel_hold, dist, &axis_res, RECV_MSG_TIMEOUT);
+        SerialResult res = comm.move(axis, dir, vel_hold, dist, &axis_res, MSG_RECEIVE_TIMEOUT_MS);
         if (res == SERIAL_OK) {
             switch (axis_res) {
                 case AXIS_OK:                 puts("AXIS_OK"); break;
@@ -96,7 +91,7 @@ void move(istringstream& iss)
 void get_status(istringstream& iss)
 {
     Status status;
-    SerialResult res = comm.get_status(&status, RECV_MSG_TIMEOUT);
+    SerialResult res = comm.get_status(&status, MSG_RECEIVE_TIMEOUT_MS);
     if (res == SERIAL_OK) {
         switch (status) {
             case STATUS_IDLE:   puts("Status: IDLE"); break;
@@ -114,9 +109,25 @@ void get_status(istringstream& iss)
 void get_position(istringstream& iss)
 {
     PositionMsgData position;
-    SerialResult res = comm.get_position(&position, RECV_MSG_TIMEOUT);
+    SerialResult res = comm.get_position(&position, MSG_RECEIVE_TIMEOUT_MS);
     if (res == SERIAL_OK) {
         printf("Position (counts): (%d, %d)\n", position.x_counts, position.y_counts);
+    }
+    else {
+        printf("ERROR: %d\n", res);
+    }
+}
+
+void get_temp(istringstream& iss)
+{
+    TempData temp_data;
+    SerialResult res = comm.get_temp(&temp_data, MSG_RECEIVE_TIMEOUT_MS);
+    if (res == SERIAL_OK) {
+        printf("Ambient : %12f deg C\n", temp_data.temp_ambient);
+        printf("Motor X : %12f deg C\n", temp_data.temp_motor_x);
+        printf("Motor Y : %12f deg C\n", temp_data.temp_motor_y);
+        printf("mPMT    : %12f deg C\n", temp_data.temp_mpmt);
+        printf("Optical : %12f deg C\n", temp_data.temp_optical);
     }
     else {
         printf("ERROR: %d\n", res);
@@ -131,13 +142,26 @@ cmd_handler get_cmd_handler(const string& cmd_name)
     if (cmd_name == "move")           return move;
     if (cmd_name == "stop")           return stop;
     if (cmd_name == "get_position")   return get_position;
+    if (cmd_name == "get_temp")       return get_temp;
 
     return nullptr;
 }
 
+bool link_check()
+{
+    SerialResult res = comm.link_check(MSG_RECEIVE_TIMEOUT_MS);
+    if (res == SERIAL_OK) {
+        printf("OK\n");
+        return true;
+    }
+
+    printf("ERROR: %d\n", res);
+    return false;
+}
+
 bool connect_to_arduino()
 {
-    if (!device.ser_connect(BAUD_RATE)) return false;
+    if (!device.ser_connect(SERIAL_BAUD_RATE)) return false;
     device.ser_flush();
 
     cout << "Waiting for Arduino..." << flush;
@@ -189,6 +213,9 @@ int main(int argc, char *argv[])
         else if (word == "reset") {
             device.ser_disconnect();
             if (!connect_to_arduino()) return 1;
+        }
+        else if (word == "link_check") {
+            link_check();
         }
         else {
             // Handle command

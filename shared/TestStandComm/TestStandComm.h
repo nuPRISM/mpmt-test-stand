@@ -28,14 +28,47 @@ class TestStandComm
     protected:
         SerialResult send_basic_msg(uint8_t id);
         SerialSession session;
+        uint8_t send_buf[MSG_DATA_LENGTH_MAX];
 
     public:
         TestStandComm(SerialDevice& device);
+
+        SerialResult ping();
+        SerialResult echo(uint8_t *data, uint8_t length);
+        SerialResult recv_echo();
+
+        SerialResult link_check(uint32_t timeout_ms);
 
         SerialResult check_for_message();
         SerialResult recv_message(uint8_t expect_id, uint8_t expect_length, uint32_t timeout_ms);
         Message& received_message();
 
 };
+
+/**
+ * @brief Convert a uint32_t from network byte order (big endian) to host byte order
+ */
+int32_t inline ntohl(int32_t val)
+{
+    uint8_t *ptr = (uint8_t *)&val;
+    return (ptr[0] << 24 |
+            ptr[1] << 16 |
+            ptr[2] <<  8 |
+            ptr[3] <<  0 );
+}
+
+/**
+ * @brief Convert a uint32_t from host byte order to network byte order (big endian)
+ */
+int32_t inline htonl(int32_t val)
+{
+    uint32_t out;
+    uint8_t *ptr = (uint8_t *)&out;
+    ptr[0] = (val >> 24) & 0xFF;
+    ptr[1] = (val >> 16) & 0xFF;
+    ptr[2] = (val >>  8) & 0xFF;
+    ptr[3] = (val >>  0) & 0xFF;
+    return out;
+}
 
 #endif // TEST_STAND_COMM_H

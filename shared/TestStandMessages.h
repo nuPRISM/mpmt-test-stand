@@ -1,15 +1,11 @@
 #ifndef TEST_STAND_MESSAGES_H
 #define TEST_STAND_MESSAGES_H
 
-#include "Gantry.h"
 #include <stdint.h>
 
 /*****************************************************************************/
 /*                                MESSAGE IDS                                */
 /*****************************************************************************/
-
-// Two-way Messages
-#define MSG_ID_PING             0x03
 
 // PC -> Arduino Messages
 #define MSG_ID_GET_STATUS       0x40
@@ -60,5 +56,13 @@ typedef struct {
     int32_t x_counts;
     int32_t y_counts;
 } __attribute__((__packed__)) PositionMsgData;
+
+typedef struct {
+    int32_t temp_ambient;
+    int32_t temp_motor_x;
+    int32_t temp_motor_y;
+    int32_t temp_mpmt;
+    int32_t temp_optical;
+} __attribute__((__packed__)) TempMsgData;
 
 #endif // TEST_STAND_MESSAGES_H

@@ -1,19 +1,19 @@
 /* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
+#include "Messages.h"
 #include "TestStandMessages.h"
+#include "Gantry.h"
+#include "TempMeasure.h"
 #include "Debug.h"
-
-/* ************************ Shared Project Includes ************************ */
-#include "macros.h"
 
 mPMTTestStand::mPMTTestStand(const mPMTTestStandConfig& conf) :
     conf(conf),
     comm_dev(conf.io.serial_comm),
     comm(this->comm_dev),
     thermistor_ambient(conf.io.pin_therm_amb),
-    thermistor_motor1(conf.io.pin_therm_motor_x),
+    thermistor_motor_x(conf.io.pin_therm_motor_x),
+    thermistor_motor_y(conf.io.pin_therm_motor_y),
     thermistor_mpmt(conf.io.pin_therm_mpmt),
-    thermistor_motor2(conf.io.pin_therm_motor_y),
     thermistor_optical(conf.io.pin_therm_optical)
 {
     this->x_state = axis_get_state(AXIS_X);
@@ -32,8 +32,8 @@ void mPMTTestStand::setup()
     analogReadResolution(12); // enable 12 bit resolution mode in Arduino Due. Default is 10 bit.
     pinMode(this->conf.io.pin_therm_amb,     INPUT);
     pinMode(this->conf.io.pin_therm_motor_x, INPUT);
-    pinMode(this->conf.io.pin_therm_mpmt,    INPUT);
     pinMode(this->conf.io.pin_therm_motor_y, INPUT);
+    pinMode(this->conf.io.pin_therm_mpmt,    INPUT);
     pinMode(this->conf.io.pin_therm_optical, INPUT);
 
     // Connect serial communications
@@ -51,6 +51,11 @@ void mPMTTestStand::setup()
     DEBUG_PRINTLN("Host connected!");
 
     this->status = STATUS_IDLE;
+}
+
+void mPMTTestStand::handle_echo()
+{
+    this->comm.recv_echo();
 }
 
 /**
@@ -145,7 +150,14 @@ void mPMTTestStand::handle_get_axis_state()
 
 void mPMTTestStand::handle_get_temp()
 {
-    // TODO
+    TempData temp_data = {
+        .temp_ambient = this->thermistor_ambient.readTemperature(),
+        .temp_motor_x = this->thermistor_motor_x.readTemperature(),
+        .temp_motor_y = this->thermistor_motor_y.readTemperature(),
+        .temp_mpmt = this->thermistor_mpmt.readTemperature(),
+        .temp_optical = this->thermistor_optical.readTemperature()
+    };
+    this->comm.temp(&temp_data);
 }
 
 void mPMTTestStand::debug_dump_axis(AxisId axis_id)
@@ -230,29 +242,15 @@ void mPMTTestStand::execute()
         uint8_t id = this->comm.received_message().id;
         DEBUG_PRINT_VAL("Received Message w/ ID", id);
         switch (id) {
-            case MSG_ID_HOME:
-                this->handle_home_a();
-                break;
-            case MSG_ID_MOVE:
-                this->handle_move();
-                break;
-            case MSG_ID_STOP:
-                this->handle_stop();
-                break;
-            case MSG_ID_GET_STATUS:
-                this->handle_get_status();
-                break;
-            case MSG_ID_GET_POSITION:
-                this->handle_get_position();
-                break;
-            case MSG_ID_GET_AXIS_STATE:
-                this->handle_get_axis_state();
-                break;
-            case MSG_ID_GET_TEMP:
-                this->handle_get_temp();
-                break;
-            default:
-                break;
+            case MSG_ID_ECHO:           this->handle_echo();           break;
+            case MSG_ID_HOME:           this->handle_home_a();         break;
+            case MSG_ID_MOVE:           this->handle_move();           break;
+            case MSG_ID_STOP:           this->handle_stop();           break;
+            case MSG_ID_GET_STATUS:     this->handle_get_status();     break;
+            case MSG_ID_GET_POSITION:   this->handle_get_position();   break;
+            case MSG_ID_GET_AXIS_STATE: this->handle_get_axis_state(); break;
+            case MSG_ID_GET_TEMP:       this->handle_get_temp();       break;
+            default:                                                   break;
         }
     }
 }

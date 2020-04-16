@@ -62,12 +62,12 @@ const mPMTTestStandConfig conf = {
             .counts_per_rev     = ENCODER_COUNTS_PER_REV,
             .steps_per_rev      = MOTOR_STEPS_PER_REV,
         },
-        .accel                  = 100,  // acceleration for all motion [steps / s^2]
-        .vel_start              = 50,   // starting velocity for all motion [steps / s]
-        .vel_home_a             = 750,  // holding velocity for homing A [steps / s]
-        .vel_home_b             = 750,  // holding velocity for homing B [steps / s]
-        .accel_home_a           = 100,  // acceleration for homing A [steps / s^2]
-        .accel_home_b           = 100   // acceleration for homing B [steps / s^2]
+        .accel                  = 10,  // acceleration for all motion [steps / s^2]
+        .vel_start              = 1,   // starting velocity for all motion [steps / s]
+        .vel_home_a             = 75,  // holding velocity for homing A [steps / s]
+        .vel_home_b             = 75,  // holding velocity for homing B [steps / s]
+        .accel_home_a           = 10,  // acceleration for homing A [steps / s^2]
+        .accel_home_b           = 10   // acceleration for homing B [steps / s^2]
     }
 };
 

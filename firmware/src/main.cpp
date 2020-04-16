@@ -35,7 +35,8 @@ const mPMTTestStandConfig conf = {
             .pin_enc_b          = 8,
             .pin_ls_home        = 9,
             .pin_ls_far         = 10,
-            .ls_pressed_state   = LOW
+            .dir_pos_level      = LOW,
+            .ls_pressed_level   = LOW
         },
         // Gantry Y-Axis Pins
         .io_axis_y = {
@@ -52,7 +53,8 @@ const mPMTTestStandConfig conf = {
             .pin_enc_b          = 25,
             .pin_ls_home        = 26,
             .pin_ls_far         = 27,
-            .ls_pressed_state   = LOW
+            .dir_pos_level      = LOW,
+            .ls_pressed_level   = LOW
         }
     },
     .gantry = {

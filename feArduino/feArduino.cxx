@@ -18,26 +18,13 @@ Arduino frontend for mPMT test stand.
 #include "time.h"
 #include "sys/time.h"
 
+#include "feArduino.h"
 #include "ArduinoHelper.h"
 
-#define  EQ_NAME   "ARDUINO"
+#define  EQ_NAME   EQ_ARDUINO
 #define  EQ_EVID   1
 #define  EQ_TRGMSK 0x1111
 
-// ODB Paths and Variables
-#define ODB_PATH_EQS         "/Equipment"
-#define ODB_PATH_EQ          ODB_PATH_EQS "/" EQ_NAME
-#define ODB_PATH_SETTINGS    ODB_PATH_EQ "/Settings"
-
-#define ODB_VAR_START_HOME   ODB_PATH_SETTINGS "/StartHome"
-#define ODB_VAR_START_MOVE   ODB_PATH_SETTINGS "/StartMove"
-#define ODB_VAR_DESTINATION  ODB_PATH_SETTINGS "/Destination"
-#define ODB_VAR_VELOCITY     ODB_PATH_SETTINGS "/Velocity"
-
-// Note: these must be exactly 4 letters long
-#define ODB_BANK_GANTRY      "GANT"
-#define ODB_BANK_STATUS      "STAT"
-#define ODB_BANK_TEMP        "TEMP"
 
 /* Hardware */
 extern HNDLE hDB;
@@ -137,45 +124,56 @@ void seq_callback(INT hDB, INT hseq, void *info)
 }
 
 BOOL gStartHome;
-BOOL gStartMove;
+BOOL gMoveRequest;
 HNDLE handleHome;
-HNDLE handleMove;
+HNDLE handleMoveRequest;
 
-void start_move(INT hDB, INT hkey, void *info)
+void move_request(INT hDB, INT hkey, void *info)
 {
-  if(!gStartMove) return; // Just return if move not requested...
-
-  printf("================================================================================\n");
-  printf("START MOVE\n");
-  printf("--------------------------------------------------------------------------------\n");
+  if(!gMoveRequest) return; // Just return if move not requested...
 
   INT status;
+  int size;
 
-  // Get the destination position (absolute distance)
-  float destination[2] = {0,0};
-  int size_dest = sizeof(destination);
-  status = db_get_value(hDB, 0, ODB_VAR_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE);
+  // Clear MoveResponse
+  BOOL response[2] = {false, false};
+  size = sizeof(response);
+  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_RESPONSE, &response, size, 2, TID_BOOL);
   if (status != DB_SUCCESS) {
-      cm_msg(MERROR, "start_move", "Failed to retrieve destination (%s) from ODB. Error: %d", ODB_VAR_DESTINATION, status);
+      cm_msg(MERROR, "start_move", "Failed to clear MoveResponse in ODB. Error: %d", status);
       return;
   }
 
-  // Get the velocity
+  // Get absolute destination position
+  float destination[2] = {0,0};
+  int size_dest = sizeof(destination);
+  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "start_move", "Failed to retrieve Destination from ODB. Error: %d", status);
+      return;
+  }
+
+  // Get velocity
   float velocity[2] = {0,0};
   int size_vel = sizeof(velocity);
-  status = db_get_value(hDB, 0, ODB_VAR_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE);
+  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE);
   if (status != DB_SUCCESS) {
-    cm_msg(MERROR, "start_move", "Failed to retrieve velocity (%s) from ODB. Error: %d", ODB_VAR_VELOCITY, status);
+    cm_msg(MERROR, "start_move", "Failed to retrieve Velocity from ODB. Error: %d", status);
     return;
   }
 
-  arduino_move(destination, velocity);
+  // Send MOVE to Arduino
+  bool move_success = arduino_move(destination, velocity);
 
-  // Little magic to reset the key to 'n' without retriggering hotlink
+  // Set MoveResponse
+  response[0] = true;         // Index 0 just indicates we have a response
+  response[1] = move_success; // Index 0 indicates success or failure
+  size = sizeof(response);
+  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_RESPONSE, &response, size, 2, TID_BOOL);
+
+  // Reset MoveRequest
   BOOL move = false;
-  db_set_data_index1(hDB, handleMove, &move, sizeof(move), 0, TID_BOOL, FALSE);
-
-  printf("================================================================================\n");
+  db_set_data_index1(hDB, handleMoveRequest, &move, sizeof(move), 0, TID_BOOL, FALSE);
 }
 
 void start_home(INT hDB, INT hkey, void *info)
@@ -200,8 +198,8 @@ void start_home(INT hDB, INT hkey, void *info)
 /*-- Frontend Init -------------------------------------------------*/
 INT frontend_init()
 {
-  // Setup connection to Arduino
-  
+  /* *************************** CONNECT TO ARDUINO *************************** */
+
   // Read the name of the serial device from the command line arguments
   int argc;
   char **argv; 
@@ -218,41 +216,62 @@ INT frontend_init()
 
   if (!arduino_connect(argv[1])) return FE_ERR_HW;
 
-  // Setup connection to ODB (online database)
+  /* ***************************** CONNECT TO ODB ***************************** */
+
   int status = cm_get_experiment_database(&hDB, NULL);
   if (status != CM_SUCCESS) {
     cm_msg(MERROR, "frontend_init", "Cannot connect to ODB, cm_get_experiment_database() returned %d", status);
     return FE_ERR_ODB;
   }
 
-  // Setup hot-links (open record, callbacks) to StartHome variable
+  /* **************************** INITIALIZE VARS ***************************** */
+  // DESTINATION
+  float destination[2] = {0,0};
+  int size_dest = sizeof(destination);
+  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "frontend_init", "Failed to retrieve destination (%s) from ODB. Error: %d", ODB_KEY_ARDUINO_DESTINATION, status);
+      return FE_ERR_ODB;
+  }
+
+  // VELOCITY
+  float velocity[2] = {0,0};
+  int size_vel = sizeof(velocity);
+  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE);
+  if (status != DB_SUCCESS) {
+    cm_msg(MERROR, "frontend_init", "Failed to retrieve velocity (%s) from ODB. Error: %d", ODB_KEY_ARDUINO_VELOCITY, status);
+    return FE_ERR_ODB;
+  }
+
+  /* ************************** START HOME HOT-LINK *************************** */
 
   // Get the current value (just to initialize it...)
   gStartHome = false;
   int size = sizeof(gStartHome);
-  status = db_get_value(hDB, 0, ODB_VAR_START_HOME, &gStartHome, &size, TID_BOOL, TRUE);
+  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_START_HOME, &gStartHome, &size, TID_BOOL, TRUE);
    
   // Setup actual hot-link
-  status = db_find_key (hDB, 0, ODB_VAR_START_HOME, &handleHome);
+  status = db_find_key (hDB, 0, ODB_KEY_ARDUINO_START_HOME, &handleHome);
 
   /* Enable hot-link on StartHome of the equipment */
   if ((status = db_open_record(hDB, handleHome, &gStartHome, size, MODE_READ, start_home, NULL)) != DB_SUCCESS) {
     return status;
   }
-  
-  // Setup hot-links (open record, callbacks) to StartMove variable
+
+  /* ************************* MOVE REQUEST HOT-LINK ************************** */
 
   // Get the current value (just to initialize it...)
-  gStartMove = false;
-  size = sizeof(gStartMove);
-  status = db_get_value(hDB, 0, ODB_VAR_START_MOVE, &gStartMove, &size, TID_BOOL, TRUE);
+  gMoveRequest = false;
+  size = sizeof(gMoveRequest);
+  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_REQUEST, &gMoveRequest, &size, TID_BOOL, TRUE);
    
   // Setup actual hot-link
-  status = db_find_key (hDB, 0, ODB_VAR_START_MOVE, &handleMove);
+  status = db_find_key(hDB, 0, ODB_KEY_ARDUINO_MOVE_REQUEST, &handleMoveRequest);
 
-  /* Enable hot-link on StartMove of the equipment */
-  if ((status = db_open_record(hDB, handleMove, &gStartMove, size, MODE_READ, start_move, NULL)) != DB_SUCCESS)
+  // Enable hot-link on MoveRequest of the equipment
+  if ((status = db_open_record(hDB, handleMoveRequest, &gMoveRequest, size, MODE_READ, move_request, NULL)) != DB_SUCCESS) {
     return status;
+  }
 
   return SUCCESS;
 }
@@ -260,6 +279,7 @@ INT frontend_init()
 /*-- Frontend Exit -------------------------------------------------*/
 INT frontend_exit()
 {
+  arduino_stop();
   arduino_disconnect();
   return SUCCESS;
 }
@@ -277,7 +297,7 @@ INT begin_of_run(INT run_number, char *error)
 /*-- End of Run ----------------------------------------------------*/
 INT end_of_run(INT run_number, char *error)
 {
-
+  arduino_stop();
   printf("EOR\n");
   
   return SUCCESS;
@@ -354,7 +374,7 @@ INT read_arduino_state(char *pevent, INT off)
   DWORD status;
   if (arduino_get_status(&status)) {
     DWORD *pddata_status;
-    bk_create(pevent, ODB_BANK_STATUS, TID_DWORD, (void**)&pddata_status);
+    bk_create(pevent, ODB_BANK_ARDUINO_STATUS, TID_DWORD, (void**)&pddata_status);
     *pddata_status++ = status;
     bk_close(pevent, pddata_status);
   }
@@ -363,7 +383,7 @@ INT read_arduino_state(char *pevent, INT off)
   float gantry_x_mm, gantry_y_mm;
   if (arduino_get_position(&gantry_x_mm, &gantry_y_mm)) {
     float *pddata_gantry;
-    bk_create(pevent, ODB_BANK_GANTRY, TID_FLOAT, (void**)&pddata_gantry);
+    bk_create(pevent, ODB_BANK_ARDUINO_GANTRY, TID_FLOAT, (void**)&pddata_gantry);
     *pddata_gantry++ = gantry_x_mm;
     *pddata_gantry++ = gantry_y_mm;
     bk_close(pevent, pddata_gantry);
@@ -373,7 +393,7 @@ INT read_arduino_state(char *pevent, INT off)
   TempData temp_data;
   if (arduino_get_temp(&temp_data)) {
     double *pddata_temp;
-    bk_create(pevent, ODB_BANK_TEMP, TID_DOUBLE, (void**)&pddata_temp);
+    bk_create(pevent, ODB_BANK_ARDUINO_TEMP, TID_DOUBLE, (void**)&pddata_temp);
     *pddata_temp++ = temp_data.temp_ambient;
     *pddata_temp++ = temp_data.temp_motor_x;
     *pddata_temp++ = temp_data.temp_motor_y;

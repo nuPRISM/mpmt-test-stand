@@ -208,7 +208,7 @@ static void setup_interrupts(Axis *axis)
     setup_debouncing(axis->io.pin_ls_far, DEBOUNCE_FILTER_MS);
     attachInterrupt(digitalPinToInterrupt(axis->io.pin_ls_far),
                     axis->interrupts.isr_ls_far,
-                    (axis->io.ls_pressed_state == LOW ? FALLING : RISING));
+                    (axis->io.ls_pressed_level == LOW ? FALLING : RISING));
 }
 
 /**
@@ -288,7 +288,7 @@ static AxisResult start_axis(Axis *axis, AxisMotionSpec *motion)
     axis->state.dir = axis->motion.spec.dir;
 
     // Drive direction pin
-    digitalWrite(axis->io.pin_dir, (axis->state.dir == AXIS_DIR_POSITIVE ? LOW : HIGH));
+    digitalWrite(axis->io.pin_dir, (axis->state.dir == AXIS_DIR_POSITIVE ? axis->io.dir_pos_level : !(axis->io.dir_pos_level)));
 
     // Start velocity PWM timer
     reset_pwm_timer(
@@ -386,7 +386,7 @@ static __attribute__((always_inline)) inline void handle_isr_encoder(Axis *axis)
 static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 {
     stop_axis(axis);
-    axis->state.ls_home_pressed = (digitalRead(axis->io.pin_ls_home) == axis->io.ls_pressed_state);
+    axis->state.ls_home_pressed = (digitalRead(axis->io.pin_ls_home) == axis->io.ls_pressed_level);
 }
 
 /**
@@ -397,7 +397,7 @@ static __attribute__((always_inline)) inline void handle_isr_ls_home(Axis *axis)
 static __attribute__((always_inline)) inline void handle_isr_ls_far(Axis *axis)
 {
     stop_axis(axis);
-    axis->state.ls_far_pressed = (digitalRead(axis->io.pin_ls_far) == axis->io.ls_pressed_state);
+    axis->state.ls_far_pressed = (digitalRead(axis->io.pin_ls_far) == axis->io.ls_pressed_level);
 }
 
 static __attribute__((always_inline)) inline void handle_isr_step(Axis *axis)

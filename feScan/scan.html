@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html class="mcss">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="midas.css">
+    <script src="controls.js"></script>
+    <script src="midas.js"></script>
+    <script src="mhttpd.js"></script>
+    <title>Scan</title>
+
+    <style>
+        .mtable td { padding: 10px; }
+
+        .column {
+            display: inline-block;
+            vertical-align: top;
+            text-align: left;
+            padding: 20px;
+        }
+
+        .row {
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .runButton {
+            visibility: visible;
+            width: 40%;
+            padding: 5px;
+        }
+
+        #testStandCanvas {
+            display: block;
+            margin: 0 auto;
+            border: 5px solid #000000;
+        }
+    </style>
+
+    <script>
+        /* ******************************* CONSTANTS ******************************** */
+        const ODB_PATH_ARDUINO_VARIABLES = "/Equipment/ARDUINO/Variables";
+        const ODB_PATH_SCAN_VARIABLES    = "/Equipment/Scan/Variables";
+
+        const SCAN_STATUS_STOPPED        = 0;
+        const SCAN_STATUS_STARTED        = 1;
+        const SCAN_STATUS_MOVING         = 2;
+        const SCAN_STATUS_MEASURING      = 3;
+
+        const GANTRY_WIDTH_MM            = 1200;
+        const GANTRY_HEIGHT_MM           = 1200;
+
+        const UPDATE_FREQ_MS             = 200;
+
+        const CANVAS_COLOUR_DEFAULT      = "#000000";
+        const CANVAS_COLOUR_MOVING       = "#15c165";
+        const CANVAS_COLOUR_MEASURING    = "#e86868";
+
+        /* ******************************** GLOBALS ********************************* */
+        var gUpdateInflight = false;
+        var gCanvas; // initialized in setupCanvas()
+        var gCtx;    // initialized in setupCanvas()
+
+        /* ********************************* CANVAS ********************************* */
+        function setupCanvas() {
+            gCanvas = document.getElementById("testStandCanvas");
+            gCtx = gCanvas.getContext("2d");
+            // Put origin at bottom-left corner
+            gCtx.translate(0, gCanvas.height);
+            gCtx.scale(1, -1);
+        }
+
+        function draw_gantry(x_mm, y_mm) {
+            x_px = x_mm / GANTRY_WIDTH_MM * gCanvas.width;
+            y_px = y_mm / GANTRY_HEIGHT_MM * gCanvas.height;
+
+            // Erase everything
+            gCtx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+
+            // Draw horizontal line
+            gCtx.beginPath();
+            gCtx.moveTo(0, y_px);
+            gCtx.lineTo(gCanvas.width, y_px);
+            gCtx.stroke();
+
+            // Draw vertical line
+            gCtx.beginPath();
+            gCtx.moveTo(x_px, 0);
+            gCtx.lineTo(x_px, gCanvas.height);
+            gCtx.stroke();
+
+            // Draw circle
+            gCtx.beginPath();
+            gCtx.arc(x_px, y_px, 10, 0, 2*Math.PI);
+            gCtx.stroke();
+        }
+
+        /* ********************************* STATUS ********************************* */
+        function getStatusString(status_num) {
+            var status_str;
+            switch (status_num) {
+                case SCAN_STATUS_STOPPED:   status_str = "Stopped";   break;
+                case SCAN_STATUS_STARTED:   status_str = "Started";   break;
+                case SCAN_STATUS_MOVING:    status_str = "Moving";    break;
+                case SCAN_STATUS_MEASURING: status_str = "Measuring"; break;
+                default:                    status_str = "Error";
+            }
+            return status_str;
+        }
+
+        function update_status(status_num, num_points) {
+            // Scan Status field
+            document.getElementById("scanStatus").innerHTML = getStatusString(status_num);
+            // Progress Bar
+            document.getElementById("progressBar").setAttribute("data-max-value", num_points);
+
+            // Setup Fields
+            var setupFields = Array.from(document.getElementsByClassName("scanSetup"));
+            var startButton = document.getElementById("startButton");
+            var stopButton = document.getElementById("stopButton");
+            if (status_num == SCAN_STATUS_STOPPED) {
+                // No scan in progress
+                setupFields.forEach(function (item, index) {
+                    // Enabled editing fields
+                    item.setAttribute("data-odb-editable", "1");
+                });
+                startButton.disabled = false;
+                stopButton.disabled = true;
+            }
+            else {
+                // Scan in progress
+                setupFields.forEach(function (item, index) {
+                    // Disable editing fields
+                    item.removeAttribute("data-odb-editable");
+                });
+                startButton.disabled = true;
+                stopButton.disabled = false;
+
+                if (status_num == SCAN_STATUS_MOVING) {
+                    gCanvas.style.borderColor = CANVAS_COLOUR_MOVING;
+                }
+                else if (status_num == SCAN_STATUS_MEASURING) {
+                    gCanvas.style.borderColor = CANVAS_COLOUR_MEASURING;
+                }
+                else {
+                    gCanvas.style.borderColor = CANVAS_COLOUR_DEFAULT;
+                }
+            }
+        }
+
+        /* ********************************* GENERAL **********************************/
+        function periodicUpdate() {
+            // don't make another request if the last request is still outstanding.
+            if (gUpdateInflight) return;
+            gUpdateInflight = true;
+
+            // Get variables
+            mjsonrpc_send_request([
+                mjsonrpc_make_request("db_get_values",{"paths":[ODB_PATH_SCAN_VARIABLES, ODB_PATH_ARDUINO_VARIABLES]}),
+            ]).then(function (rpc) {
+                // SCAN variables
+                var status_num = parseInt(rpc[0].result.data[0].scan[0]);
+                var num_points = parseInt(rpc[0].result.data[0].scan[2]);
+                update_status(status_num, num_points);
+
+                // ARDUINO variables
+                var x_mm = parseFloat(rpc[0].result.data[1].gant[0]);
+                var y_mm = parseFloat(rpc[0].result.data[1].gant[1])
+                draw_gantry(x_mm, y_mm);
+
+                gUpdateInflight = false;
+            }).catch(function (error) {
+                if (error.request) {
+                    var s = mjsonrpc_decode_error(error);
+                    console.log("mjsonrpc_error_alert: " + s);
+                } else {
+                    console.log("mjsonroc_error_alert: " + error);
+                }
+            });
+        }
+
+        function setup() {
+            mhttpd_init("Scan");
+
+            setupCanvas();
+            periodicUpdate();
+
+            setInterval(periodicUpdate, UPDATE_FREQ_MS);
+        }
+    </script>
+</head>
+
+<body class="mcss" onload="setup();">
+
+<!-- header and side navigation will be filled in mhttpd_init -->
+<div id="mheader"></div>
+<div id="msidenav"></div>
+
+<div id="mmain" style="font-family: verdana,tahoma,sans-serif;">
+
+<div class="row">
+
+    <div class="column">
+
+        <table class="mtable">
+            <tr><th colspan="2" class="mtableheader">Scan Setup</th></tr>
+            <tr>
+                <td>Step Size (mm)</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Gantry Speed (mm/s)</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Speed"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Starting Position (mm) [X,Y]</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[0]"></div>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[1]"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Scan Distance (mm) [X,Y]</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[0]"></div>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[1]"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Scan Time at each Point (ms)</td>
+                <td>
+                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime"></div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2" style="text-align: center;">
+                    <input class="mbutton runButton" id="startButton" type="button" value="Start" onclick="mhttpd_start_run();">
+                    <input class="mbutton runButton" id="stopButton" type="button" value="Stop" onclick="mhttpd_stop_run();">
+                </td>
+            </tr>
+        </table>
+
+        <br />
+
+        <table class="mtable">
+            <tr><th colspan="2" class="mtableheader">Scan Status</th></tr>
+            <tr>
+                <td>Scan Status</td>
+                <td>
+                    <div id="scanStatus"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Total number of points</td>
+                <td>
+                    <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[2]"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>Current point</td>
+                <td>
+                    <div class="modbvalue" data-odb-path="/Equipment/Scan/Variables/SCAN[1]"></div>
+                </td>
+            </tr>
+
+            <tr>
+                <th colspan="2" style="text-align: left;">
+                    <div id="progressBar" class="modbhbar" style="width:300px; height:20px; color:orange;"
+                        data-odb-path="/Equipment/Scan/Variables/SCAN[1]"
+                        data-min-value="0" data-max-value="10" data-print-value="1"></div>
+                </th>
+            </tr>
+        </table>
+
+    </div> <!-- column -->
+
+    <div class="column">
+
+        <span class="mtableheader" style="display: block; margin: 15px 0px;">Gantry Position</span>
+
+        <canvas id="testStandCanvas" width="500px" height="500px"></canvas>
+
+        <div style="display: block; width: 100%; margin: 0 auto; text-align: right;">
+            <span>(</span>
+            <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[0]" ></span><span> mm</span>
+            <span>, </span>
+            <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[1]" ></span><span> mm</span>
+            <span>)</span>
+        </div>
+
+    </div> <!-- column -->
+
+</div> <!-- row -->
+
+</body>
+</html>

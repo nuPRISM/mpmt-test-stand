@@ -28,7 +28,8 @@ typedef struct {
     uint8_t pin_enc_b;                 //!< Arduino input pin connected to the encoder B input
     uint8_t pin_ls_home;               //!< Arduino input pin connected to the home limit switch
     uint8_t pin_ls_far;                //!< Arduino input pin connected to the far limit switch
-    uint8_t ls_pressed_state;          //!< State of the limit switches when pressed (LOW or HIGH)
+    uint8_t dir_pos_level;             //!< Logic level for pin_dir for travelling in the POSITIVE direction
+    uint8_t ls_pressed_level;          //!< Logic level of the limit switches when pressed (LOW or HIGH)
 } AxisIO;
 
 /**

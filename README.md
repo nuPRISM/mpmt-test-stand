@@ -281,9 +281,9 @@ You can type `help` and hit enter to see a list of available commands.
 
 Debug messages from the Arduino Firmware can be monitored by connecting a USB-to-serial adapter between the `Serial2` port of the Arduino Due (pins 16 and 17) and your Host PC.
 
-The firmware must be built in `DEBUG` mode to enable the debug messages which can be done by running the following command from a PlatformIO terminal:
+The firmware must be built in `debug` mode to enable the debug messages which can be done by running the following command from a PlatformIO terminal:
 ```
-pio run -e DEBUG -t upload --upload-port <port>
+pio run -e debug -t upload --upload-port <port>
 ```
 
 By default, the firmware will dump state information once per second to Serial2. This frequency is determined by the number on the first line of mPMTTestStand::execute():

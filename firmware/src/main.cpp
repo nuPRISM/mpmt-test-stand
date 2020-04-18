@@ -89,7 +89,6 @@ void setup()
 
 void loop()
 {
-    // PROFILE("Test Stand", 1000, test_stand.execute());
     test_stand.execute();
 
     // Blink an LED

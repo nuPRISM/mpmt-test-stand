@@ -17,8 +17,8 @@
 /*****************************************************************************/
 
 // Gantry Mechanical Properties
-const float pulley_diameter_mm   = 17;
-const float dist_per_rev_mm      = 2 * M_PI * (pulley_diameter_mm / 2);
+const float pulley_diameter_mm   = 17.0;
+const float dist_per_rev_mm      = 2.0 * M_PI * (pulley_diameter_mm / 2.0);
 const float mm_cts_ratio         = dist_per_rev_mm / ENCODER_COUNTS_PER_REV;
 const float mm_steps_ratio       = dist_per_rev_mm / MOTOR_STEPS_PER_REV;
 

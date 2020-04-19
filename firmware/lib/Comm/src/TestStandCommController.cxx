@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-TestStandCommController::TestStandCommController(SerialDevice& device) : TestStandComm(device)
+TestStandCommController::TestStandCommController(SerialDevice &device) : TestStandComm(device)
 {
     // Nothing else to do
 }

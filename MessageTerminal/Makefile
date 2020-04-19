@@ -19,7 +19,7 @@ LIB_TSC = $(LIB_SHARED)/TestStandComm
 LIB_TSCH = $(LIB_SHARED_LINUX)/TestStandCommHost
 LIB_LSD = $(LIB_SHARED_LINUX)/LinuxSerialDevice
 LIB_GANTRY = $(LIB_FIRMWARE)/Gantry/include
-LIB_TEMP = $(LIB_FIRMWARE)/TempMeasure/include
+LIB_TEMP = $(LIB_FIRMWARE)/TemperatureDAQ/include
 
 INCS = -I. -I$(LIB_SHARED) -I$(LIB_TSC) -I$(LIB_TSCH) -I$(LIB_LSD) -I$(LIB_GANTRY) -I$(LIB_TEMP)
 

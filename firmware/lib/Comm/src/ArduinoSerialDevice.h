@@ -7,10 +7,10 @@
 class ArduinoSerialDevice: public SerialDevice
 {
     private:
-        HardwareSerial& device;
+        HardwareSerial &device;
 
     public:
-        ArduinoSerialDevice(HardwareSerial& device);
+        ArduinoSerialDevice(HardwareSerial &device);
         
         bool ser_connect(SerialBaudRate baud_rate);
         void ser_flush();

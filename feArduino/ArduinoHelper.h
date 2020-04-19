@@ -1,7 +1,7 @@
 #ifndef ARDUINO_HELPER_H
 #define ARDUINO_HELPER_H
 
-#include "TempMeasure.h"
+#include "TemperatureDAQ.h"
 
 #include "midas.h"
 

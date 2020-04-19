@@ -1,14 +1,17 @@
+/* **************************** Local Includes ***************************** */
 #include "ArduinoHelper.h"
-#include "TestStandMessages.h"
 
-#include "Gantry.h"
-#include "TempMeasure.h"
-
+/* ************************ Shared Project Includes ************************ */
 #include "LinuxSerialDevice.h"
 #include "TestStandCommHost.h"
-
+#include "TestStandMessages.h"
 #include "shared_defs.h"
 
+// firmware headers
+#include "Gantry.h"
+#include "TemperatureDAQ.h"
+
+/* **************************** System Includes **************************** */
 #include <stdio.h>
 #include <math.h>
 

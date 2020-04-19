@@ -1,24 +1,25 @@
 /* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
+// Serial Communication
 #include "Messages.h"
 #include "TestStandMessages.h"
+// Gantry
 #include "Gantry.h"
-#include "TempMeasure.h"
+// Temperature DAQ
+#include "ThermistorArray.h"
+// Other
 #include "Debug.h"
 
-mPMTTestStand::mPMTTestStand(const mPMTTestStandConfig& conf) :
+mPMTTestStand::mPMTTestStand(const mPMTTestStandConfig &conf, Calibration cal) :
     conf(conf),
-    comm_dev(conf.io.serial_comm),
+    cal(cal),
+    comm_dev(conf.serial_comm),
     comm(this->comm_dev),
-    thermistor_ambient(conf.io.pin_therm_amb),
-    thermistor_motor_x(conf.io.pin_therm_motor_x),
-    thermistor_motor_y(conf.io.pin_therm_motor_y),
-    thermistor_mpmt(conf.io.pin_therm_mpmt),
-    thermistor_optical(conf.io.pin_therm_optical)
+    thermistors(conf.io_temp, this->cal.cal_temp)
 {
     this->x_state = axis_get_state(AXIS_X);
     this->y_state = axis_get_state(AXIS_Y);
-    
+
     this->status = STATUS_IDLE;
 }
 
@@ -28,20 +29,15 @@ void mPMTTestStand::setup()
     DEBUG_PRINTLN("mPMT Test Stand");
     DEBUG_PRINTLN("==================================================\n");
 
+    // Setup gantry axis control
+    axis_setup(AXIS_X, &(this->conf.io_axis_x), &(this->conf.axis_mech));
+    axis_setup(AXIS_Y, &(this->conf.io_axis_y), &(this->conf.axis_mech));
+
     // Thermistor pin configuration
-    analogReadResolution(12); // enable 12 bit resolution mode in Arduino Due. Default is 10 bit.
-    pinMode(this->conf.io.pin_therm_amb,     INPUT);
-    pinMode(this->conf.io.pin_therm_motor_x, INPUT);
-    pinMode(this->conf.io.pin_therm_motor_y, INPUT);
-    pinMode(this->conf.io.pin_therm_mpmt,    INPUT);
-    pinMode(this->conf.io.pin_therm_optical, INPUT);
+    this->thermistors.setup();
 
     // Connect serial communications
-    this->comm_dev.ser_connect(this->conf.io.serial_comm_baud_rate);
-
-    // Setup gantry axis control
-    axis_setup(AXIS_X, &(this->conf.io.io_axis_x), &(this->conf.gantry.axis_mech));
-    axis_setup(AXIS_Y, &(this->conf.io.io_axis_y), &(this->conf.gantry.axis_mech));
+    this->comm_dev.ser_connect(this->conf.serial_comm_baud_rate);
 
     // Wait until we can successfully ping the host
     while (this->comm.ping() != SERIAL_OK) {
@@ -69,9 +65,9 @@ void mPMTTestStand::handle_home_a()
     AxisMotionSpec motion = {
         .dir          = AXIS_DIR_NEGATIVE,
         .total_counts = INT32_MAX,
-        .accel        = this->conf.gantry.accel_home_a,
-        .vel_start    = this->conf.gantry.vel_start,
-        .vel_hold     = this->conf.gantry.vel_home_a
+        .accel        = this->cal.cal_gantry.accel_home_a,
+        .vel_start    = this->cal.cal_gantry.vel_start,
+        .vel_hold     = this->cal.cal_gantry.vel_home_a
     };
 
     axis_start(AXIS_X, &motion);
@@ -91,9 +87,9 @@ void mPMTTestStand::handle_home_b()
     AxisMotionSpec motion = {
         .dir          = AXIS_DIR_POSITIVE,
         .total_counts = INT32_MAX,
-        .accel        = this->conf.gantry.accel_home_b,
-        .vel_start    = this->conf.gantry.vel_start,
-        .vel_hold     = this->conf.gantry.vel_home_b
+        .accel        = this->cal.cal_gantry.accel_home_b,
+        .vel_start    = this->cal.cal_gantry.vel_start,
+        .vel_hold     = this->cal.cal_gantry.vel_home_b
     };
     axis_start(AXIS_X, &motion);
     axis_start(AXIS_Y, &motion);
@@ -109,8 +105,8 @@ void mPMTTestStand::handle_move()
         AxisMotionSpec motion = {
             .dir          = (AxisDirection)data.dir,
             .total_counts = data.dist_counts,
-            .accel        = this->conf.gantry.accel,
-            .vel_start    = this->conf.gantry.vel_start,
+            .accel        = this->cal.cal_gantry.accel,
+            .vel_start    = this->cal.cal_gantry.vel_start,
             .vel_hold     = data.vel_hold
         };
 
@@ -150,13 +146,8 @@ void mPMTTestStand::handle_get_axis_state()
 
 void mPMTTestStand::handle_get_temp()
 {
-    TempData temp_data = {
-        .temp_ambient = this->thermistor_ambient.readTemperature(),
-        .temp_motor_x = this->thermistor_motor_x.readTemperature(),
-        .temp_motor_y = this->thermistor_motor_y.readTemperature(),
-        .temp_mpmt = this->thermistor_mpmt.readTemperature(),
-        .temp_optical = this->thermistor_optical.readTemperature()
-    };
+    TempData temp_data;
+    this->thermistors.read_temp_data(temp_data);
     this->comm.temp(&temp_data);
 }
 

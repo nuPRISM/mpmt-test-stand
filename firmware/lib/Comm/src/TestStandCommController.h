@@ -1,12 +1,16 @@
 #ifndef TEST_STAND_COMM_CONTROLLER_H
 #define TEST_STAND_COMM_CONTROLLER_H
 
+/* **************************** Local Includes ***************************** */
+// Serial Communication
 #include "TestStandComm.h"
 #include "TestStandMessages.h"
-
+// Gantry
 #include "Gantry.h"
-#include "TempMeasure.h"
+// Temperature DAQ
+#include "TemperatureDAQ.h"
 
+/* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
 
 /**
@@ -17,7 +21,7 @@
 class TestStandCommController : public TestStandComm
 {
     public:
-        TestStandCommController(SerialDevice& device);
+        TestStandCommController(SerialDevice &device);
 
         SerialResult log(LogLevel log_level, const char *fmt, ...);
         SerialResult status(Status status);

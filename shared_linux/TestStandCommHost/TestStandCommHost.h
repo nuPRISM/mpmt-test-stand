@@ -5,7 +5,7 @@
 #include "TestStandMessages.h"
 
 #include "Gantry.h"
-#include "TempMeasure.h"
+#include "TemperatureDAQ.h"
 
 #include "shared_defs.h"
 

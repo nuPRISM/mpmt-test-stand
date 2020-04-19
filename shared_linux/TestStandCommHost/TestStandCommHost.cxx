@@ -1,8 +1,5 @@
 #include "TestStandCommHost.h"
 
-#include "Gantry.h"
-#include "TempMeasure.h"
-
 #include <stdio.h>
 #include <string.h>
 

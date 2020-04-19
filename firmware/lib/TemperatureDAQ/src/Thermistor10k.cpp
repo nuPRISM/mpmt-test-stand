@@ -2,16 +2,18 @@
  * @file Thermistor10k.cpp
  * Thermistor 10k temperature measurements.
  */
-#include <Arduino.h>
 #include "Thermistor10k.h"
+#include <Arduino.h>
 
 /**
  * @param pin - Arduino Due pin
  */
-Thermistor10k::Thermistor10k(uint32_t pin)
+Thermistor10k::Thermistor10k(uint32_t pin, ThermistorCalibration &calibration) :
+    thermistorPin(pin),
+    calibration(calibration)
 {
-    this->thermistorPin = pin;
 }
+
 /**
  * Obtains analog thermistor reading and converts it to temperature in Celsius
  * @return temperature in Celsius
@@ -44,10 +46,10 @@ double Thermistor10k::readAveragedTemperature(int numSamples)
 double Thermistor10k::convertToTemp(int vLevel)
 {
     double vTherm = vLevel * (vRef/resolutionLim);
-    double RTherm = seriesResistorVal / (vRef/vTherm - 1.0);
+    double RTherm = this->calibration.series_resistor / (vRef/vTherm - 1.0);
     double logRTherm = log(RTherm);
-    double Tk = (1.0 / (c1 + c2*logRTherm + c3*pow(logRTherm,3.0)));
-    
+    double Tk = (1.0 / (this->calibration.c1 + this->calibration.c2*logRTherm + this->calibration.c3*pow(logRTherm,3.0)));
+
     double Tc = Tk - kelvin_to_celsius;
     return Tc;
 }

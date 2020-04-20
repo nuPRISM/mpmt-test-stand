@@ -3,6 +3,10 @@
 
 #include "Calibration.h"
 
+// Host Calibration
+const float default_pulley_diameter = 17.0; // mm
+
+// Arduino Calibration
 const Calibration default_calibration = {
     .cal_gantry = {
         .accel     = 10,  // acceleration for all motion [steps / s^2]

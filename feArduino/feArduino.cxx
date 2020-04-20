@@ -20,6 +20,7 @@ Arduino frontend for mPMT test stand.
 
 #include "feArduino.h"
 #include "ArduinoHelper.h"
+#include "DefaultCalibration.h"
 
 #define  EQ_NAME   EQ_ARDUINO
 #define  EQ_EVID   1
@@ -123,10 +124,57 @@ void seq_callback(INT hDB, INT hseq, void *info)
   printf("odb ... Settings %x touched\n", hseq);
 }
 
+BOOL gUpdateCalibration;
+HNDLE handleUpdateCal;
+
 BOOL gStartHome;
-BOOL gMoveRequest;
 HNDLE handleHome;
+
+BOOL gMoveRequest;
 HNDLE handleMoveRequest;
+
+// Host Calibration
+float gCalGantryPulleyDia = default_pulley_diameter;
+
+// Arduino Calibration
+float gCalGantryAccel     = steps_to_mm(default_calibration.cal_gantry.accel);
+float gCalGantryVelStart  = steps_to_mm(default_calibration.cal_gantry.vel_start);
+float gCalGantryVelHome   = steps_to_mm(default_calibration.cal_gantry.vel_home);
+double gCalTempC1         = default_calibration.cal_temp.all.c1;
+double gCalTempC2         = default_calibration.cal_temp.all.c2;
+double gCalTempC3         = default_calibration.cal_temp.all.c3;
+double gCalTempResistor   = default_calibration.cal_temp.all.resistor;
+
+void update_calibration()
+{
+    Calibration calibration = {
+        .cal_gantry = {
+            .accel = mm_to_steps(gCalGantryAccel),
+            .vel_start = mm_to_steps(gCalGantryVelStart),
+            .vel_home = mm_to_steps(gCalGantryVelHome)
+        },
+        .cal_temp = {
+            .all = {
+                .c1 = gCalTempC1,
+                .c2 = gCalTempC2,
+                .c3 = gCalTempC3,
+                .resistor = gCalTempResistor
+            }
+        }
+    };
+
+    arduino_calibrate(&calibration);
+}
+
+void update_calibration(INT hDB, INT hkey, void *info)
+{
+    if (!gUpdateCalibration) return;
+    update_calibration();
+
+    // Reset UpdateCalibration
+    BOOL update_cal = false;
+    db_set_data_index1(hDB, handleUpdateCal, &update_cal, sizeof(update_cal), 0, TID_BOOL, FALSE);
+}
 
 void move_request(INT hDB, INT hkey, void *info)
 {
@@ -188,11 +236,46 @@ void start_home(INT hDB, INT hkey, void *info)
 
   arduino_run_home();
 
-  // Little magic to reset the key to 'n' without retriggering hotlink
+  // Reset StartHome
   BOOL home = false;
   db_set_data_index1(hDB, handleHome, &home, sizeof(home), 0, TID_BOOL, FALSE);
 
   printf("================================================================================\n");
+}
+
+static INT setup_odb_var(const char *key, void *data, INT size, DWORD type, bool hotlink, HNDLE *handle, void (*dispatcher)(INT, INT, void *), void *info)
+{
+  INT status = db_get_value(hDB, 0, key, data, &size, type, TRUE);
+  if (status != DB_SUCCESS) {
+      cm_msg(MERROR, "setup_odb_var", "db_get_value failed for key: %s. Error: %d", key, status);
+      return status;
+  }
+
+  if (hotlink) {
+    HNDLE tmp_handle;
+    if (handle == NULL) handle = &tmp_handle;
+    status = db_find_key(hDB, 0, key, handle);
+    if (status != DB_SUCCESS) {
+        cm_msg(MERROR, "setup_odb_var", "db_find_key failed for key: %s. Error: %d", key, status);
+        return status;
+    }
+    if ((status = db_open_record(hDB, *handle, data, size, MODE_READ, dispatcher, info)) != DB_SUCCESS) {
+      cm_msg(MERROR, "setup_odb_var", "db_open_record failed for key: %s. Error: %d", key, status);
+      return status;
+    }
+  }
+
+  return DB_SUCCESS;
+}
+
+static INT setup_odb_var(const char *key, void *data, INT size, DWORD type, bool hotlink)
+{
+    return setup_odb_var(key, data, size, type, hotlink, NULL, NULL, NULL);
+}
+
+static INT setup_odb_var(const char *key, void *data, INT size, DWORD type)
+{
+    return setup_odb_var(key, data, size, type, false);
 }
 
 /*-- Frontend Init -------------------------------------------------*/
@@ -224,54 +307,32 @@ INT frontend_init()
     return FE_ERR_ODB;
   }
 
-  /* **************************** INITIALIZE VARS ***************************** */
+  /* ***************************** SETTINGS VARS ****************************** */
   // DESTINATION
   float destination[2] = {0,0};
-  int size_dest = sizeof(destination);
-  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_DESTINATION, &destination, &size_dest, TID_FLOAT, TRUE);
-  if (status != DB_SUCCESS) {
-      cm_msg(MERROR, "frontend_init", "Failed to retrieve destination (%s) from ODB. Error: %d", ODB_KEY_ARDUINO_DESTINATION, status);
-      return FE_ERR_ODB;
-  }
-
+  if (setup_odb_var(ODB_KEY_ARDUINO_DESTINATION, &destination, sizeof(destination), TID_FLOAT) != DB_SUCCESS) return FE_ERR_ODB;
   // VELOCITY
   float velocity[2] = {0,0};
-  int size_vel = sizeof(velocity);
-  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_VELOCITY, &velocity, &size_vel, TID_FLOAT, TRUE);
-  if (status != DB_SUCCESS) {
-    cm_msg(MERROR, "frontend_init", "Failed to retrieve velocity (%s) from ODB. Error: %d", ODB_KEY_ARDUINO_VELOCITY, status);
-    return FE_ERR_ODB;
-  }
+  if (setup_odb_var(ODB_KEY_ARDUINO_VELOCITY, &velocity, sizeof(velocity), TID_FLOAT) != DB_SUCCESS) return FE_ERR_ODB;
 
-  /* ************************** START HOME HOT-LINK *************************** */
+  /* **************************** CALIBRATION VARS **************************** */
+  if (setup_odb_var(ODB_KEY_ARDUINO_GANTRY_PULLEY_DIA, &gCalGantryPulleyDia, sizeof(gCalGantryPulleyDia), TID_FLOAT, true) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_GANTRY_ACCEL, &gCalGantryAccel, sizeof(gCalGantryAccel), TID_FLOAT, true) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_GANTRY_VEL_START, &gCalGantryVelStart, sizeof(gCalGantryVelStart), TID_FLOAT, true) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_GANTRY_VEL_HOME, &gCalGantryVelHome, sizeof(gCalGantryVelHome), TID_FLOAT, true) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_TEMP_C1, &gCalTempC1, sizeof(gCalTempC1), TID_DOUBLE, true) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_TEMP_C2, &gCalTempC2, sizeof(gCalTempC2), TID_DOUBLE, true) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_TEMP_C3, &gCalTempC3, sizeof(gCalTempC3), TID_DOUBLE, true) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_TEMP_RESISTOR, &gCalTempResistor, sizeof(gCalTempResistor), TID_DOUBLE, true) != DB_SUCCESS) return FE_ERR_ODB;
 
-  // Get the current value (just to initialize it...)
-  gStartHome = false;
-  int size = sizeof(gStartHome);
-  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_START_HOME, &gStartHome, &size, TID_BOOL, TRUE);
-   
-  // Setup actual hot-link
-  status = db_find_key (hDB, 0, ODB_KEY_ARDUINO_START_HOME, &handleHome);
+  update_calibration();
 
-  /* Enable hot-link on StartHome of the equipment */
-  if ((status = db_open_record(hDB, handleHome, &gStartHome, size, MODE_READ, start_home, NULL)) != DB_SUCCESS) {
-    return status;
-  }
+  /* ******************************* HOT-LINKS ******************************** */
+  void (*update_cal_handler)(INT, INT, void *) = update_calibration;
+  if (setup_odb_var(ODB_KEY_ARDUINO_UPDATE_CAL, &gUpdateCalibration, sizeof(gUpdateCalibration), TID_BOOL, true, &handleUpdateCal, update_cal_handler, NULL) != DB_SUCCESS) return FE_ERR_ODB;
 
-  /* ************************* MOVE REQUEST HOT-LINK ************************** */
-
-  // Get the current value (just to initialize it...)
-  gMoveRequest = false;
-  size = sizeof(gMoveRequest);
-  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_REQUEST, &gMoveRequest, &size, TID_BOOL, TRUE);
-   
-  // Setup actual hot-link
-  status = db_find_key(hDB, 0, ODB_KEY_ARDUINO_MOVE_REQUEST, &handleMoveRequest);
-
-  // Enable hot-link on MoveRequest of the equipment
-  if ((status = db_open_record(hDB, handleMoveRequest, &gMoveRequest, size, MODE_READ, move_request, NULL)) != DB_SUCCESS) {
-    return status;
-  }
+  if (setup_odb_var(ODB_KEY_ARDUINO_START_HOME, &gStartHome, sizeof(gStartHome), TID_BOOL, true, &handleHome, start_home, NULL) != DB_SUCCESS) return FE_ERR_ODB;
+  if (setup_odb_var(ODB_KEY_ARDUINO_MOVE_REQUEST, &gMoveRequest, sizeof(gMoveRequest), TID_BOOL, true, &handleMoveRequest, move_request, NULL) != DB_SUCCESS) return FE_ERR_ODB;
 
   return SUCCESS;
 }

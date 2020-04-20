@@ -95,30 +95,38 @@ SerialResult TestStandCommHost::get_temp(TempData *temp_out, uint32_t timeout_ms
     return SERIAL_OK;
 }
 
-SerialResult TestStandCommHost::calibrate(CalibrationKey key, uint32_t data)
+SerialResult TestStandCommHost::calibrate(CalibrationKey key, void *value)
 {
     this->send_buf[0] = (uint8_t)key;
-    uint32_t data_conv = htonl(data);
-    memcpy(&this->send_buf[1], &data_conv, sizeof(data));
+
+    uint8_t value_size;
+    switch (key) {
+        case CAL_GANTRY_ACCEL:
+        case CAL_GANTRY_VEL_START:
+        case CAL_GANTRY_VEL_HOME:
+        {
+            uint32_t value_conv = htonl(*(uint32_t *)value);
+            value_size = sizeof(value_conv);
+            memcpy(&this->send_buf[1], &value_conv, value_size);
+            break;
+        }
+        case CAL_TEMP_ALL_C1:
+        case CAL_TEMP_ALL_C2:
+        case CAL_TEMP_ALL_C3:
+        case CAL_TEMP_ALL_RESISTOR:
+        {
+            double value_conv = htond(*(double *)value);
+            value_size = sizeof(value_conv);
+            memcpy(&this->send_buf[1], &value_conv, value_size);
+            break;
+        }
+        default:
+            value_size = 0;
+    }
 
     Message msg = {
         .id = MSG_ID_CALIBRATE,
-        .length = (sizeof(data) + 1),
-        .data = this->send_buf
-    };
-
-    return this->session.send_message(msg);
-}
-
-SerialResult TestStandCommHost::calibrate(CalibrationKey key, double data)
-{
-    this->send_buf[0] = (uint8_t)key;
-    double data_conv = htond(data);
-    memcpy(&this->send_buf[1], &data_conv, sizeof(data));
-
-    Message msg = {
-        .id = MSG_ID_CALIBRATE,
-        .length = (sizeof(data) + 1),
+        .length = (uint8_t)(value_size + 1),
         .data = this->send_buf
     };
 

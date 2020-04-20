@@ -4,11 +4,11 @@
 
 ThermistorArray::ThermistorArray(const ThermistorArrayIO &io, TemperatureDAQCalibration &calibration) :
     io(io),
-    thermistor_ambient(io.pin_therm_amb    , calibration.cal_ambient),
-    thermistor_motor_x(io.pin_therm_motor_x, calibration.cal_motor_x),
-    thermistor_motor_y(io.pin_therm_motor_y, calibration.cal_motor_y),
-    thermistor_mpmt   (io.pin_therm_mpmt   , calibration.cal_mpmt   ),
-    thermistor_optical(io.pin_therm_optical, calibration.cal_optical)
+    thermistor_ambient(io.pin_therm_amb    , calibration.all),
+    thermistor_motor_x(io.pin_therm_motor_x, calibration.all),
+    thermistor_motor_y(io.pin_therm_motor_y, calibration.all),
+    thermistor_mpmt   (io.pin_therm_mpmt   , calibration.all),
+    thermistor_optical(io.pin_therm_optical, calibration.all)
 {
 }
 

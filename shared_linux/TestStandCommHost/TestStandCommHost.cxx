@@ -94,3 +94,33 @@ SerialResult TestStandCommHost::get_temp(TempData *temp_out, uint32_t timeout_ms
 
     return SERIAL_OK;
 }
+
+SerialResult TestStandCommHost::calibrate(CalibrationKey key, uint32_t data)
+{
+    this->send_buf[0] = (uint8_t)key;
+    uint32_t data_conv = htonl(data);
+    memcpy(&this->send_buf[1], &data_conv, sizeof(data));
+
+    Message msg = {
+        .id = MSG_ID_CALIBRATE,
+        .length = (sizeof(data) + 1),
+        .data = this->send_buf
+    };
+
+    return this->session.send_message(msg);
+}
+
+SerialResult TestStandCommHost::calibrate(CalibrationKey key, double data)
+{
+    this->send_buf[0] = (uint8_t)key;
+    double data_conv = htond(data);
+    memcpy(&this->send_buf[1], &data_conv, sizeof(data));
+
+    Message msg = {
+        .id = MSG_ID_CALIBRATE,
+        .length = (sizeof(data) + 1),
+        .data = this->send_buf
+    };
+
+    return this->session.send_message(msg);
+}

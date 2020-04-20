@@ -9,6 +9,8 @@
 #include "Gantry.h"
 // Temperature DAQ
 #include "TemperatureDAQ.h"
+// Other
+#include "Calibration.h"
 
 /* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
@@ -31,6 +33,7 @@ class TestStandCommController : public TestStandComm
         SerialResult axis_result(AxisResult result);
 
         bool recv_move(MoveMsgData *data_out);
+        bool recv_calibrate(Calibration *cal_out);
 };
 
 #endif // TEST_STAND_COMM_CONTROLLER_H

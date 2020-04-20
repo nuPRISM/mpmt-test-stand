@@ -46,7 +46,7 @@ double Thermistor10k::readAveragedTemperature(int numSamples)
 double Thermistor10k::convertToTemp(int vLevel)
 {
     double vTherm = vLevel * (vRef/resolutionLim);
-    double RTherm = this->calibration.series_resistor / (vRef/vTherm - 1.0);
+    double RTherm = this->calibration.resistor / (vRef/vTherm - 1.0);
     double logRTherm = log(RTherm);
     double Tk = (1.0 / (this->calibration.c1 + this->calibration.c2*logRTherm + this->calibration.c3*pow(logRTherm,3.0)));
 

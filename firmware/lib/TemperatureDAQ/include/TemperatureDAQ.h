@@ -14,18 +14,14 @@ typedef struct {
 } TempData;
 
 typedef struct {
-    double c1;              //!< Steinhart-hart equation constant
-    double c2;              //!< Steinhart-hart equation constant
-    double c3;              //!< Steinhart-hart equation constant
-    double series_resistor; //!< Resistance of series resistor
+    double c1;       //!< Steinhart-hart equation constant
+    double c2;       //!< Steinhart-hart equation constant
+    double c3;       //!< Steinhart-hart equation constant
+    double resistor; //!< Resistance of series resistor
 } ThermistorCalibration;
 
 typedef struct {
-    ThermistorCalibration cal_ambient;
-    ThermistorCalibration cal_motor_x;
-    ThermistorCalibration cal_motor_y;
-    ThermistorCalibration cal_mpmt;
-    ThermistorCalibration cal_optical;
+    ThermistorCalibration all;
 } TemperatureDAQCalibration;
 
 #endif // TEMPERATURE_DAQ_H

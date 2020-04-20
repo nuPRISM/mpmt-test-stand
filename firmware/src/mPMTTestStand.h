@@ -57,10 +57,12 @@ class mPMTTestStand
         void handle_get_position();
         void handle_get_axis_state();
         void handle_get_temp();
+        void handle_calibrate();
 
 #ifdef DEBUG
         void debug_dump_axis(AxisId axis_id);
-        void debug_dump();
+        void debug_dump_state();
+        void debug_dump_calibration();
 #endif // DEBUG
 
     public:

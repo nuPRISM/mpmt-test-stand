@@ -13,15 +13,15 @@ BUILD_DIR = build
 
 LIB_SHARED = ../shared
 LIB_SHARED_LINUX = ../shared_linux
-LIB_FIRMWARE = ../firmware/lib
+LIB_FIRMWARE = ../firmware
 
 LIB_TSC = $(LIB_SHARED)/TestStandComm
 LIB_TSCH = $(LIB_SHARED_LINUX)/TestStandCommHost
 LIB_LSD = $(LIB_SHARED_LINUX)/LinuxSerialDevice
-LIB_GANTRY = $(LIB_FIRMWARE)/Gantry/include
-LIB_TEMP = $(LIB_FIRMWARE)/TemperatureDAQ/include
+LIB_GANTRY = $(LIB_FIRMWARE)/lib/Gantry/include
+LIB_TEMP = $(LIB_FIRMWARE)/lib/TemperatureDAQ/include
 
-INCS = -I. -I$(LIB_SHARED) -I$(LIB_TSC) -I$(LIB_TSCH) -I$(LIB_LSD) -I$(LIB_GANTRY) -I$(LIB_TEMP)
+INCS = -I. -I$(LIB_SHARED) -I$(LIB_TSC) -I$(LIB_TSCH) -I$(LIB_LSD) -I$(LIB_FIRMWARE)/include -I$(LIB_GANTRY) -I$(LIB_TEMP)
 
 SRCS = MessageTerminal.cxx                                                               \
        $(addprefix $(LIB_TSC)/, SerialSession.cxx SerialTransport.cxx TestStandComm.cxx) \

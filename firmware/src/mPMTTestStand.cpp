@@ -65,9 +65,9 @@ void mPMTTestStand::handle_home_a()
     AxisMotionSpec motion = {
         .dir          = AXIS_DIR_NEGATIVE,
         .total_counts = INT32_MAX,
-        .accel        = this->cal.cal_gantry.accel_home_a,
+        .accel        = this->cal.cal_gantry.accel,
         .vel_start    = this->cal.cal_gantry.vel_start,
-        .vel_hold     = this->cal.cal_gantry.vel_home_a
+        .vel_hold     = this->cal.cal_gantry.vel_home
     };
 
     axis_start(AXIS_X, &motion);
@@ -87,9 +87,9 @@ void mPMTTestStand::handle_home_b()
     AxisMotionSpec motion = {
         .dir          = AXIS_DIR_POSITIVE,
         .total_counts = INT32_MAX,
-        .accel        = this->cal.cal_gantry.accel_home_b,
+        .accel        = this->cal.cal_gantry.accel,
         .vel_start    = this->cal.cal_gantry.vel_start,
-        .vel_hold     = this->cal.cal_gantry.vel_home_b
+        .vel_hold     = this->cal.cal_gantry.vel_home
     };
     axis_start(AXIS_X, &motion);
     axis_start(AXIS_Y, &motion);
@@ -151,6 +151,11 @@ void mPMTTestStand::handle_get_temp()
     this->comm.temp(&temp_data);
 }
 
+void mPMTTestStand::handle_calibrate()
+{
+    this->comm.recv_calibrate(&this->cal);
+}
+
 #ifdef DEBUG
 void mPMTTestStand::debug_dump_axis(AxisId axis_id)
 {
@@ -169,17 +174,35 @@ void mPMTTestStand::debug_dump_axis(AxisId axis_id)
     DEBUG_PRINTLN("----------------------------------------");
 }
 
-void mPMTTestStand::debug_dump()
+void mPMTTestStand::debug_dump_state()
 {
     DEBUG_PRINT_VAL("STATUS", this->status);
     this->debug_dump_axis(AXIS_X);
     this->debug_dump_axis(AXIS_Y);
 }
+
+void mPMTTestStand::debug_dump_calibration()
+{
+    DEBUG_PRINTLN("----------------------------------------");
+    DEBUG_PRINTLN("CALIBRATION:");
+    DEBUG_PRINT_VAL("accel    ", this->cal.cal_gantry.accel);
+    DEBUG_PRINT_VAL("vel_start", this->cal.cal_gantry.vel_start);
+    DEBUG_PRINT_VAL("vel_home ", this->cal.cal_gantry.vel_home);
+    DEBUG_PRINTLN("");
+    DEBUG_PRINT_VAL("c1       ", this->cal.cal_temp.all.c1);
+    DEBUG_PRINT_VAL("c2       ", this->cal.cal_temp.all.c2);
+    DEBUG_PRINT_VAL("c3       ", this->cal.cal_temp.all.c3);
+    DEBUG_PRINT_VAL("resistor ", this->cal.cal_temp.all.resistor);
+    DEBUG_PRINTLN("----------------------------------------");
+}
 #endif // DEBUG
 
 void mPMTTestStand::execute()
 {
-    DEBUG_PERIODIC(this->debug_dump(), 1000);
+    DEBUG_PERIODIC(
+        this->debug_dump_state();
+        this->debug_dump_calibration(),
+        1000);
 
     // Update status
     switch (this->status) {
@@ -242,6 +265,7 @@ void mPMTTestStand::execute()
             case MSG_ID_GET_POSITION:   this->handle_get_position();   break;
             case MSG_ID_GET_AXIS_STATE: this->handle_get_axis_state(); break;
             case MSG_ID_GET_TEMP:       this->handle_get_temp();       break;
+            case MSG_ID_CALIBRATE:      this->handle_calibrate();      break;
             default:                                                   break;
         }
     }

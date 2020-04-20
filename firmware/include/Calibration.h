@@ -6,9 +6,9 @@
 #include <stdint.h>
 
 typedef struct {
-    uint32_t accel;
-    uint32_t vel_start;
-    uint32_t vel_home;
+    uint32_t accel;     //!< acceleration for all motion [steps / s^2]
+    uint32_t vel_start; //!< starting velocity for all motion [steps / s]
+    uint32_t vel_home;  //!< holding velocity for homing [steps / s]
 } GantryCalibration;
 
 typedef struct {

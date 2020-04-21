@@ -160,6 +160,7 @@ void mPMTTestStand::handle_get_temp()
     this->comm.temp(&temp_data);
 }
 
+#ifdef DEBUG
 void mPMTTestStand::debug_dump_axis(AxisId axis_id)
 {
     const AxisState *state = (axis_id == AXIS_X ? this->x_state : this->y_state);
@@ -183,10 +184,11 @@ void mPMTTestStand::debug_dump()
     this->debug_dump_axis(AXIS_X);
     this->debug_dump_axis(AXIS_Y);
 }
+#endif // DEBUG
 
 void mPMTTestStand::execute()
 {
-    PERIODIC(this->debug_dump(), 1000);
+    DEBUG_PERIODIC(this->debug_dump(), 1000);
 
     // Update status
     switch (this->status) {

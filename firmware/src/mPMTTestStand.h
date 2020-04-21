@@ -73,8 +73,10 @@ class mPMTTestStand
         void handle_get_axis_state();
         void handle_get_temp();
 
+#ifdef DEBUG
         void debug_dump_axis(AxisId axis_id);
         void debug_dump();
+#endif // DEBUG
 
     public:
         mPMTTestStand(const mPMTTestStandConfig& conf);

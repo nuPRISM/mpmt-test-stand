@@ -13,8 +13,14 @@
 #include <iostream>
 #include <sstream>
 
+using namespace std;
+
+/*****************************************************************************/
+/*                                  DEFINES                                  */
+/*****************************************************************************/
+
 #define BASIC_CMD(_name)                     \
-void _name(istringstream& iss)               \
+bool _name(istringstream& iss)               \
 {                                            \
     SerialResult res = comm._name();         \
     if (res == SERIAL_OK) {                  \
@@ -23,20 +29,65 @@ void _name(istringstream& iss)               \
     else {                                   \
         printf("ERROR: %d\n", res);          \
     }                                        \
+    return true;                             \
 }
 
-using namespace std;
+#define ITEM_COUNT(_a) (sizeof(_a) / sizeof(_a[0]))
+
+/*****************************************************************************/
+/*                                  TYPEDEFS                                 */
+/*****************************************************************************/
+
+typedef bool (*cmd_handler)(istringstream& iss);
+
+typedef struct {
+    const char *name;
+    const char *description;
+    const char *usage;
+    cmd_handler handler;
+} Command;
+
+typedef enum {
+    // Placeholder for an invalid command
+    CMD_ID_INVALID = -1,
+    // Test stand commands
+    CMD_ID_PING,
+    CMD_ID_GET_STATUS,
+    CMD_ID_HOME,
+    CMD_ID_MOVE,
+    CMD_ID_STOP,
+    CMD_ID_GET_POSITION,
+    CMD_ID_GET_TEMP,
+    // General commands
+    CMD_ID_LINK_CHECK,
+    CMD_ID_RESET,
+    CMD_ID_HELP,
+    CMD_ID_EXIT
+} CommandID;
+
+/*****************************************************************************/
+/*                                  GLOBALS                                  */
+/*****************************************************************************/
 
 LinuxSerialDevice device;
 TestStandCommHost comm(device);
 
-typedef void (*cmd_handler)(istringstream& iss);
+/*****************************************************************************/
+/*                            FORWARD DECLARATIONS                           */
+/*****************************************************************************/
+
+bool help(istringstream& iss);
+void print_cmd_usage(CommandID id);
+
+/*****************************************************************************/
+/*                             COMMAND FUNCTIONS                             */
+/*****************************************************************************/
 
 BASIC_CMD(ping);
 BASIC_CMD(home);
 BASIC_CMD(stop);
 
-void move(istringstream& iss)
+bool move(istringstream& iss)
 {
     AxisId axis;
     AxisDirection dir;
@@ -79,16 +130,17 @@ void move(istringstream& iss)
         }
         else {
             printf("ERROR: %d\n", res);
-            return;
+            return true;
         }
 
-        return;
+        return true;
     } while(0);
 
-    cout << "usage: move <x|y> <pos|neg> <hold_vel> <dist>" << endl;
+    print_cmd_usage(CMD_ID_MOVE);
+    return true;
 }
 
-void get_status(istringstream& iss)
+bool get_status(istringstream& iss)
 {
     Status status;
     SerialResult res = comm.get_status(&status, MSG_RECEIVE_TIMEOUT_MS);
@@ -104,9 +156,10 @@ void get_status(istringstream& iss)
     else {
         printf("ERROR: %d\n", res);
     }
+    return true;
 }
 
-void get_position(istringstream& iss)
+bool get_position(istringstream& iss)
 {
     PositionMsgData position;
     SerialResult res = comm.get_position(&position, MSG_RECEIVE_TIMEOUT_MS);
@@ -116,9 +169,10 @@ void get_position(istringstream& iss)
     else {
         printf("ERROR: %d\n", res);
     }
+    return true;
 }
 
-void get_temp(istringstream& iss)
+bool get_temp(istringstream& iss)
 {
     TempData temp_data;
     SerialResult res = comm.get_temp(&temp_data, MSG_RECEIVE_TIMEOUT_MS);
@@ -132,22 +186,10 @@ void get_temp(istringstream& iss)
     else {
         printf("ERROR: %d\n", res);
     }
+    return true;
 }
 
-cmd_handler get_cmd_handler(const string& cmd_name)
-{
-    if (cmd_name == "ping")           return ping;
-    if (cmd_name == "get_status")     return get_status;
-    if (cmd_name == "home")           return home;
-    if (cmd_name == "move")           return move;
-    if (cmd_name == "stop")           return stop;
-    if (cmd_name == "get_position")   return get_position;
-    if (cmd_name == "get_temp")       return get_temp;
-
-    return nullptr;
-}
-
-bool link_check()
+bool link_check(istringstream& iss)
 {
     SerialResult res = comm.link_check(MSG_RECEIVE_TIMEOUT_MS);
     if (res == SERIAL_OK) {
@@ -156,7 +198,7 @@ bool link_check()
     }
 
     printf("ERROR: %d\n", res);
-    return false;
+    return true;
 }
 
 bool connect_to_arduino()
@@ -165,14 +207,111 @@ bool connect_to_arduino()
     device.ser_flush();
 
     cout << "Waiting for Arduino..." << flush;
-    while ((comm.check_for_message() != SERIAL_OK) || (comm.received_message().id != MSG_ID_PING)) {
-        // Wait for ping
-    }
+    while ((comm.check_for_message() != SERIAL_OK) || (comm.received_message().id != MSG_ID_PING));
+
     // There might be more ping messages sitting in the buffer, so flush them all out
     device.ser_flush();
 
     cout << "Connected!" << endl;
     return true;
+}
+
+bool reset(istringstream& iss)
+{
+    device.ser_disconnect();
+    return connect_to_arduino();
+}
+
+bool exit(istringstream& iss)
+{
+    return false;
+}
+
+Command commands[] = {
+    // Note: these must be in the same order as declared in the enum
+
+    //                        Name, Description, Usage, Handler
+    [CMD_ID_PING]         = { "ping", "Send a ping to the Arduino to check if it's still alive", "ping", ping },
+    [CMD_ID_GET_STATUS]   = { "get_status", "Retrieve current status of Arduino", "get_status", get_status },
+    [CMD_ID_HOME]         = { "home", "Execute the homing routing", "home", home },
+    [CMD_ID_MOVE]         = { "move", "Move the gantry to a new position", "move <x|y> <pos|neg> <hold_vel> <dist>", move },
+    [CMD_ID_STOP]         = { "stop", "Freeze all motor functions", "stop", stop },
+    [CMD_ID_GET_POSITION] = { "get_position", "Retrieve the current position of the gantry", "get_position", get_position },
+    [CMD_ID_GET_TEMP]     = { "get_temp", "Retrieve temperature readings", "get_temp", get_temp },
+    [CMD_ID_LINK_CHECK]   = { "link_check", "Verify the serial communication link is working", "link_check", link_check },
+    [CMD_ID_RESET]        = { "reset", "Reset the Arduino", "reset", reset },
+    [CMD_ID_HELP]         = { "help", "Display the help message", "help or help <command>", help },
+    [CMD_ID_EXIT]         = { "exit", "Exit the program", "exit", exit },
+};
+
+/*****************************************************************************/
+/*                                   HELP                                    */
+/*****************************************************************************/
+
+void print_cmd_usage(CommandID id)
+{
+    printf("usage: %s\n", commands[id].usage);
+}
+
+void help_general()
+{
+    printf("\nAvailable Commands:\n");
+    for (size_t i = 0; i < ITEM_COUNT(commands); i++) {
+        printf("%15s - %s\n", commands[i].name, commands[i].description);
+    }
+
+    printf("\nType `help <command>` to see help information about a specific command\n\n");
+}
+
+void help_specific(string cmd_name)
+{
+    CommandID cmd_id = CMD_ID_INVALID;
+    Command *cmd = nullptr;
+
+    for (size_t i = 0; i < ITEM_COUNT(commands); i++) {
+        if (commands[i].name == cmd_name) {
+            cmd_id = (CommandID)i;
+            cmd = &commands[i];
+            break;
+        }
+    }
+
+    if (cmd == nullptr) {
+        printf("%s is not a valid command", cmd->name);
+    }
+    else {
+        printf("%s - %s\n\n", cmd->name, cmd->description);
+        print_cmd_usage(cmd_id);
+    }
+}
+
+bool help(istringstream& iss)
+{
+    string word;
+
+    if (iss.good()) {
+        iss >> word;
+        help_specific(word);
+    }
+    else {
+        help_general();
+    }
+
+    return true;
+}
+
+/*****************************************************************************/
+/*                                   HELP                                    */
+/*****************************************************************************/
+
+cmd_handler get_cmd_handler(const string& cmd_name)
+{
+    for (size_t i = 0; i < ITEM_COUNT(commands); i++) {
+        if (commands[i].name == cmd_name) {
+            return commands[i].handler;
+        }
+    }
+    return nullptr;
 }
 
 int main(int argc, char *argv[])
@@ -185,6 +324,9 @@ int main(int argc, char *argv[])
     device.set_device_file(argv[1]);
 
     if (!connect_to_arduino()) return 1;
+
+    printf("Type 'help' to see the list of available commands.\n");
+    printf("Type 'exit' to exit.\n");
 
     bool exit = false;
     while (!exit) {
@@ -206,26 +348,14 @@ int main(int argc, char *argv[])
         // Get first word
         iss >> word;
 
-        // Check for special commands first
-        if (word == "exit") {
-            exit = true;
-        }
-        else if (word == "reset") {
-            device.ser_disconnect();
-            if (!connect_to_arduino()) return 1;
-        }
-        else if (word == "link_check") {
-            link_check();
+        // Handle command
+        cmd_handler handler = get_cmd_handler(word);
+        if (handler != nullptr) {
+            // Handler will return true if we should exit the program
+            if (!handler(iss)) exit = true;
         }
         else {
-            // Handle command
-            cmd_handler handler = get_cmd_handler(word);
-            if (handler != nullptr) {
-                handler(iss);
-            }
-            else {
-                cout << "Invalid command" << endl;
-            }
+            cout << "Invalid command" << endl;
         }
     }
 

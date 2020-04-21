@@ -1,24 +1,25 @@
 /* **************************** Local Includes ***************************** */
 #include "mPMTTestStand.h"
+// Serial Communication
 #include "Messages.h"
 #include "TestStandMessages.h"
+// Gantry
 #include "Gantry.h"
-#include "TempMeasure.h"
+// Temperature DAQ
+#include "ThermistorArray.h"
+// Other
 #include "Debug.h"
 
-mPMTTestStand::mPMTTestStand(const mPMTTestStandConfig& conf) :
+mPMTTestStand::mPMTTestStand(const mPMTTestStandConfig &conf, Calibration cal) :
     conf(conf),
-    comm_dev(conf.io.serial_comm),
+    cal(cal),
+    comm_dev(conf.serial_comm),
     comm(this->comm_dev),
-    thermistor_ambient(conf.io.pin_therm_amb),
-    thermistor_motor_x(conf.io.pin_therm_motor_x),
-    thermistor_motor_y(conf.io.pin_therm_motor_y),
-    thermistor_mpmt(conf.io.pin_therm_mpmt),
-    thermistor_optical(conf.io.pin_therm_optical)
+    thermistors(conf.io_temp, this->cal.cal_temp)
 {
     this->x_state = axis_get_state(AXIS_X);
     this->y_state = axis_get_state(AXIS_Y);
-    
+
     this->status = STATUS_IDLE;
 }
 
@@ -28,20 +29,15 @@ void mPMTTestStand::setup()
     DEBUG_PRINTLN("mPMT Test Stand");
     DEBUG_PRINTLN("==================================================\n");
 
+    // Setup gantry axis control
+    axis_setup(AXIS_X, &(this->conf.io_axis_x), &(this->conf.axis_mech));
+    axis_setup(AXIS_Y, &(this->conf.io_axis_y), &(this->conf.axis_mech));
+
     // Thermistor pin configuration
-    analogReadResolution(12); // enable 12 bit resolution mode in Arduino Due. Default is 10 bit.
-    pinMode(this->conf.io.pin_therm_amb,     INPUT);
-    pinMode(this->conf.io.pin_therm_motor_x, INPUT);
-    pinMode(this->conf.io.pin_therm_motor_y, INPUT);
-    pinMode(this->conf.io.pin_therm_mpmt,    INPUT);
-    pinMode(this->conf.io.pin_therm_optical, INPUT);
+    this->thermistors.setup();
 
     // Connect serial communications
-    this->comm_dev.ser_connect(this->conf.io.serial_comm_baud_rate);
-
-    // Setup gantry axis control
-    axis_setup(AXIS_X, &(this->conf.io.io_axis_x), &(this->conf.gantry.axis_mech));
-    axis_setup(AXIS_Y, &(this->conf.io.io_axis_y), &(this->conf.gantry.axis_mech));
+    this->comm_dev.ser_connect(this->conf.serial_comm_baud_rate);
 
     // Wait until we can successfully ping the host
     while (this->comm.ping() != SERIAL_OK) {
@@ -69,9 +65,9 @@ void mPMTTestStand::handle_home_a()
     AxisMotionSpec motion = {
         .dir          = AXIS_DIR_NEGATIVE,
         .total_counts = INT32_MAX,
-        .accel        = this->conf.gantry.accel_home_a,
-        .vel_start    = this->conf.gantry.vel_start,
-        .vel_hold     = this->conf.gantry.vel_home_a
+        .accel        = this->cal.cal_gantry.accel,
+        .vel_start    = this->cal.cal_gantry.vel_start,
+        .vel_hold     = this->cal.cal_gantry.vel_home
     };
 
     axis_start(AXIS_X, &motion);
@@ -91,9 +87,9 @@ void mPMTTestStand::handle_home_b()
     AxisMotionSpec motion = {
         .dir          = AXIS_DIR_POSITIVE,
         .total_counts = INT32_MAX,
-        .accel        = this->conf.gantry.accel_home_b,
-        .vel_start    = this->conf.gantry.vel_start,
-        .vel_hold     = this->conf.gantry.vel_home_b
+        .accel        = this->cal.cal_gantry.accel,
+        .vel_start    = this->cal.cal_gantry.vel_start,
+        .vel_hold     = this->cal.cal_gantry.vel_home
     };
     axis_start(AXIS_X, &motion);
     axis_start(AXIS_Y, &motion);
@@ -109,8 +105,8 @@ void mPMTTestStand::handle_move()
         AxisMotionSpec motion = {
             .dir          = (AxisDirection)data.dir,
             .total_counts = data.dist_counts,
-            .accel        = this->conf.gantry.accel,
-            .vel_start    = this->conf.gantry.vel_start,
+            .accel        = this->cal.cal_gantry.accel,
+            .vel_start    = this->cal.cal_gantry.vel_start,
             .vel_hold     = data.vel_hold
         };
 
@@ -150,14 +146,14 @@ void mPMTTestStand::handle_get_axis_state()
 
 void mPMTTestStand::handle_get_temp()
 {
-    TempData temp_data = {
-        .temp_ambient = this->thermistor_ambient.readTemperature(),
-        .temp_motor_x = this->thermistor_motor_x.readTemperature(),
-        .temp_motor_y = this->thermistor_motor_y.readTemperature(),
-        .temp_mpmt = this->thermistor_mpmt.readTemperature(),
-        .temp_optical = this->thermistor_optical.readTemperature()
-    };
+    TempData temp_data;
+    this->thermistors.read_temp_data(temp_data);
     this->comm.temp(&temp_data);
+}
+
+void mPMTTestStand::handle_calibrate()
+{
+    this->comm.recv_calibrate(&this->cal);
 }
 
 #ifdef DEBUG
@@ -178,17 +174,35 @@ void mPMTTestStand::debug_dump_axis(AxisId axis_id)
     DEBUG_PRINTLN("----------------------------------------");
 }
 
-void mPMTTestStand::debug_dump()
+void mPMTTestStand::debug_dump_state()
 {
     DEBUG_PRINT_VAL("STATUS", this->status);
     this->debug_dump_axis(AXIS_X);
     this->debug_dump_axis(AXIS_Y);
 }
+
+void mPMTTestStand::debug_dump_calibration()
+{
+    DEBUG_PRINTLN("----------------------------------------");
+    DEBUG_PRINTLN("CALIBRATION:");
+    DEBUG_PRINT_VAL("accel    ", this->cal.cal_gantry.accel);
+    DEBUG_PRINT_VAL("vel_start", this->cal.cal_gantry.vel_start);
+    DEBUG_PRINT_VAL("vel_home ", this->cal.cal_gantry.vel_home);
+    DEBUG_PRINTLN("");
+    DEBUG_PRINT_VAL("c1       ", this->cal.cal_temp.all.c1);
+    DEBUG_PRINT_VAL("c2       ", this->cal.cal_temp.all.c2);
+    DEBUG_PRINT_VAL("c3       ", this->cal.cal_temp.all.c3);
+    DEBUG_PRINT_VAL("resistor ", this->cal.cal_temp.all.resistor);
+    DEBUG_PRINTLN("----------------------------------------");
+}
 #endif // DEBUG
 
 void mPMTTestStand::execute()
 {
-    DEBUG_PERIODIC(this->debug_dump(), 1000);
+    DEBUG_PERIODIC(
+        this->debug_dump_state();
+        this->debug_dump_calibration(),
+        1000);
 
     // Update status
     switch (this->status) {
@@ -251,6 +265,7 @@ void mPMTTestStand::execute()
             case MSG_ID_GET_POSITION:   this->handle_get_position();   break;
             case MSG_ID_GET_AXIS_STATE: this->handle_get_axis_state(); break;
             case MSG_ID_GET_TEMP:       this->handle_get_temp();       break;
+            case MSG_ID_CALIBRATE:      this->handle_calibrate();      break;
             default:                                                   break;
         }
     }

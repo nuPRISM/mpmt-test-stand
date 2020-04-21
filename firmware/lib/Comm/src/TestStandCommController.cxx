@@ -2,7 +2,13 @@
 
 #include <Arduino.h>
 
-TestStandCommController::TestStandCommController(SerialDevice& device) : TestStandComm(device)
+#define EXTRACT(_dest, _src, _conv)        \
+do {                                       \
+    memcpy(_dest, _src, sizeof(*(_dest))); \
+    *(_dest) = _conv(*(_dest));            \
+} while (0)
+
+TestStandCommController::TestStandCommController(SerialDevice &device) : TestStandComm(device)
 {
     // Nothing else to do
 }
@@ -90,5 +96,24 @@ bool TestStandCommController::recv_move(MoveMsgData *data_out)
     data_out->vel_hold    = ntohl(data_out->vel_hold);
     data_out->dist_counts = ntohl(data_out->dist_counts);
 
+    return true;
+}
+
+bool TestStandCommController::recv_calibrate(Calibration *cal_out)
+{
+    if (this->received_message().length < 1) return false;
+
+    uint8_t *data = this->received_message().data;
+
+    switch (data[0]) {
+        case CAL_GANTRY_ACCEL:      EXTRACT(&(cal_out->cal_gantry.accel),      &data[1], ntohl); break;
+        case CAL_GANTRY_VEL_START:  EXTRACT(&(cal_out->cal_gantry.vel_start),  &data[1], ntohl); break;
+        case CAL_GANTRY_VEL_HOME:   EXTRACT(&(cal_out->cal_gantry.vel_home),   &data[1], ntohl); break;
+        case CAL_TEMP_ALL_C1:       EXTRACT(&(cal_out->cal_temp.all.c1),       &data[1], ntohd); break;
+        case CAL_TEMP_ALL_C2:       EXTRACT(&(cal_out->cal_temp.all.c2),       &data[1], ntohd); break;
+        case CAL_TEMP_ALL_C3:       EXTRACT(&(cal_out->cal_temp.all.c3),       &data[1], ntohd); break;
+        case CAL_TEMP_ALL_RESISTOR: EXTRACT(&(cal_out->cal_temp.all.resistor), &data[1], ntohd); break;
+        default: return false;
+    }
     return true;
 }

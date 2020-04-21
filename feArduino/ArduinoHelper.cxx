@@ -1,14 +1,17 @@
+/* **************************** Local Includes ***************************** */
 #include "ArduinoHelper.h"
-#include "TestStandMessages.h"
 
-#include "Gantry.h"
-#include "TempMeasure.h"
-
+/* ************************ Shared Project Includes ************************ */
 #include "LinuxSerialDevice.h"
 #include "TestStandCommHost.h"
-
+#include "TestStandMessages.h"
 #include "shared_defs.h"
 
+// firmware headers
+#include "Gantry.h"
+#include "TemperatureDAQ.h"
+
+/* **************************** System Includes **************************** */
 #include <stdio.h>
 #include <math.h>
 
@@ -16,19 +19,13 @@
 /*                                 CONSTANTS                                 */
 /*****************************************************************************/
 
-// Gantry Mechanical Properties
-const float pulley_diameter_mm   = 17.0;
-const float dist_per_rev_mm      = 2.0 * M_PI * (pulley_diameter_mm / 2.0);
-const float mm_cts_ratio         = dist_per_rev_mm / ENCODER_COUNTS_PER_REV;
-const float mm_steps_ratio       = dist_per_rev_mm / MOTOR_STEPS_PER_REV;
-
 // Operational Bounds
 const float gantry_x_min_mm      = 0.0;
 const float gantry_x_max_mm      = 1200.0; // max rail is 1219 mm
 const float gantry_y_min_mm      = 0.0;
 const float gantry_y_max_mm      = 1200.0;
 const float gantry_vel_min_mm_s  = 0.0;    // [mm/s]
-const float gantry_vel_max_mm_s  = 10.0;   // [mm/s]
+const float gantry_vel_max_mm_s  = 50.0;   // [mm/s]
 
 const char * serial_result_msgs[] = {
     [SERIAL_OK]                  = "Send or receive completed successfully",
@@ -51,6 +48,12 @@ const char * axis_result_msgs[] = {
     [AXIS_ERR_LS_FAR]          = "Trying to move forward while FAR limit switch is pressed",
     [AXIS_ERR_INVALID]         = "The parameters resulted in an invalid motion profile"
 };
+
+/*****************************************************************************/
+/*                            EXTERN DEPENDENCIES                            */
+/*****************************************************************************/
+
+extern float gCalGantryPulleyDia; // pulley diameter in mm, defined in feArduino.cxx
 
 /*****************************************************************************/
 /*                             PRIVATE VARIABLES                             */
@@ -96,19 +99,36 @@ static bool validate_move_params(float *dest_mm, float *vel_mm_s)
     return true;
 }
 
-static int32_t mm_to_cts(float val_mm)
-{
-    return round(val_mm / mm_cts_ratio);
+static float mm_per_rev() {
+    return 2.0 * M_PI * (gCalGantryPulleyDia / 2.0);
 }
 
-static float cts_to_mm(int32_t val_cts)
-{
-    return (val_cts * mm_cts_ratio);
+static float mm_per_count() {
+    return mm_per_rev() / ENCODER_COUNTS_PER_REV;
 }
 
-static uint32_t mm_to_steps(float val_mm)
+static float mm_per_step() {
+    return mm_per_rev() / MOTOR_STEPS_PER_REV;
+}
+
+int32_t mm_to_cts(float val_mm)
 {
-    return round(val_mm / mm_steps_ratio);
+    return round(val_mm / mm_per_count());
+}
+
+float cts_to_mm(int32_t val_cts)
+{
+    return (val_cts * mm_per_count());
+}
+
+uint32_t mm_to_steps(float val_mm)
+{
+    return round(val_mm / mm_per_step());
+}
+
+float steps_to_mm(uint32_t val_steps)
+{
+    return (val_steps * mm_per_step());
 }
 
 static AxisDirection get_direction(int32_t displacement)
@@ -288,4 +308,39 @@ bool arduino_get_position(float *gantry_x_mm_out, float *gantry_y_mm_out)
 bool arduino_get_temp(TempData *temp_out)
 {
     return handle_serial_result(comm.get_temp(temp_out, MSG_RECEIVE_TIMEOUT_MS));
+}
+
+/**
+ * @brief Update a calibration parameter on the Arduino
+ * 
+ * @param key The CalibrationKey
+ * @param value Pointer to the value to set
+ * 
+ * @return true if the calibration succeeds, otherwise false
+ */
+static bool arduino_calibrate(CalibrationKey key, void *value)
+{
+    return handle_serial_result(comm.calibrate(key, value));
+}
+
+/**
+ * @brief Update all of the calibration parameters on the Arduino
+ * 
+ * @param calibration Pointer to a Calibration struct containing all the new parameters
+ * 
+ * @return true if the calibration succeeds, otherwise false
+ */
+bool arduino_calibrate(Calibration *calibration)
+{
+    if (!arduino_calibrate(CAL_GANTRY_ACCEL, &calibration->cal_gantry.accel)) return false;
+    if (!arduino_calibrate(CAL_GANTRY_VEL_START, &calibration->cal_gantry.vel_start)) return false;
+    if (!arduino_calibrate(CAL_GANTRY_VEL_HOME, &calibration->cal_gantry.vel_home)) return false;
+    if (!arduino_calibrate(CAL_TEMP_ALL_C1, &calibration->cal_temp.all.c1)) return false;
+    if (!arduino_calibrate(CAL_TEMP_ALL_C2, &calibration->cal_temp.all.c2)) return false;
+    if (!arduino_calibrate(CAL_TEMP_ALL_C3, &calibration->cal_temp.all.c3)) return false;
+    if (!arduino_calibrate(CAL_TEMP_ALL_RESISTOR, &calibration->cal_temp.all.resistor)) return false;
+
+    cm_msg(MINFO, "arduino_calibrate", "Arduino calibration updated");
+
+    return true;
 }

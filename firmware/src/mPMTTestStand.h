@@ -2,11 +2,16 @@
 #define MPMT_TEST_STAND_H
 
 /* **************************** Local Includes ***************************** */
+// Serial Communication
 #include "ArduinoSerialDevice.h"
 #include "TestStandCommController.h"
-#include "Thermistor10k.h"
+// Gantry
 #include "Gantry.h"
 #include "Axis.h"
+// Temperature DAQ
+#include "ThermistorArray.h"
+// Other
+#include "Calibration.h"
 
 /* ************************ Shared Project Includes ************************ */
 #include "shared_defs.h"
@@ -16,46 +21,26 @@
 
 typedef struct {
     // Serial Devices
-    UARTClass& serial_comm;
+    UARTClass &serial_comm;
     SerialBaudRate serial_comm_baud_rate;
-    // Thermistor Pins
-    uint8_t pin_therm_amb;
-    uint8_t pin_therm_motor_x;
-    uint8_t pin_therm_motor_y;
-    uint8_t pin_therm_mpmt;
-    uint8_t pin_therm_optical;
-    // Gantry Axis Pins
+    // Gantry Axes
     AxisIO io_axis_x;
     AxisIO io_axis_y;
-} mPMTTestStandIOConfig;
-
-typedef struct {
     AxisMech axis_mech;
-    uint32_t accel;
-    uint32_t vel_start;
-    uint32_t vel_home_a;
-    uint32_t vel_home_b;
-    uint32_t accel_home_a;
-    uint32_t accel_home_b;
-} mPMTTestStandGantryConfig;
-
-typedef struct {
-    mPMTTestStandIOConfig io;
-    mPMTTestStandGantryConfig gantry;
+    // Temperature Measurement
+    ThermistorArrayIO io_temp;
 } mPMTTestStandConfig;
 
 class mPMTTestStand
 {
     private:
-        const mPMTTestStandConfig& conf;
+        const mPMTTestStandConfig &conf;
+        Calibration cal;
 
         ArduinoSerialDevice comm_dev;
         TestStandCommController comm;
-        Thermistor10k thermistor_ambient;
-        Thermistor10k thermistor_motor_x;
-        Thermistor10k thermistor_motor_y;
-        Thermistor10k thermistor_mpmt;
-        Thermistor10k thermistor_optical;
+
+        ThermistorArray thermistors;
 
         Status status;
         bool home_a_done;
@@ -72,14 +57,16 @@ class mPMTTestStand
         void handle_get_position();
         void handle_get_axis_state();
         void handle_get_temp();
+        void handle_calibrate();
 
 #ifdef DEBUG
         void debug_dump_axis(AxisId axis_id);
-        void debug_dump();
+        void debug_dump_state();
+        void debug_dump_calibration();
 #endif // DEBUG
 
     public:
-        mPMTTestStand(const mPMTTestStandConfig& conf);
+        mPMTTestStand(const mPMTTestStandConfig &conf, Calibration cal);
         void setup();
         void execute();
 };

@@ -178,8 +178,6 @@ There are 3 steps to building, flashing and running the required software to ope
 
 ### Build / Run feScan
 
-
-
 1. Open a regular terminal (or a WSL terminal if you are developing on Windows) and navigate to the `feScan` directory
 1. Run `make`
 1. Assuming the build was successful, run the following command:
@@ -226,19 +224,25 @@ The primary user interface is through the scan.html webpage in the feScan direct
 
 ### Manually Moving the Gantry
 
-1. Navigate the ODB Browser to /Equipment/ARDUINO/Settings
-1. Set the Destination to the X and Y coordinates of the destination in mm’s
-1. Set the Velocity to the X and Y velocities in mm/s
-1. Set MoveRequest to “y”
+1. Navigate the ODB Browser to `/Equipment/ARDUINO/Settings`
+1. Set the `Destination` to the X and Y coordinates of the destination in mm’s
+1. Set the `Velocity` to the X and Y velocities in mm/s
+1. Set `MoveRequest` to “y”
 1. Refresh the page
-1. MoveResponse[0] will be “y” and MoveResponse[1] will indicate whether the move request succeeded
-1. The current position of the gantry can still be monitored on the Scan page or in the ODB Browser under /Equipment/ARDUINO/Variables/GANT, where GANT[0] is the X coordinate in mm and GANT[1] is the Y coordinate in mm
+1. `MoveResponse[0]` will be `“y”` and `MoveResponse[1]` will indicate whether the move request succeeded
+1. The current position of the gantry can still be monitored on the Scan page or in the ODB Browser under `/Equipment/ARDUINO/Variables/GANT`, where `GANT[0]` is the X coordinate in mm and `GANT[1]` is the Y coordinate in mm
 
 ### Checking Temperature Data
 
-1. Navigate the ODB Browser to /Equipment/ARDUINO/Variables/TEMP
+1. Navigate the ODB Browser to `/Equipment/ARDUINO/Variables/TEMP`
 1. The latest temperature readings will be reported here
 
+### Updating Calibration Values
+
+1. Navigate the ODB Browser to `/Equipment/ARDUINO/Settings/Calibration`
+1. Make any necessary changes to the calibration values
+1. Navigate the ODB Browser to `/Equipment/ARDUINO/Settings`
+1. Set `UpdateCalibration` to `"y"`
 
 ## Troubleshooting / Debugging
 

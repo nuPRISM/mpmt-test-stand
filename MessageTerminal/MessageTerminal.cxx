@@ -241,7 +241,7 @@ Command commands[] = {
     [CMD_ID_LINK_CHECK]   = { "link_check", "Verify the serial communication link is working", "link_check", link_check },
     [CMD_ID_RESET]        = { "reset", "Reset the Arduino", "reset", reset },
     [CMD_ID_HELP]         = { "help", "Display the help message", "help or help <command>", help },
-    [CMD_ID_EXIT]         = { "exit", "Exit the program", "exit", exit },
+    [CMD_ID_EXIT]         = { "exit", "Exit the program", "exit", exit }
 };
 
 /*****************************************************************************/

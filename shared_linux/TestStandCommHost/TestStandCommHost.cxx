@@ -1,8 +1,5 @@
 #include "TestStandCommHost.h"
 
-#include "Gantry.h"
-#include "TempMeasure.h"
-
 #include <stdio.h>
 #include <string.h>
 
@@ -96,4 +93,42 @@ SerialResult TestStandCommHost::get_temp(TempData *temp_out, uint32_t timeout_ms
     temp_out->temp_optical = (double)ntohl(msg_data.temp_optical) / temp_data_scaler;
 
     return SERIAL_OK;
+}
+
+SerialResult TestStandCommHost::calibrate(CalibrationKey key, void *value)
+{
+    this->send_buf[0] = (uint8_t)key;
+
+    uint8_t value_size;
+    switch (key) {
+        case CAL_GANTRY_ACCEL:
+        case CAL_GANTRY_VEL_START:
+        case CAL_GANTRY_VEL_HOME:
+        {
+            uint32_t value_conv = htonl(*(uint32_t *)value);
+            value_size = sizeof(value_conv);
+            memcpy(&this->send_buf[1], &value_conv, value_size);
+            break;
+        }
+        case CAL_TEMP_ALL_C1:
+        case CAL_TEMP_ALL_C2:
+        case CAL_TEMP_ALL_C3:
+        case CAL_TEMP_ALL_RESISTOR:
+        {
+            double value_conv = htond(*(double *)value);
+            value_size = sizeof(value_conv);
+            memcpy(&this->send_buf[1], &value_conv, value_size);
+            break;
+        }
+        default:
+            value_size = 0;
+    }
+
+    Message msg = {
+        .id = MSG_ID_CALIBRATE,
+        .length = (uint8_t)(value_size + 1),
+        .data = this->send_buf
+    };
+
+    return this->session.send_message(msg);
 }

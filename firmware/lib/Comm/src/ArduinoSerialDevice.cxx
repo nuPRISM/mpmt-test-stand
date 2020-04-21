@@ -1,6 +1,6 @@
 #include "ArduinoSerialDevice.h"
 
-ArduinoSerialDevice::ArduinoSerialDevice(HardwareSerial& device) : device(device)
+ArduinoSerialDevice::ArduinoSerialDevice(HardwareSerial &device) : device(device)
 {
     // Nothing else to do
 }

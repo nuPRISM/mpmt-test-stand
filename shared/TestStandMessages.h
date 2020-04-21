@@ -15,6 +15,7 @@
 #define MSG_ID_GET_POSITION     0x44
 #define MSG_ID_GET_AXIS_STATE   0x45
 #define MSG_ID_GET_TEMP         0x46
+#define MSG_ID_CALIBRATE        0x47
 
 // Arduino -> PC Messages
 #define MSG_ID_LOG              0x80

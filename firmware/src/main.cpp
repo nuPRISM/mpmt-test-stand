@@ -15,13 +15,16 @@ mPMTTestStand test_stand(conf, default_calibration);
 uint32_t blink_start;
 bool blink_state;
 
+
 void setup()
 {
     DEBUG_INIT;
     pinMode(LED_BUILTIN, OUTPUT);
 
     test_stand.setup();
+    pinMode(12,OUTPUT);
 
+    
     blink_start = millis();
     blink_state = false;
 }
@@ -29,6 +32,7 @@ void setup()
 void loop()
 {
     test_stand.execute();
+    //digitalWrite(12, HIGH);
 
     // Blink an LED
     if ((millis() - blink_start) >= 500) {

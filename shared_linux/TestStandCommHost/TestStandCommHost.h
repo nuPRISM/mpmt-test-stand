@@ -27,6 +27,7 @@ class TestStandCommHost : public TestStandComm
         SerialResult stop();
         SerialResult get_position(PositionMsgData *position_out, uint32_t timeout_ms);
         SerialResult get_temp(TempData *temp_out, uint32_t timeout_ms);
+        SerialResult get_axis_state(StateMsgData *status_out, uint32_t timeout_ms);
         SerialResult calibrate(CalibrationKey key, void *value);
 };
 

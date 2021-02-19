@@ -58,6 +58,7 @@ typedef enum {
     CMD_ID_STOP,
     CMD_ID_GET_POSITION,
     CMD_ID_GET_TEMP,
+    CMD_ID_GET_AXIS_STATE,
     // General commands
     CMD_ID_LINK_CHECK,
     CMD_ID_RESET,
@@ -189,6 +190,25 @@ bool get_temp(istringstream& iss)
     return true;
 }
 
+bool get_axis_state(istringstream& iss)
+{
+    StateMsgData status_data;
+    SerialResult res = comm.get_axis_state(&status_data, MSG_RECEIVE_TIMEOUT_MS);
+    if (res == SERIAL_OK) {
+        printf("X axis moving : %i \n", status_data.x_motion);
+        printf("Y axis moving : %i\n", status_data.y_motion);
+        printf("X limit switch far : %i\n", status_data.x_ls_far);
+        printf("Y limit switch far : %i\n", status_data.y_ls_far);
+        printf("X limit switch home : %i\n", status_data.x_ls_home);
+        printf("Y limit switch home : %i\n", status_data.y_ls_home);
+
+    }
+    else {
+        printf("ERROR: %d\n", res);
+    }
+    return true;
+}
+
 bool link_check(istringstream& iss)
 {
     SerialResult res = comm.link_check(MSG_RECEIVE_TIMEOUT_MS);
@@ -238,6 +258,7 @@ Command commands[] = {
     [CMD_ID_STOP]         = { "stop", "Freeze all motor functions", "stop", stop },
     [CMD_ID_GET_POSITION] = { "get_position", "Retrieve the current position of the gantry", "get_position", get_position },
     [CMD_ID_GET_TEMP]     = { "get_temp", "Retrieve temperature readings", "get_temp", get_temp },
+    [CMD_ID_GET_AXIS_STATE]     = { "get_axis_state", "Retrieve axis state (moving + limits)", "get_axis_state", get_axis_state },
     [CMD_ID_LINK_CHECK]   = { "link_check", "Verify the serial communication link is working", "link_check", link_check },
     [CMD_ID_RESET]        = { "reset", "Reset the Arduino", "reset", reset },
     [CMD_ID_HELP]         = { "help", "Display the help message", "help or help <command>", help },

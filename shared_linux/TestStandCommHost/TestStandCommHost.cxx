@@ -95,6 +95,34 @@ SerialResult TestStandCommHost::get_temp(TempData *temp_out, uint32_t timeout_ms
     return SERIAL_OK;
 }
 
+SerialResult TestStandCommHost::get_axis_state(StateMsgData *status_out, uint32_t timeout_ms)
+{
+  printf("Got into get_axis_state\n");
+
+    SerialResult res = this->send_basic_msg(MSG_ID_GET_AXIS_STATE);
+    if (res != SERIAL_OK) return res;
+
+    res = this->recv_message(MSG_ID_AXIS_STATE, sizeof(StateMsgData), timeout_ms);
+    if (res != SERIAL_OK) return res;
+
+    // Copy message data into output struct
+    //    StateMsgData msg_data;
+    memcpy(status_out, this->received_message().data, sizeof(StateMsgData));
+
+    //    printf("%i %i %i %i %i %i \n",msg_data.x_motion,msg_data.y_motion,msg_data.x_ls_far, msg_data.y_ls_far
+    //	   ,msg_data.x_ls_home, msg_data.y_ls_home);
+    // Fixup byte order and re-scale
+    //    temp_out.x_motion = 
+
+    //    temp_out->temp_ambient = (double)ntohl(msg_data.temp_ambient) / temp_data_scaler;
+    //temp_out->temp_motor_x = (double)ntohl(msg_data.temp_motor_x) / temp_data_scaler;
+    //temp_out->temp_motor_y = (double)ntohl(msg_data.temp_motor_y) / temp_data_scaler;
+    //temp_out->temp_mpmt    = (double)ntohl(msg_data.temp_mpmt) / temp_data_scaler;
+    //temp_out->temp_optical = (double)ntohl(msg_data.temp_optical) / temp_data_scaler;
+
+    return SERIAL_OK;
+}
+
 SerialResult TestStandCommHost::calibrate(CalibrationKey key, void *value)
 {
     this->send_buf[0] = (uint8_t)key;

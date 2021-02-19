@@ -66,4 +66,13 @@ typedef struct {
     int32_t temp_optical;
 } __attribute__((__packed__)) TempMsgData;
 
+typedef struct{
+    bool x_motion;
+    bool y_motion;
+    bool x_ls_far;
+    bool y_ls_far;
+    bool x_ls_home;
+    bool y_ls_home;
+} __attribute__((__packed__)) StateMsgData;
+
 #endif // TEST_STAND_MESSAGES_H

@@ -24,7 +24,7 @@
 
   <table class="mtable">
     <tr>
-      <th colspan="8" class="mtableheader">Gantry Movement Control</th>
+      <th colspan="9" class="mtableheader">Gantry Movement Control</th>
     </tr>
     <tr>
       <td>
@@ -34,13 +34,16 @@
 	Destination
       </td>
       <td>
-	Position?
+	Position <br> Readback
+      </td>
+      <td>
+	Encoder Position <br> Readback
       </td>
       <td>
 	Start Move
       </td>
       <td>
-	Moving?
+	Moving Readback
       </td>
       <td>
 	Limit Pos?
@@ -58,10 +61,13 @@
         <div class="modbvalue" data-odb-path="/Equipment/Motors00/Settings/Names[1]" ></div> 	
       </td>
       <td>
-        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Motors00/Settings/Destination[1]" ></div> 	
+        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Motors00/Settings/Destination[1]" ></div>
       </td>
       <td>
         <div class="modbvalue" data-odb-path="/Equipment/Motors00/Variables/Position[1]" ></div> 	
+      </td>
+      <td>
+        <div class="modbvalue" data-odb-path="/Equipment/Motors00/Variables/Encoder[1]" ></div> 	
       </td>
       <td>
         <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Motors00/Settings/Move[1]" ></div> 	
@@ -76,7 +82,7 @@
         <div class="modbvalue" data-odb-path="/Equipment/Motors00/Variables/Limit Neg[1]" ></div> 	
       </td>
       <td>
-        <div class="modbvalue" data-odb-path="/Equipment/Motors00/Settings/Velocity[1]" ></div> 	
+        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Motors00/Settings/Velocity[1]" ></div> 	
       </td>
     </tr>
 
@@ -91,6 +97,9 @@
         <div class="modbvalue" data-odb-path="/Equipment/Motors00/Variables/Position[2]" ></div> 	
       </td>
       <td>
+        <div class="modbvalue" data-odb-path="/Equipment/Motors00/Variables/Encoder[2]" ></div> 	
+      </td>
+      <td>
         <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Motors00/Settings/Move[2]" ></div> 	
       </td>
       <td>
@@ -103,7 +112,7 @@
         <div class="modbvalue" data-odb-path="/Equipment/Motors00/Variables/Limit Neg[2]" ></div> 	
       </td>
       <td>
-        <div class="modbvalue" data-odb-path="/Equipment/Motors00/Settings/Velocity[2]" ></div> 	
+        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Motors00/Settings/Velocity[2]" ></div> 	
       </td>
     </tr>
     

@@ -11,7 +11,16 @@
    <style>
       .mtable td { padding: 10px; }
    </style>
-
+   <script>
+     function stop_motors()  {
+       mjsonrpc_db_paste(["/equipment/motors00/settings/stop[0,1,2]"], [[true,true,true]]).then(function(rpc) {
+         result=rpc.result;      
+         console.log("Stopping motors");
+       }).catch(function(error) {
+          mjsonrpc_error_alert(error);
+       });
+     }
+   </script>
 </head>
 
 <body class="mcss" onload="mhttpd_init('Move Control');;">
@@ -119,6 +128,9 @@
 
 
   </table>
+
+
+<button onclick="stop_motors()">Stop Motors and Gantry!</button>
 
 </body>
 </html>

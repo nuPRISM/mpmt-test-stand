@@ -33,7 +33,58 @@
 
   <table class="mtable">
     <tr>
-      <th colspan="9" class="mtableheader">Gantry Movement Control</th>
+      <th colspan="3" class="mtableheader">High Level Gantry Control</th>
+    </tr>
+    <tr>
+      <td> Reinitialize Gantry </td>
+      <td colspan="2">
+        <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Move/Settings/Reinitialize" ></div>
+      </td>
+    </tr>
+    <tr>
+      <td> Is Gantry Initialized? </td>
+      <td colspan="2">
+        <div class="modbvalue" data-odb-path="/Equipment/Move/Variables/Initialized" ></div>
+      </td>
+    </tr>
+    <tr>
+      <td> Is Gantry Initializing? </td>
+      <td colspan="2">
+        <div class="modbvalue"  data-odb-path="/Equipment/Move/Variables/Initializing" ></div>
+      </td>
+    </tr>
+    <tr>
+      <td> Is Gantry Moving? </td>
+      <td colspan="2">
+        <div class="modbvalue"  data-odb-path="/Equipment/Move/Variables/Moving" ></div>
+      </td>
+    </tr>
+    <tr>
+      <td> Axes </td>
+      <td> X </td>  <td> Y </td>
+      
+    </tr>
+    <tr>
+      <td> Destination (m) </td>
+      <td> <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Move/Settings/Destination[0]" ></div> </td>
+      <td> <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Move/Settings/Destination[1]" ></div> </td>
+    </tr>
+    <tr>
+      <td> Readback Position (m) </td>
+      <td> <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Move/Variables/Position[0]" ></div> </td>
+      <td> <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Move/Variables/Position[1]" ></div> </td>
+    </tr>
+    
+
+
+  </table>
+
+<button onclick="stop_motors()">Stop Motors and Gantry!</button>
+
+
+  <table class="mtable">
+    <tr>
+      <th colspan="9" class="mtableheader">Low-level Gantry Movement Control</th>
     </tr>
     <tr>
       <td>
@@ -128,9 +179,7 @@
 
 
   </table>
-
-
-<button onclick="stop_motors()">Stop Motors and Gantry!</button>
+</div>
 
 </body>
 </html>

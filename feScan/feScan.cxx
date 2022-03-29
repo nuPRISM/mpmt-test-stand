@@ -4,7 +4,7 @@ Program to perform scan of laser over PMTs.
 Setups up then performs a rectangular scan in X and Y.
 
 T. Lindner
-March, 2002
+March 2022
 
   $Id$
 \********************************************************************/
@@ -19,6 +19,7 @@ March, 2002
 #include <stdint.h>
 #include <iostream>
 #include <chrono>
+#include "odbxx.h"
 
 #include "feArduino.h"
 #include "shared_defs.h"
@@ -34,6 +35,7 @@ March, 2002
 
 /* Hardware */
 extern HNDLE hDB;
+BOOL equipment_common_overwrite = FALSE;
 
 /* make frontend functions callable from the C framework */
 
@@ -66,6 +68,7 @@ INT event_buffer_size = 2 * max_event_size + 10000;
 BOOL gbl_called_BOR = FALSE;
 bool gGantryWasMoving = false; // Was gantry previously moving?
 int gbl_current_point = -1; // Which point are we on?
+bool gNewScanningPoint = false;
 std::vector<std::pair<float,float> > gScanPoints;  // All the points in the present scan (X, Y)
 float gScanTime; // Scan time in milliseconds.
 typedef std::chrono::high_resolution_clock Clock;
@@ -141,7 +144,7 @@ INT frontend_exit()
 INT begin_of_run(INT run_number, char *error)
 {
   gScanStatus = SCAN_STATUS_STARTED;
-
+  gNewScanningPoint = false;
   // Get Scan parameters...
   std::string path;
   path += "/Equipment/";
@@ -162,15 +165,6 @@ INT begin_of_run(INT run_number, char *error)
       return CM_DB_ERROR;
   }
 
-  // Speed
-  varpath =  path + "/Speed";
-  float speed = 10.0;  // speed in mm/s.
-  size = sizeof(speed);
-  status = db_get_value(hDB, 0, varpath.c_str(), &speed, &size, TID_FLOAT, TRUE);
-  if (status != DB_SUCCESS) {
-      cm_msg(MERROR, "begin_of_run", "Failed to retrieve Speed from ODB. Error: %d", status);
-      return CM_DB_ERROR;
-  }
 
   // Start Position
   varpath = path + "/StartPosition";
@@ -209,16 +203,6 @@ INT begin_of_run(INT run_number, char *error)
       return CM_DB_ERROR;
   }
 
-  // Set velocity
-  float velocity[2];
-  velocity[0] = speed;
-  velocity[1] = speed;
-  size = sizeof(velocity);
-  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_VELOCITY, &velocity, size, 2, TID_FLOAT);
-  if (status != DB_SUCCESS) {
-      cm_msg(MERROR, "begin_of_run", "Failed to set velocity in ODB. Error: %d", status);
-      return CM_DB_ERROR;
-  }
 
   gScanPoints.clear();
 
@@ -308,57 +292,27 @@ INT resume_run(INT run_number, char *error)
 
 INT request_move(float x_mm, float y_mm)
 {
-  int size;
-  int status;
+  
+  midas::odb move_set = {
+    {"Destination", std::array<float, 2>{}},
+    {"Start Move", false},
+  };
 
-  // Set the Destination
-  float destination[2];
-  destination[0] = x_mm;
-  destination[1] = y_mm;
-  size = sizeof(destination);
-  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_DESTINATION, &destination, size, 2, TID_FLOAT);
-  if (status != DB_SUCCESS) {
-    cm_msg(MERROR, "request_move", "Failed to set Destination in ODB. Error: %d", status);
-    return CM_DB_ERROR;
-  }
+  move_set.connect("/Equipment/Move/Settings");
 
-  // Clear MoveResponse
-  BOOL move_response[2] = {false, false};
-  size = sizeof(move_response);
-  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_RESPONSE, &move_response, size, 2, TID_BOOL);
-  if (status != DB_SUCCESS) {
-      cm_msg(MERROR, "start_move", "Failed to clear MoveResponse in ODB. Error: %d", status);
-      return CM_DB_ERROR;
-  }
+  // Set destination
+  move_set["Destination"][0] = x_mm/1000.0;
+  move_set["Destination"][1] = y_mm/1000.0;
 
-  // Send MoveRequest
-  BOOL move_request = true;
-  size = sizeof(move_request);
-  status = db_set_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_REQUEST, &move_request, size, 1, TID_BOOL);
-  if (status != DB_SUCCESS) {
-    cm_msg(MERROR, "request_move", "Failed to set MoveRequest in ODB. Error: %d", status);
-    return CM_DB_ERROR;
-  }
+  //Start move
+  usleep(10000);
+  move_set["Start Move"] = true;
 
-  // Check MoveResponse
-  size = sizeof(move_response);
-  // Wait until move_response[0] is true (indicating a response is ready)
-  do {
-    status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_MOVE_RESPONSE, &move_response, &size, TID_BOOL, TRUE);
-    if (status != DB_SUCCESS) {
-        cm_msg(MERROR, "request_move", "Failed to retrieve MoveResponse from ODB. Error: %d", status);
-        return CM_DB_ERROR;
-    }
-    usleep(100000); // Delay so we're not constantly polling
-  } while (!(move_response[0]));
-  // Check if move request was successful
-  if (move_response[1]) {
-    usleep(500000); // Delay so status has a chance to update
-    return SUCCESS;
-  }
-  else {
-    return CM_DB_ERROR;
-  }
+  // Done!
+  usleep(10000);
+  printf("Request move: %f %f \n", x_mm, y_mm);
+
+  return SUCCESS;
 }
 
 void start_measurement()
@@ -383,21 +337,25 @@ INT frontend_loop()
   INT status;
   char str[128];
 
+  midas::odb move_var = {
+    {"Completed", false},
+    {"Moving", false},
+    {"Position", std::array<float, 2>{}},
+
+  };
+
+  move_var.connect("/Equipment/Move/Variables");
+
+
   // Only want to start checking if the begin_of_run has been called.                                   
   if (!gbl_called_BOR) return SUCCESS;
 
   // Make sure we are running
   if (run_state != STATE_RUNNING) return SUCCESS;
 
+
   // Are we making a move?
-  DWORD teststand_status = false;
-  int size = sizeof(teststand_status);
-  status = db_get_value(hDB, 0, ODB_KEY_ARDUINO_STATUS, &teststand_status, &size, TID_DWORD, TRUE);
-  if (status != DB_SUCCESS) {
-      cm_msg(MERROR, "frontend_loop", "Failed to retrieve status from ODB. Error: %d", status);
-      return CM_DB_ERROR;
-  }
-  bool gantry_moving = (teststand_status == STATUS_MOVING);
+  bool gantry_moving = (bool)move_var["Moving"];
 
   if (!gantry_moving ) { // No, we are not moving; 
 
@@ -405,6 +363,7 @@ INT frontend_loop()
       start_measurement();
       gScanStatus = SCAN_STATUS_MEASURING;
       gGantryWasMoving = false;
+      gNewScanningPoint = true;
       std::cout << "    Starting measurement at this point." << std::endl;
     }
 
@@ -519,6 +478,35 @@ INT read_scan_state(char *pevent, INT off)
   *pddata++ = (gbl_current_point + 1); // gbl_current_point is 0-indexed
   *pddata++ = gScanPoints.size();
   bk_close(pevent, pddata);	
+
+  // If we are at a new point then save a CYC0 bank
+  if(gNewScanningPoint){
+
+    midas::odb move_var = {
+      {"Position", std::array<float, 2>{}},
+    };
+    move_var.connect("/Equipment/Move/Variables");
+
+    /* CYCI Bank Contents: 1 per measuring point! */
+    double *pwdata;
+    bk_create(pevent, "CYC0", TID_DOUBLE, (void **)&pwdata);
+    *pwdata++ = (double) gbl_current_point;
+
+    // Save the X and Y positions twice
+    *pwdata++ = (double) move_var["Destination"][0];
+    *pwdata++ = (double) move_var["Destination"][1];
+    for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
+    *pwdata++ = (double) move_var["Destination"][0];
+    *pwdata++ = (double) move_var["Destination"][1];
+    for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
+
+    *pwdata++ = (double) 0.0;
+    bk_close(pevent, pwdata);
+
+  }
+
+  gNewScanningPoint = false;
+
 
   return bk_size(pevent);
 

@@ -38,7 +38,7 @@
 
     <script>
         /* ******************************* CONSTANTS ******************************** */
-        const ODB_PATH_ARDUINO_VARIABLES = "/Equipment/ARDUINO/Variables";
+        const ODB_PATH_MOVE_VARIABLES = "/Equipment/Move/Variables";
         const ODB_PATH_SCAN_VARIABLES    = "/Equipment/Scan/Variables";
 
         const SCAN_STATUS_STOPPED        = 0;
@@ -155,7 +155,7 @@
 
             // Get variables
             mjsonrpc_send_request([
-                mjsonrpc_make_request("db_get_values",{"paths":[ODB_PATH_SCAN_VARIABLES, ODB_PATH_ARDUINO_VARIABLES]}),
+                mjsonrpc_make_request("db_get_values",{"paths":[ODB_PATH_SCAN_VARIABLES, ODB_PATH_MOVE_VARIABLES]}),
             ]).then(function (rpc) {
                 // SCAN variables
                 var status_num = parseInt(rpc[0].result.data[0].scan[0]);
@@ -163,8 +163,8 @@
                 update_status(status_num, num_points);
 
                 // ARDUINO variables
-                var x_mm = parseFloat(rpc[0].result.data[1].gant[0]);
-                var y_mm = parseFloat(rpc[0].result.data[1].gant[1])
+                var x_mm = parseFloat(rpc[0].result.data[1].position[0])*1000.0;
+                var y_mm = parseFloat(rpc[0].result.data[1].position[1])*1000.0;
                 draw_gantry(x_mm, y_mm);
 
                 gUpdateInflight = false;
@@ -206,33 +206,27 @@
             <tr>
                 <td>Step Size (mm)</td>
                 <td>
-                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize"></div>
-                </td>
-            </tr>
-            <tr>
-                <td>Gantry Speed (mm/s)</td>
-                <td>
-                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Speed"></div>
+                    <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StepSize"></div>
                 </td>
             </tr>
             <tr>
                 <td>Starting Position (mm) [X,Y]</td>
                 <td>
-                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[0]"></div>
-                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[1]"></div>
+                    <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[0]"></div>
+                    <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/StartPosition[1]"></div>
                 </td>
             </tr>
             <tr>
                 <td>Scan Distance (mm) [X,Y]</td>
                 <td>
-                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[0]"></div>
-                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[1]"></div>
+                    <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[0]"></div>
+                    <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/Distance[1]"></div>
                 </td>
             </tr>
             <tr>
                 <td>Scan Time at each Point (ms)</td>
                 <td>
-                    <div class="modbvalue scanSetup" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime"></div>
+                    <div class="modbvalue" data-odb-editable="1" data-odb-path="/Equipment/Scan/Settings/ScanTime"></div>
                 </td>
             </tr>
             <tr>
@@ -285,9 +279,9 @@
 
         <div style="display: block; width: 100%; margin: 0 auto; text-align: right;">
             <span>(</span>
-            <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[0]" ></span><span> mm</span>
+            <span class="modbvalue" data-odb-path="/Equipment/Move/Variables/Position[0]" ></span><span> mm</span>
             <span>, </span>
-            <span class="modbvalue" data-odb-path="/Equipment/ARDUINO/Variables/GANT[1]" ></span><span> mm</span>
+            <span class="modbvalue" data-odb-path="/Equipment/Move/Variables/Position[1]" ></span><span> mm</span>
             <span>)</span>
         </div>
 

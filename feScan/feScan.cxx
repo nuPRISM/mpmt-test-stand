@@ -331,11 +331,14 @@ bool measurement_complete()
   return (timediff >= (gScanTime + 1000));
 }
 
+int feloop_counter = 0;
 /*-- Frontend Loop -------------------------------------------------*/
 INT frontend_loop()
 {
   INT status;
   char str[128];
+
+  feloop_counter++;
 
   midas::odb move_var = {
     {"Completed", false},
@@ -356,21 +359,23 @@ INT frontend_loop()
 
   // Are we making a move?
   bool gantry_moving = (bool)move_var["Moving"];
-
+  
+  //std::cout << "Checking " << gantry_moving << " " << gGantryWasMoving << std::endl;
   if (!gantry_moving ) { // No, we are not moving; 
 
     if(gGantryWasMoving) { // We just finished moving.  Start the measurement (record current time)
       start_measurement();
       gScanStatus = SCAN_STATUS_MEASURING;
-      gGantryWasMoving = false;
+      //      gGantryWasMoving = false;
       gNewScanningPoint = true;
-      std::cout << "    Starting measurement at this point." << std::endl;
+      std::cout << "    Starting measurement at this point. " << feloop_counter << std::endl;
     }
+    gGantryWasMoving = false;
 
     // Have we finished doing the measurements at this point (or have we not moved at all yet)
     if (measurement_complete() || (gbl_current_point < 0)) {
       if (gbl_current_point >= 0) {
-        std::cout << "    Finished measurement at this point." << std::endl;
+        std::cout << "    Finished measurement at this point. " << feloop_counter << std::endl;
       }
     }
     else { // If no, keep waiting
@@ -388,7 +393,7 @@ INT frontend_loop()
 
     // increment for next position
     gbl_current_point++;
-    printf("POINT %d / %d:\n", (gbl_current_point + 1), (int)gScanPoints.size());
+    printf("POINT %d / %d: %i\n", (gbl_current_point + 1), (int)gScanPoints.size(),feloop_counter);
 
     // Move
     float x_mm = gScanPoints[gbl_current_point].first;
@@ -397,7 +402,9 @@ INT frontend_loop()
     if (status == SUCCESS) {
         gScanStatus = SCAN_STATUS_MOVING;
         gGantryWasMoving = true;
-        printf("    Started move to position (%.2f mm, %.2f mm)\n", x_mm, y_mm);
+        printf("    Started move to position (%.2f mm, %.2f mm) %i\n", x_mm, y_mm,feloop_counter);
+	// Sleep for 0.3s to make sure feMotor and feMove have correctly noticed that the move has started
+	usleep(500000);
     }
     else { // Move failed
       // Stop the run
@@ -408,9 +415,9 @@ INT frontend_loop()
 
   } else {  // Yes, we are moving;
     gGantryWasMoving = true;
-    usleep(1);
+    usleep(1000);
   }
-
+  usleep(1000);
 
   return SUCCESS;
 }
@@ -482,6 +489,7 @@ INT read_scan_state(char *pevent, INT off)
   // If we are at a new point then save a CYC0 bank
   if(gNewScanningPoint){
 
+    printf("Saving scan point bank CYC0; point %i \n",gbl_current_point);
     midas::odb move_var = {
       {"Position", std::array<float, 2>{}},
     };
@@ -493,11 +501,11 @@ INT read_scan_state(char *pevent, INT off)
     *pwdata++ = (double) gbl_current_point;
 
     // Save the X and Y positions twice
-    *pwdata++ = (double) move_var["Destination"][0];
-    *pwdata++ = (double) move_var["Destination"][1];
+    *pwdata++ = (double) move_var["Position"][0];
+    *pwdata++ = (double) move_var["Position"][1];
     for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
-    *pwdata++ = (double) move_var["Destination"][0];
-    *pwdata++ = (double) move_var["Destination"][1];
+    *pwdata++ = (double) move_var["Position"][0];
+    *pwdata++ = (double) move_var["Position"][1];
     for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
 
     *pwdata++ = (double) 0.0;

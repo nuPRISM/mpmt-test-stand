@@ -4,7 +4,7 @@
 echo "Starting repetition of 10 loops with gantry"
 
 
-for i in {1..2}
+for i in {1..20}
 do
 
     # Move X minus

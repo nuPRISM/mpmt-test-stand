@@ -486,30 +486,39 @@ INT read_scan_state(char *pevent, INT off)
   *pddata++ = gScanPoints.size();
   bk_close(pevent, pddata);	
 
-  // If we are at a new point then save a CYC0 bank
+
+
+
+  printf("Saving scan point bank CYC0; point %i \n",gbl_current_point);
+  midas::odb move_var = {
+    {"Position", std::array<float, 2>{}},
+  };
+  move_var.connect("/Equipment/Move/Variables");
+  
+  /* CYCI Bank Contents: 1 per measuring point! */
+  double *pwdata;
+  bk_create(pevent, "CYC0", TID_DOUBLE, (void **)&pwdata);
+  *pwdata++ = (double) gbl_current_point;
+  
+  // Save the X and Y positions twice
+  *pwdata++ = (double) move_var["Position"][0];
+  *pwdata++ = (double) move_var["Position"][1];
+  for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
+  *pwdata++ = (double) move_var["Position"][0];
+  *pwdata++ = (double) move_var["Position"][1];
+  for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
+  
+  *pwdata++ = (double) 0.0;
+  bk_close(pevent, pwdata);
+  
+
   if(gNewScanningPoint){
 
-    printf("Saving scan point bank CYC0; point %i \n",gbl_current_point);
-    midas::odb move_var = {
-      {"Position", std::array<float, 2>{}},
-    };
-    move_var.connect("/Equipment/Move/Variables");
-
-    /* CYCI Bank Contents: 1 per measuring point! */
-    double *pwdata;
-    bk_create(pevent, "CYC0", TID_DOUBLE, (void **)&pwdata);
-    *pwdata++ = (double) gbl_current_point;
-
-    // Save the X and Y positions twice
-    *pwdata++ = (double) move_var["Position"][0];
-    *pwdata++ = (double) move_var["Position"][1];
-    for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
-    *pwdata++ = (double) move_var["Position"][0];
-    *pwdata++ = (double) move_var["Position"][1];
-    for(int i = 0; i < 3; i++){ *pwdata++ = 0.0; } // Fill some blanks in bank
-
-    *pwdata++ = (double) 0.0;
-    bk_close(pevent, pwdata);
+    char bk_name[4] = "EOM";
+    double *unused_pointer2;
+    bk_create(pevent, bk_name, TID_DOUBLE,(void **) &unused_pointer2);
+    *unused_pointer2++ = (double) gbl_current_point;
+    bk_close(pevent, unused_pointer2);
 
   }
 

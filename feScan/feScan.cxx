@@ -69,6 +69,7 @@ BOOL gbl_called_BOR = FALSE;
 bool gGantryWasMoving = false; // Was gantry previously moving?
 int gbl_current_point = -1; // Which point are we on?
 bool gNewScanningPoint = false;
+bool gNewMoveStarted = false;
 std::vector<std::pair<float,float> > gScanPoints;  // All the points in the present scan (X, Y)
 float gScanTime; // Scan time in milliseconds.
 typedef std::chrono::high_resolution_clock Clock;
@@ -145,6 +146,7 @@ INT begin_of_run(INT run_number, char *error)
 {
   gScanStatus = SCAN_STATUS_STARTED;
   gNewScanningPoint = false;
+  gNewMoveStarted = false;
   // Get Scan parameters...
   std::string path;
   path += "/Equipment/";
@@ -405,6 +407,8 @@ INT frontend_loop()
         printf("    Started move to position (%.2f mm, %.2f mm) %i\n", x_mm, y_mm,feloop_counter);
 	// Sleep for 0.3s to make sure feMotor and feMove have correctly noticed that the move has started
 	usleep(500000);
+
+	gNewMoveStarted = true;     // Flag for BONM bank creation
     }
     else { // Move failed
       // Stop the run
@@ -414,7 +418,16 @@ INT frontend_loop()
     }
 
   } else {  // Yes, we are moving;
+
+    //    if(!gGantryWasMoving){ // We just started moving; save appropriate point
+    // std::cout << "Recheck: actually started move
+    //  gNewMoveStarted = true;
+    //}
+
     gGantryWasMoving = true;
+
+
+
     usleep(1000);
   }
   usleep(1000);
@@ -511,7 +524,7 @@ INT read_scan_state(char *pevent, INT off)
   *pwdata++ = (double) 0.0;
   bk_close(pevent, pwdata);
   
-
+  // Bank to record when move ended
   if(gNewScanningPoint){
 
     char bk_name[4] = "EOM";
@@ -519,10 +532,24 @@ INT read_scan_state(char *pevent, INT off)
     bk_create(pevent, bk_name, TID_DOUBLE,(void **) &unused_pointer2);
     *unused_pointer2++ = (double) gbl_current_point;
     bk_close(pevent, unused_pointer2);
+    std::cout << " Move ended : " << move_var["Position"][0] << " " << move_var["Position"][1] << std::endl;
+    
+  }
+
+  // Bank to record when move started
+  if(gNewMoveStarted){
+
+    char bk_name[4] = "BONM";
+    double *unused_pointer2;
+    bk_create(pevent, bk_name, TID_DOUBLE,(void **) &unused_pointer2);
+    *unused_pointer2++ = (double) gbl_current_point;
+    bk_close(pevent, unused_pointer2);
+    std::cout << " Move started : " << move_var["Position"][0] << " " << move_var["Position"][1] << std::endl;
 
   }
 
   gNewScanningPoint = false;
+  gNewMoveStarted = false;
 
 
   return bk_size(pevent);
